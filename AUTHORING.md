@@ -60,6 +60,28 @@ plaintext for the next half hour while six consecutive builds failed on an unrel
 broken link. **Check the footer build stamp after changing a status.** If it is not
 your PR or push, your change is not live, whatever the source says.
 
+### ⚠️ And a green build is still not proof: check with a cache-buster
+
+Even after a passing deploy, **the old page can keep being served from cache** — the
+GitHub Pages CDN, a phone browser, or anything in between. On 2026-08-01 this cost
+real time twice in one night: `docs/safety/index.md` was reported as "gated but
+serving plaintext" across what looked like two separate green builds, and it was
+neither a code bug nor a stale build. **The gate had been working the whole time.**
+Every check had been reading a cached copy.
+
+**Confirm a visibility change like this, in this order:**
+
+1. Load the page with a junk query string: `…/safety/?x=1`. A query string the CDN has
+   never seen forces a fresh fetch. **This is the single most useful trick on this
+   page.**
+2. Cross-check `/search/search_index.json`. It is regenerated every build and is rarely
+   cached in step with the HTML. A gated page appears there as *"Restricted page …
+   Unlock"* and nothing else. If the index says gated and the page looks open, you are
+   looking at a cache, not a bug.
+
+**A check that returns the same answer whether or not you are right has verified
+nothing.** A plain reload is exactly that check.
+
 ---
 
 ## The gate
@@ -265,6 +287,11 @@ No `id:` is fine for a page nothing links to yet: the filename stands in, and a
 folder's `index.md` takes the folder's name. Declare one properly the moment anything
 links to the page.
 
+**House style: lowercase kebab-case**, matching the filename (`todd-lockup-procedure`,
+not `Todd-Lock-up`). Capitals and underscores resolve fine, so this is a convention
+rather than a rule, but an id is typed by hand in every link that points at it and a
+mixed-case one gets mistyped.
+
 ### Linking to a heading
 
 Give the heading an explicit anchor and link to that:
@@ -293,6 +320,53 @@ aliases:
 The build writes a redirect at the old URL. An alias that collides with a real page is
 skipped and reported rather than overwriting it.
 
+---
+
+## Backlinks — "Linked from"
+
+**Every page automatically grows a `Linked from` section listing the pages that point
+at it. You never write one and you cannot get one wrong.**
+
+Because `hooks/links.py` already resolves every internal link, it also knows every
+link in reverse. Link Safety → Smith Theatre once, and Smith Theatre gains a link back
+to Safety on its own. The relationship is mutual, so both ends show it.
+
+```markdown
+## Linked from
+
+- [Safety and health](…)
+- [Todd Theatre](…)
+```
+
+Things worth knowing:
+
+- **It is built from the source files, not from the page you are on**, so a link added
+  on a page later in the build still registers. Order does not matter.
+- **`unlisted` pages are never named as a source.** Unlisted means nobody discovers the
+  page; listing it on a public one is exactly discovery. This is deliberate and it is
+  the one rule in the backlink index you should not "fix".
+- **Self-links are dropped**, so a page's own Related section never cites itself.
+- The heading carries a stable `{#linked-from}` anchor, so you can deep-link to it.
+- A page nothing links to simply has no section. Those pages are listed as `orphans`
+  in the link report — **not an error**, since a section landing page is reached from
+  the sidebar, but useful to glance at.
+- Kill switch: set `URITP_BACKLINKS=0` in the build environment. Unwiring the whole
+  hook would take id resolution down with it, which is not what you want.
+
+### Instant previews (desktop)
+
+Hovering an internal link shows a card previewing the target page. Enabled in
+`mkdocs.yml` via `material.extensions.preview`, and free as of Material 9.7 — which is
+why `requirements.txt` floors there.
+
+⚠️ **This is a desktop-only nicety and must never be mistaken for the mechanism.** It
+fires on hover and focus, and there is no hover on a phone. The thing that works on
+every device, in print, and in search is the `Linked from` section above.
+
+A preview over a `gated` link shows the unlock box, not the content. That was checked,
+not assumed: the preview fetches the **built** page, and a built gated page contains
+only the form plus ciphertext.
+
 ### What a broken link looks like now
 
 It does **not** fail the build. The link text renders in red with a dashed underline
@@ -312,6 +386,9 @@ Every build writes:
 | `missing-anchor` | The anchor does not exist; the link lands at the top of the page. |
 | `duplicate-id` | Two pages claim one id. The second is unreachable by id. |
 | `alias-collision` | A retired URL is already a real page. Redirect skipped. |
+
+The report also carries `pages_with_backlinks` and an `orphans` list. Neither is a
+failure; both are there to be glanced at.
 
 **Never use a full `https://` URL for an internal page.** It works, which is the
 problem: it dodges every check above and rots silently.
@@ -429,7 +506,8 @@ or three people debugging a deploy.
 
 ⚠️ **A PR number only reads as stale if you know the current one.** When a build looks
 suspicious, check the [Actions runs](https://github.com/maw-agents/uritp-docs/actions)
-rather than squinting at the footer.
+rather than squinting at the footer. And remember the stamp itself can be cached —
+see the cache-buster note under *Publication status*.
 
 ---
 
@@ -446,6 +524,7 @@ is deliberately short, and **links are no longer on it**.
 | 4 | No blank line before a table or list | No | Renders as one mashed paragraph, which makes it easier to miss. |
 | 5 | Two H1s on a page | No, renders wrong | Breaks the outline and the page title. |
 | 6 | Missing or misspelled `status:` | No | The page silently will not build. Nothing errors: it just is not there. |
+| 7 | Lowering `mkdocs-material` below 9.7 | **Yes** | `material.extensions.preview` does not exist there, and an unknown extension is fatal. |
 
 **When a build does fail, the live site keeps serving the previous commit.** There is
 no banner and no error page: it simply stops updating. The footer build stamp is the
@@ -461,6 +540,8 @@ No git, no terminal, nothing installed. Works from a phone.
 2. Edit the markdown. Commit.
 3. Wait about ninety seconds. Actions rebuilds and the page updates.
 4. **Check the footer stamp.** If it is not your edit, the build failed.
+5. If the page looks unchanged but the stamp is current, **add `?x=1` to the URL** and
+   look again. You were reading a cache.
 
 ---
 
@@ -472,12 +553,13 @@ Each carries a pointer comment at the top saying so.
 | File | Holds | Update here when |
 |---|---|---|
 | `mkdocs.yml` | Theme, features, markdown extensions, hook order | An extension, plugin, or hook is added or removed |
+| `requirements.txt` | Build dependency floors | A floor moves, or a pinned feature is added or dropped |
 | `docs/.nav.yml` | Top-level sidebar order | The add-a-page procedure changes |
 | `docs/<folder>/.nav.yml` | That section's displayed title | The per-folder title mechanism changes |
 | `docs/stylesheets/uritp.css` | Palette, headings, `.tbc`, `.gate`, print rules | A custom class is added, renamed, or dropped |
 | `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
 | `hooks/visibility.py` | The `status:` gate and the encryption | A status value is added or renamed, or its behaviour changes |
-| `hooks/links.py` | `@id` resolution, aliases, the link report | The link syntax, a report kind, or the fail-vs-report stance changes |
+| `hooks/links.py` | `@id` resolution, backlinks, aliases, the link report | The link syntax, a report kind, the backlink rules, or the fail-vs-report stance changes |
 | `hooks/buildstamp.py` | The footer stamp | What the stamp shows changes |
 | `docs/javascripts/gate.js` | Browser-side unlock | The crypto parameters or the unlock flow change |
 

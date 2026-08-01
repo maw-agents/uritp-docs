@@ -1,5 +1,5 @@
 """
-Stable-identity internal links.
+Stable-identity internal links, and the backlinks they make possible.
 
 A link names a page's IDENTITY, never its location:
 
@@ -31,6 +31,27 @@ One typo must never again freeze an entire reference site that somebody is
 trying to load a show from. The failure becomes local and visible instead of
 global and silent. Set URITP_LINKS_STRICT=1 to restore hard-fail behaviour.
 
+BACKLINKS (added 2026-08-01)
+The id registry already knows every link on the site, so the reverse map is
+free: each page renders a `Linked from` section naming every page that points
+at it. Michael's ask was for a link to "pop up to link to both pages" -- the
+relationship is mutual, so both ends should show it.
+
+Why this and not only hover previews: previews fire on HOVER, and this site is
+read on a phone at least as often as on a desktop. A backlink is a rendered
+list. It works on a touch screen, in print, and in the search index. Instant
+previews are enabled too (mkdocs.yml), but they are the desktop bonus, not the
+mechanism.
+
+Two rules the backlink index must not break:
+
+  1. An `unlisted` page is NEVER named as a source. Unlisted means nobody
+     discovers it; listing it on a public page is precisely discovery, and
+     would quietly convert the weakest visibility state into the loudest.
+     `hidden` needs no rule -- visibility.py drops those before this hook
+     ever sees the file list.
+  2. Self-links are dropped, or a page's own Related section would cite it.
+
 WHAT IT DELIBERATELY DOES NOT DO
 It does not resolve by heading text. `mkdocs-autorefs` does, and that trades one
 fragile key for another: an anchor derived from a heading slug dies the moment
@@ -54,6 +75,13 @@ from mkdocs.utils import get_relative_url
 
 STRICT = os.environ.get("URITP_LINKS_STRICT") == "1"
 
+# Set URITP_BACKLINKS=0 to turn the Linked-from sections off without unwiring
+# the hook, which would take id resolution down with it.
+BACKLINKS = os.environ.get("URITP_BACKLINKS", "1") != "0"
+
+BACKLINK_HEADING = "Linked from"
+BACKLINK_ANCHOR = "linked-from"
+
 _FRONTMATTER = re.compile(rb"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
 _FENCE = re.compile(r"(^```.*?^```)", re.DOTALL | re.MULTILINE)
 
@@ -66,7 +94,9 @@ _MDLINK = re.compile(
 )
 
 _HEADING = re.compile(r"^#{1,6}[ \t]+(.+?)[ \t]*$", re.MULTILINE)
+_H1 = re.compile(r"^#[ \t]+(.+?)[ \t]*$", re.MULTILINE)
 _EXPLICIT_ID = re.compile(r"\{#([\w.-]+)\}\s*$")
+_TRAILING_ID = re.compile(r"\s*\{#[\w.-]+\}\s*$")
 
 _REDIRECT = (
     '<!doctype html>\n<html lang="en">\n<head>\n'
@@ -80,10 +110,15 @@ _REDIRECT = (
     '</body>\n</html>\n'
 )
 
-_by_id = {}      # page id            -> src_uri
-_files = {}      # src_uri            -> mkdocs File
-_anchors = {}    # src_uri            -> (explicit ids, heading-text slugs)
-_alias = {}      # retired url path   -> src_uri
+_by_id = {}      # page id        -> src_uri
+_id_of = {}      # src_uri        -> page id
+_files = {}      # src_uri        -> mkdocs File
+_anchors = {}    # src_uri        -> (explicit ids, heading-text slugs)
+_alias = {}      # retired url    -> src_uri
+_bodies = {}     # src_uri        -> raw markdown, for the backlink pass
+_titles = {}     # src_uri        -> display title
+_nameable = {}   # src_uri        -> may this be NAMED as a backlink source?
+_backlinks = {}  # target src_uri -> set of source src_uri
 _issues = []
 
 
@@ -126,14 +161,89 @@ def _fallback_id(src_uri):
     return posixpath.basename(parent) if parent else "home"
 
 
+def _title_for(meta, body, src_uri):
+    """Frontmatter title, else the H1, else the filename. The H1 fallback is
+    what keeps a backlink readable on a page whose author skipped `title:`."""
+    declared = meta.get("title")
+    if declared:
+        return str(declared).strip()
+    found = _H1.search(body)
+    if found:
+        return _TRAILING_ID.sub("", found.group(1)).strip()
+    return _fallback_id(src_uri).replace("-", " ")
+
+
 def _note(kind, page_src, link, detail):
     _issues.append(
         {"kind": kind, "page": page_src, "link": link, "detail": detail}
     )
 
 
+def _prose_parts(body):
+    """Everything outside fenced code. A page documenting the link syntax must
+    not have its examples counted as real links."""
+    return [p for p in _FENCE.split(body) if not p.startswith("```")]
+
+
+def _outbound(src_uri, body):
+    """Every page this one points at, as src_uris. Unresolvable links are
+    ignored here: they are already reported during rendering, and reporting
+    them twice would double every count in the link report."""
+    targets = set()
+    base = posixpath.dirname(src_uri)
+
+    for part in _prose_parts(body):
+        for match in _IDLINK.finditer(part):
+            target = _by_id.get(match.group(2))
+            if target:
+                targets.add(target)
+        for match in _MDLINK.finditer(part):
+            target = posixpath.normpath(posixpath.join(base, match.group(2)))
+            if target in _files:
+                targets.add(target)
+
+    targets.discard(src_uri)
+    return targets
+
+
+def _index_backlinks():
+    """Runs after every id is registered, never inside the first pass: a page
+    linking to one declared later in the walk would otherwise be dropped."""
+    for src_uri, body in _bodies.items():
+        for target in _outbound(src_uri, body):
+            _backlinks.setdefault(target, set()).add(src_uri)
+
+
+def _backlink_block(src_uri):
+    sources = _backlinks.get(src_uri)
+    if not sources:
+        return ""
+
+    rows = []
+    for source in sources:
+        if not _nameable.get(source, True):
+            continue          # unlisted: naming it here IS discovery
+        page_id = _id_of.get(source)
+        if page_id:
+            rows.append((_titles.get(source, page_id), page_id))
+
+    if not rows:
+        return ""
+
+    rows.sort(key=lambda row: row[0].lower())
+    lines = ["- [" + title + "](@" + pid + ")" for title, pid in rows]
+    return (
+        "\n\n## " + BACKLINK_HEADING + " {#" + BACKLINK_ANCHOR + "}\n\n"
+        + "\n".join(lines)
+        + "\n"
+    )
+
+
 def on_files(files, config):
-    for store in (_by_id, _files, _anchors, _alias):
+    for store in (
+        _by_id, _id_of, _files, _anchors, _alias,
+        _bodies, _titles, _nameable, _backlinks,
+    ):
         store.clear()
     del _issues[:]
 
@@ -142,7 +252,12 @@ def on_files(files, config):
             continue
 
         meta, body = _read(f.abs_src_path)
+        status = str(meta.get("status", "")).strip().lower()
+
         _files[f.src_uri] = f
+        _bodies[f.src_uri] = body
+        _titles[f.src_uri] = _title_for(meta, body, f.src_uri)
+        _nameable[f.src_uri] = status != "unlisted"
 
         declared = meta.get("id")
         page_id = str(declared).strip() if declared else _fallback_id(f.src_uri)
@@ -154,6 +269,7 @@ def on_files(files, config):
             )
         else:
             _by_id[page_id] = f.src_uri
+            _id_of[f.src_uri] = page_id
 
         explicit, auto = set(), set()
         for heading in _HEADING.findall(body):
@@ -161,6 +277,7 @@ def on_files(files, config):
             if found:
                 explicit.add(found.group(1))
             auto.add(_slug(heading))
+        explicit.add(BACKLINK_ANCHOR)   # this hook emits it; it is a real target
         _anchors[f.src_uri] = (explicit, auto)
 
         for old in meta.get("aliases") or []:
@@ -171,6 +288,9 @@ def on_files(files, config):
                 key = key[: -len("/index")]
             if key:
                 _alias[key] = f.src_uri
+
+    if BACKLINKS:
+        _index_backlinks()
 
     return files
 
@@ -244,7 +364,7 @@ def _resolve_md(match, page):
     _note(
         "legacy-path", page.file.src_uri, shown,
         "path-based link; rewrite as @"
-        + next((i for i, s in _by_id.items() if s == target_src), "?")
+        + _id_of.get(target_src, "?")
         + " so a future move cannot break it",
     )
 
@@ -256,6 +376,11 @@ def _resolve_md(match, page):
 
 
 def on_page_markdown(markdown, page, config, files):
+    # Appended BEFORE resolution so the generated @id links travel exactly the
+    # same path, and the same reporting, as a hand-written one.
+    if BACKLINKS:
+        markdown += _backlink_block(page.file.src_uri)
+
     parts = _FENCE.split(markdown)
     for i, part in enumerate(parts):
         if part.startswith("```"):
@@ -295,14 +420,29 @@ def _write_aliases(site_dir):
     return written
 
 
+def _orphans():
+    """Pages nothing links to. Not an error: a section landing page is reached
+    from the sidebar and needs no inbound link. But it is the one thing a
+    backlink index can see that nobody else can, so it is worth printing
+    rather than acting on."""
+    return sorted(
+        src for src in _files
+        if src not in _backlinks and posixpath.basename(src) != "index.md"
+    )
+
+
 def on_post_build(config):
     site_dir = config["site_dir"]
     redirects = _write_aliases(site_dir)
+    orphans = _orphans() if BACKLINKS else []
 
     report = {
         "generated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "pages_indexed": len(_by_id),
         "redirects_written": redirects,
+        "backlinks_enabled": BACKLINKS,
+        "pages_with_backlinks": len(_backlinks),
+        "orphans": orphans,
         "issues": _issues,
     }
     with open(os.path.join(site_dir, "link-report.json"), "w", encoding="utf-8") as fh:
@@ -312,8 +452,11 @@ def on_post_build(config):
     for issue in _issues:
         counts[issue["kind"]] = counts.get(issue["kind"], 0) + 1
 
-    headline = "links: " + str(len(_by_id)) + " pages indexed, " + str(redirects) \
-        + " redirects written"
+    headline = (
+        "links: " + str(len(_by_id)) + " pages indexed, "
+        + str(len(_backlinks)) + " with backlinks, "
+        + str(redirects) + " redirects written"
+    )
     if counts:
         headline += " -- " + ", ".join(
             k + " x" + str(v) for k, v in sorted(counts.items())
@@ -334,6 +477,16 @@ def on_post_build(config):
             )
     else:
         lines.append("No issues. Every internal link resolved.")
+
+    if orphans:
+        lines += [
+            "",
+            "<details><summary>Nothing links to these "
+            + str(len(orphans)) + " pages</summary>",
+            "",
+        ]
+        lines += ["- `" + src + "`" for src in orphans]
+        lines += ["", "</details>"]
 
     with open(summary, "a", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
