@@ -27,17 +27,26 @@ many groups can open it, and rotating one group's key rewraps 100 bytes
 without touching the body or any other group. The wrap list is SHUFFLED and
 unlabelled: which desk can open a document is itself information.
 
-HOW A GROUP NAME FINDS ITS KEY -- there is no mapping table
-A group is an environment variable named URITP_GATE_<GROUP>, uppercased with
-hyphens turned into underscores. `psm` is URITP_GATE_PSM; `front-of-house` is
-URITP_GATE_FRONT_OF_HOUSE. That is a DERIVATION, not a lookup: nothing in this
-repository lists the group names, so adding one is creating the secret and
-using its name. The workflow discovers keys by this prefix (see
-.github/workflows/deploy.yml -> Collect gate keys) rather than naming them.
+HOW A GROUP NAME FINDS ITS KEY -- four names, all the same string
 
-The prefix is load-bearing and is the reason the derivation exists at all.
-Without it the hook would have to treat EVERY environment variable as a
-possible password, which would make PATH and HOME into gate keys.
+    page frontmatter        gates: [psm]
+    this hook derives       URITP_GATE_ + PSM   (upper, hyphens -> underscores)
+    reads                   os.environ["URITP_GATE_PSM"]
+    put there by            deploy.yml: URITP_GATE_PSM: ${{ secrets.<same> }}
+    whose value is          the repository secret URITP_GATE_PSM
+
+The hook's half is a DERIVATION, not a lookup: `_env_key()` is three string
+operations and consults no table. The prefix is load-bearing -- without it
+every environment variable would be a candidate password, including PATH.
+
+~~The workflow discovers keys by this prefix (see deploy.yml -> Collect gate
+keys) rather than naming them.~~ **FALSE as of 2026-08-01, and it was false
+the moment the revert landed.** That step existed for about four minutes.
+Prefix discovery needed `${{ toJSON(secrets) }}`, whose first run came back
+`action_required` with zero jobs and never deployed. deploy.yml now carries an
+explicit list of PRE-WIRED slots: names are plumbed through whether or not
+their secret exists, since an unset secret is an empty string and empty values
+are ignored here. A group named outside that list needs one line added there.
 
 FOLDER INHERITANCE
 **A gated `index.md` locks its whole subtree.** Every page beneath it inherits
@@ -87,9 +96,9 @@ ITERATIONS = 250000
 
 ENV_PREFIX = "URITP_GATE_"
 
-# NOT URITP_GATE_STRICT. Every URITP_GATE_* variable is now discovered as a
-# password group, so that name would have registered a gate called "strict"
-# whose password was "1". A control flag inside the namespace it controls is a
+# NOT URITP_GATE_STRICT. This hook treats every URITP_GATE_* variable as a
+# password group, so that name would register a gate called "strict" whose
+# password is "1". A control flag inside the namespace it controls is a
 # collision waiting to happen; keep flags on URITP_GATES_* (plural) and keys on
 # URITP_GATE_* (singular).
 STRICT = os.environ.get("URITP_GATES_STRICT") == "1"
@@ -154,6 +163,7 @@ def _gate_names(meta):
 
 
 def _env_key(name):
+    """psm -> URITP_GATE_PSM. Three string operations, no table."""
     return ENV_PREFIX + name.upper().replace("-", "_")
 
 
@@ -497,9 +507,9 @@ def _report():
     lines += [
         "",
         "Add a repository secret named `" + ENV_PREFIX + "<GROUP>` in "
-        "**Settings -> Secrets and variables -> Actions**. The build discovers "
-        "it by prefix; there is no list to update. See AUTHORING.md -> Adding "
-        "a key group.",
+        "**Settings -> Secrets and variables -> Actions**. If the group name is "
+        "not one of the pre-wired slots in `.github/workflows/deploy.yml`, add "
+        "a line there too. See AUTHORING.md -> Adding a key group.",
     ]
     with open(summary, "a", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
