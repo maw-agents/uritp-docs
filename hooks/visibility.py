@@ -23,30 +23,50 @@ A gated page may name several groups, and ANY ONE of their passwords opens it:
 ENVELOPE encryption, not N copies: a random content key (CEK) encrypts the
 finished HTML ONCE, then the CEK is separately encrypted for each group. A
 wrapped CEK is ~100 bytes, so page weight is effectively independent of how
-many groups can open it, and rotating one group's key rewraps 100 bytes
-without touching the body or any other group. The wrap list is SHUFFLED and
-unlabelled: which desk can open a document is itself information.
+many groups can open it. The wrap list is SHUFFLED and unlabelled: which desk
+can open a document is itself information.
 
-HOW A GROUP NAME FINDS ITS KEY -- four names, all the same string
+=======================================================================
+WHERE A GROUP NAME FINDS ITS PASSWORD -- two tiers, and the name never
+changes shape
+=======================================================================
 
-    page frontmatter        gates: [psm]
-    this hook derives       URITP_GATE_ + PSM   (upper, hyphens -> underscores)
-    reads                   os.environ["URITP_GATE_PSM"]
-    put there by            deploy.yml: URITP_GATE_PSM: ${{ secrets.<same> }}
-    whose value is          the repository secret URITP_GATE_PSM
+TIER 1, the container. ONE repository secret, URITP_GATE_KEYS, holding a
+block of lines:
 
-The hook's half is a DERIVATION, not a lookup: `_env_key()` is three string
-operations and consults no table. The prefix is load-bearing -- without it
-every environment variable would be a candidate password, including PATH.
+    # URITP docs gate keys. One group per line: name = password
+    admin = ...
+    dev   = ...
+    psm   = ...
 
-~~The workflow discovers keys by this prefix (see deploy.yml -> Collect gate
-keys) rather than naming them.~~ **FALSE as of 2026-08-01, and it was false
-the moment the revert landed.** That step existed for about four minutes.
-Prefix discovery needed `${{ toJSON(secrets) }}`, whose first run came back
-`action_required` with zero jobs and never deployed. deploy.yml now carries an
-explicit list of PRE-WIRED slots: names are plumbed through whether or not
-their secret exists, since an unset secret is an empty string and empty values
-are ignored here. A group named outside that list needs one line added there.
+The key in that block is the EXACT string a page writes in `gates:`. No
+uppercasing, no prefix, no transformation. `gates: [psm]` looks up `psm`.
+Adding a group is adding a line to that secret's value -- no file in this
+repository changes, and no name is chosen by anything but Michael.
+
+TIER 2, the rotation hatch. A single group MAY instead live in its own
+secret, URITP_GATE_<GROUP>, uppercased with hyphens as underscores.
+
+    THIS EXISTS FOR EXACTLY ONE REASON and it is not "the other way to do
+    it": rotating a key inside the container means repasting the WHOLE block
+    from memory, because GitHub never shows you a secret's current value. For
+    a high-churn key -- the one reissued to a new cohort every September --
+    that risks the other nine every time it turns over. Its own secret makes
+    that rotation atomic.
+
+    A group in its own secret needs one line in deploy.yml, because GitHub
+    only hands a workflow the secrets it names. That is the cost of the
+    hatch and it is why the hatch is the exception, not the default.
+
+PRECEDENCE: the container wins. A name present in both tiers resolves from
+the container and the duplicate is reported -- silently preferring either one
+would make a half-finished migration undetectable.
+
+NOTE what disappeared with the old single-tier design: `_env_key()` for
+container groups, the mandatory URITP_GATE_ prefix, the reserved-namespace
+rule, and the URITP_GATE_STRICT collision that rule existed to prevent. The
+derivation survives ONLY inside the hatch, where a real environment variable
+name is unavoidable.
 
 FOLDER INHERITANCE
 **A gated `index.md` locks its whole subtree.** Every page beneath it inherits
@@ -56,7 +76,7 @@ The nearest gated ancestor wins; a page overrides by declaring its own
 `status:` (any value) or `inherit: false`. Only silence inherits.
 
 A MISSING KEY LOCKS THE PAGE, IT DOES NOT FREEZE THE SITE
-A gated page naming a group with no secret behind it publishes as an
+A gated page naming a group with no password behind it publishes as an
 unopenable notice: the content is DROPPED (not encrypted, not shipped), the
 page says so plainly, the build reports it loudly, and everything else
 deploys. Failing the whole build here took the entire site stale over one
@@ -65,10 +85,19 @@ over a single dead link, rejected for the same reason. The failure must be
 local and visible, not global and silent. URITP_GATES_STRICT=1 restores
 hard-fail.
 
-NONE of these are access control while the repository is public. The markdown
+🔒 NEVER PRINT A PASSWORD, ONLY A GROUP NAME. Names are already public in page
+frontmatter. Values are not, and GitHub's log masking is a literal string
+match that is NOT known to survive splitting a multi-line secret into lines --
+unverified as of 2026-08-01, so this file simply never emits one.
+
+NONE of this is access control while the repository is public. The markdown
 source of every page, INCLUDING a gated page's plaintext, is readable at
-github.com by anyone. Secrets keep the PASSWORD out of the repo; they do not
-keep the CONTENT out. See AUTHORING.md -> "What the gate actually does".
+github.com by anyone. The keystore keeps PASSWORDS out of the repo; it does
+not keep CONTENT out. See AUTHORING.md -> "What the gate actually does".
+
+📋 The readable copy of the keys lives in the ClickUp Accounts task, linked
+from AUTHORING.md -> Adding a key group. A secret cannot be read back, so
+that task is the master and this build is the copy.
 
 Wired in mkdocs.yml under `hooks:`. Documented in AUTHORING.md. Its browser
 half is docs/javascripts/gate.js: the two share the cipher, the KDF and the
@@ -94,13 +123,11 @@ DEFAULT = "hidden"
 ALLOWED = {"public", "gated", "unlisted", "hidden"}
 ITERATIONS = 250000
 
-ENV_PREFIX = "URITP_GATE_"
+CONTAINER = "URITP_GATE_KEYS"
+ENV_PREFIX = "URITP_GATE_"      # tier 2 only: the rotation hatch
 
-# NOT URITP_GATE_STRICT. This hook treats every URITP_GATE_* variable as a
-# password group, so that name would register a gate called "strict" whose
-# password is "1". A control flag inside the namespace it controls is a
-# collision waiting to happen; keep flags on URITP_GATES_* (plural) and keys on
-# URITP_GATE_* (singular).
+# NOT URITP_GATE_STRICT -- that name would read as a hatch group called
+# "strict" whose password is "1". Flags are plural, keys are singular.
 STRICT = os.environ.get("URITP_GATES_STRICT") == "1"
 
 NOINDEX = '<meta name="robots" content="noindex, nofollow">'
@@ -109,12 +136,63 @@ _FRONTMATTER = re.compile(rb"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
 _SPAN = re.compile(r"\[([^\[\]\n]+)\]\{\s*\.([A-Za-z][\w-]*)\s*\}")
 _FENCE = re.compile(r"(^```.*?^```)", re.DOTALL | re.MULTILINE)
 
-_status = {}        # src_uri -> resolved status
-_keys = {}          # src_uri -> passwords that open it
-_unconfigured = {}  # src_uri -> gate names with no secret behind them
+_keystore = {}      # group name -> password
+_store_notes = []   # parse warnings, safe to print (names only)
+_status = {}
+_keys = {}
+_unconfigured = {}
 _nolist = set()
 _inherited = set()
 _noindex_paths = set()
+
+
+def _load_keystore():
+    """Parse URITP_GATE_KEYS once per build.
+
+    Every rule below is a real failure mode raised in review, not defensive
+    habit -- each one is silent and each one produces a working site with one
+    broken group, which is worse than a loud failure.
+    """
+    _keystore.clear()
+    del _store_notes[:]
+
+    raw = os.environ.get(CONTAINER, "")
+    if not raw.strip():
+        return
+
+    for number, line in enumerate(raw.splitlines(), start=1):
+        line = line.strip()
+        if not line:
+            continue
+        # `#` is a comment ONLY at the start of a line. Mid-line it is an
+        # ordinary password character and must survive.
+        if line.startswith("#"):
+            continue
+        if "=" not in line:
+            _store_notes.append("line " + str(number) + " has no '=', skipped")
+            continue
+
+        # Split on the FIRST '=' only: a password may legitimately contain one.
+        name, _, value = line.partition("=")
+        name = name.strip().lower()
+        # Trailing spaces are invisible in the GitHub secret box and would
+        # break every unlock with no error anywhere.
+        value = value.strip()
+
+        if not name:
+            _store_notes.append("line " + str(number) + " has no name, skipped")
+            continue
+        if not value:
+            _store_notes.append("group '" + name + "' has an empty password, skipped")
+            continue
+        if name in _keystore:
+            # FIRST wins, and say so. Last-wins would be silent.
+            _store_notes.append(
+                "group '" + name + "' appears twice; the first one is used"
+            )
+            continue
+
+        _keystore[name] = value
 
 
 def _read_meta(abs_path):
@@ -159,22 +237,38 @@ def _gate_names(meta):
         return []
     if isinstance(names, str):
         names = [names]
-    return [str(n).strip() for n in names if str(n).strip()]
+    return [str(n).strip().lower() for n in names if str(n).strip()]
 
 
-def _env_key(name):
-    """psm -> URITP_GATE_PSM. Three string operations, no table."""
+def _hatch_var(name):
+    """Tier 2 only. psm -> URITP_GATE_PSM."""
     return ENV_PREFIX + name.upper().replace("-", "_")
 
 
+def _password_for(name):
+    """Container first, then the rotation hatch. Returns (password, note)."""
+    inside = _keystore.get(name)
+    outside = os.environ.get(_hatch_var(name))
+
+    if inside and outside:
+        return inside, (
+            "group '" + name + "' is in both " + CONTAINER + " and "
+            + _hatch_var(name) + "; the container wins -- remove one"
+        )
+    if inside:
+        return inside, None
+    if outside:
+        return outside, None
+    return None, None
+
+
 def _available():
-    """Group names the build environment can actually satisfy, lowercased back
-    into the form a page would write. Used only to make the error message
-    useful -- a NAME is not a secret, it is written in frontmatter."""
-    found = []
+    """Every group the build can satisfy, from both tiers. NAMES ONLY -- these
+    are already written in page frontmatter and are not secret."""
+    found = set(_keystore)
     for key, value in os.environ.items():
-        if key.startswith(ENV_PREFIX) and value:
-            found.append(key[len(ENV_PREFIX):].lower())
+        if key.startswith(ENV_PREFIX) and value and key != CONTAINER:
+            found.add(key[len(ENV_PREFIX):].lower())
     return sorted(found)
 
 
@@ -192,23 +286,21 @@ def _resolve_keys(meta, src_uri):
         found.append(str(literal))
 
     for name in _gate_names(meta):
-        secret = os.environ.get(_env_key(name))
-        if secret:
-            found.append(secret)
+        password, note = _password_for(name)
+        if note and note not in _store_notes:
+            _store_notes.append(note)
+        if password:
+            found.append(password)
         else:
             missing.append(name)
 
     problems = []
     if missing:
         have = _available()
-        detail = (
-            "no secret named "
-            + ", ".join(_env_key(n) for n in missing)
-            + " reached the build"
-        )
+        detail = "no password for group(s): " + ", ".join(missing)
         detail += (
             "; groups available right now: " + ", ".join(have)
-            if have else "; no gate keys reached the build at all"
+            if have else "; the keystore is empty -- is " + CONTAINER + " set?"
         )
         problems.append(detail)
 
@@ -293,11 +385,14 @@ def _keys_attr(wraps):
 
 
 def on_files(files, config):
-    """Resolve status for every page, THEN drop what must not be built.
+    """Load the keystore, resolve status for every page, THEN drop what must
+    not be built.
 
-    Two passes, because inheritance cannot be decided while still walking: a
-    folder's index.md may be read after one of its children.
+    Two passes over the pages, because inheritance cannot be decided while
+    still walking: a folder's index.md may be read after one of its children.
     """
+    _load_keystore()
+
     for store in (_status, _keys, _unconfigured):
         store.clear()
     _nolist.clear()
@@ -472,9 +567,16 @@ def on_post_page(output, page, config):
 
 def _report():
     """Loud, because the whole point of not failing the build is that the
-    problem must not become invisible instead."""
+    problem must not become invisible instead.
+
+    🔒 Group NAMES only. Never a password, never a length, never a fragment.
+    """
     have = _available()
-    print("gate: keys available -- " + (", ".join(have) if have else "none"))
+    print("gate: " + str(len(have)) + " group(s) loaded -- "
+          + (", ".join(have) if have else "NONE"))
+
+    for note in _store_notes:
+        print("::warning::gate keystore: " + note)
 
     if _inherited:
         print("gate: " + str(len(_inherited)) + " page(s) locked by a parent index")
@@ -493,8 +595,26 @@ def _report():
     if not summary:
         return
 
+    # Distinguish "no keystore at all" from "keystore present but this group
+    # is not in it" -- identical symptoms, completely different fixes.
+    if not have:
+        cause = (
+            "**No gate keys reached this build at all.** Either the "
+            "`" + CONTAINER + "` secret does not exist, or it is empty, or "
+            "everything in it failed to parse (see any keystore warnings "
+            "above)."
+        )
+    else:
+        cause = (
+            "The keystore loaded **" + str(len(have)) + " group(s)** ("
+            + ", ".join(have) + "), but the page(s) below name something else. "
+            "Check the spelling in `gates:` against that list."
+        )
+
     lines = [
         "### \u26a0\ufe0f Gate keys not configured",
+        "",
+        cause,
         "",
         "These pages published as an unopenable notice. Their content was NOT "
         "shipped, and the rest of the site deployed normally.",
@@ -506,10 +626,11 @@ def _report():
         lines.append("| `" + src + "` | " + "; ".join(problems) + " |")
     lines += [
         "",
-        "Add a repository secret named `" + ENV_PREFIX + "<GROUP>` in "
-        "**Settings -> Secrets and variables -> Actions**. If the group name is "
-        "not one of the pre-wired slots in `.github/workflows/deploy.yml`, add "
-        "a line there too. See AUTHORING.md -> Adding a key group.",
+        "Add the group to the `" + CONTAINER + "` secret as a "
+        "`name = password` line (**Settings -> Secrets and variables -> "
+        "Actions**). The readable copy of that block lives in the ClickUp "
+        "Accounts task -- update it there first, then paste. "
+        "See AUTHORING.md -> Adding a key group.",
     ]
     with open(summary, "a", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
