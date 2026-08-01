@@ -9,7 +9,7 @@ as a reader-facing page: it documents the machine, not the theatre.
 > land in one PR or the pointer has failed.
 
 **Describes:** `mkdocs.yml` · `docs/.nav.yml` · `docs/stylesheets/uritp.css` ·
-`hooks/visibility.py`
+`hooks/visibility.py` · `docs/javascripts/gate.js`
 
 ---
 
@@ -17,47 +17,128 @@ as a reader-facing page: it documents the machine, not the theatre.
 
 **Every page needs a `status:` line. A page without one is never built.**
 
-| Status | Sidebar | Direct link | Search | Use for |
+| Status | In the sidebar? | Direct link? | In search? | What is in the served HTML |
 |---|---|---|---|---|
-| `public` | Listed | Works | Indexed | Finished, gatekept, ready to be relied on |
-| `unlisted` | Not listed | Works | Not indexed | A draft you want to hand to one person |
-| `hidden` | Not listed | 404 | No | Not ready. **This is the default.** |
+| `public` | **Yes** | Works | **Yes** | The real text |
+| `gated` | **Yes** | Works, shows a password box | Title only | Ciphertext |
+| `unlisted` | No | **Works** | No | The real text |
+| `hidden` | No | **404** | No | Nothing. Page is never built. |
+
+### The two questions that separate them
+
+**1. Can someone reach it by typing or pasting the URL?**
+
+- `hidden` → **no.** The file is dropped before the build. The URL 404s. It does not
+  exist on the site in any form.
+- `unlisted` → **yes.** The page is fully built and fully readable. It is simply not
+  linked from anywhere and not in search. Anyone holding the URL reads it instantly.
+
+That is the whole difference. `hidden` is *not published*. `unlisted` is *published
+without a signpost*. An unlisted URL forwarded in one email is public from then on.
+
+**2. Do you want people to know the page exists?**
+
+- `gated` → **yes.** It sits in the sidebar where everyone sees it, and asks for a
+  password. Use it when the existence of the page is not the secret.
+- `unlisted` → **no.** Nobody discovers it; you hand out the link.
+
+### Choosing
+
+| Situation | Use |
+|---|---|
+| Finished, gatekept, safe to design from | `public` |
+| Draft you are circulating to named people for comment | `gated` |
+| One-off you want to send to a single person, no password ceremony | `unlisted` |
+| Half-written, not for anyone yet | `hidden` |
+
+---
+
+## The gate
 
 ```markdown
 ---
-title: Rehearsal Studio
-status: hidden
+title: Paperwork standards
+status: gated
+password: theatre2026
 ---
 ```
 
-Default-hidden means a half-written page cannot reach a student by accident. You
-promote it deliberately: `hidden` while you draft, `unlisted` when you want a
-specific person to review it, `public` when you stand behind it.
+The page renders, then the build **encrypts the finished HTML** (PBKDF2-SHA256, 250k
+iterations, AES-256-GCM) and replaces the body with an unlock form plus the
+ciphertext. The browser decrypts with Web Crypto when the password is entered.
 
-### ⚠️ What `hidden` does NOT mean
+- A wrong password **fails to decrypt**. It is not a JavaScript comparison you can
+  step around in devtools; there is no plaintext in the page to find.
+- Unlocking is remembered for the **browser session only**. Closing the tab re-locks,
+  because shared shop and lab machines are the normal case here.
+- The right-hand outline is suppressed on gated pages, or it would list the section
+  headings of a locked page.
+- Gated pages **never print**. The lock box is hidden, so nobody prints an empty page.
 
-**`hidden` means "not published to the site." It does not mean secret.**
+### Keeping the password out of the repo
 
-This repository is public. The markdown for a hidden page is readable by anyone at
-`github.com/maw-agents/uritp-docs`, and it stays in the commit history forever even
-after you delete it. `unlisted` is weaker still: it is a live public URL that simply
-is not linked, and a URL shared once is a URL that exists.
+`password:` in frontmatter is convenient and **publishes the password**. The better
+form names a gate and reads the secret from the build environment:
 
-So:
+```markdown
+status: gated
+gate: designers      # reads URITP_GATE_DESIGNERS from a GitHub Actions secret
+```
 
-- **Not ready yet** → `hidden` is exactly the right tool.
-- **Must not be read by outsiders** → it does not belong in this repo at all. Real
-  read control means a private repo plus Cloudflare Access in front of the site, or
-  keeping the document somewhere else entirely.
+Same gate, secret never committed. Use this the moment a password protects anything
+that actually matters.
 
-Never put student data, personal contact details, credentials, or anything
-contractual in a page and rely on `hidden` to protect it.
+---
+
+## ⚠️ What the gate actually does (and does not)
+
+**While this repository is public, none of the four states are access control.**
+
+The site is only one copy of the content. The other copy is the markdown in the repo,
+and that copy is world-readable at `github.com/maw-agents/uritp-docs`:
+
+| | On the site | In the public repo |
+|---|---|---|
+| A `hidden` page | Not there at all | **Fully readable** |
+| A `gated` page | Encrypted | **Fully readable, password included** |
+| An `unlisted` page | Readable by URL | **Fully readable** |
+
+And git never forgets: deleting a page tomorrow leaves it in the commit history
+forever.
+
+So be honest about what each one buys you **today**:
+
+- **`hidden`** stops a half-written page reaching a student by accident. That is a
+  real and worthwhile job and it does it perfectly.
+- **`gated`** signals "this is not for casual circulation" and stops a forwarded link
+  from being instantly readable. Deterrence and framing, not security.
+- **Nothing here protects anything from someone who thinks to look at the repo.**
+
+Never put student data, personal contact details, credentials, medical or disciplinary
+information, or contract terms in a page and rely on `hidden` or `gated` to hold it.
+If it must not be read, it does not belong in this repo.
+
+### Making the gate real
+
+The gate becomes genuine protection the moment the markdown stops being public. That
+needs two changes:
+
+1. **Make the repo private.** GitHub Pages from a private repository requires **GitHub
+   Pro** (about $4/month). On the Free plan the repo must be public, full stop.
+2. **Move passwords to Actions secrets** using the `gate:` form above.
+
+With both done, the site stays public, the source is not, the served page holds only
+ciphertext, and the password lives in a secret store. That is a real lock.
+
+A fully private *site* (readers must be logged-in GitHub users with repo access) is
+Enterprise Cloud only, and would be wrong here anyway: guest designers and students
+do not have GitHub accounts.
 
 ### Linking to a hidden page fails the build
 
 A hidden page is not built, so a link pointing at it cannot resolve, and `--strict`
-kills the deploy. This is deliberate: you cannot publish a dead end. Either promote
-the target to `unlisted` or remove the link.
+kills the deploy. Deliberate: you cannot publish a dead end. Promote the target to
+`unlisted` or remove the link.
 
 ---
 
@@ -65,8 +146,8 @@ the target to `unlisted` or remove the link.
 
 **Drop a `.md` file in the right folder under `docs/`. That is the entire procedure.**
 
-The sidebar is generated from the file tree, so a `public` page appears in its
-section automatically, sorted alphabetically by filename. Nothing to register.
+The sidebar is generated from the file tree, so a `public` or `gated` page appears in
+its section automatically, sorted alphabetically by filename. Nothing to register.
 
 ```markdown
 ---
@@ -229,9 +310,10 @@ the file.
 |---|---|---|
 | 1 | Callout or tab body not indented four spaces | Content falls out of the box. Four spaces, not a tab, not two. |
 | 2 | Link pointing at a missing or `hidden` page | Typo, or you linked something not published yet. |
-| 3 | No blank line before a table or list | Renders as one mashed paragraph. **Does not fail the build**, which makes it worse. |
-| 4 | Two H1s on a page | Breaks the outline and the page title. |
-| 5 | Missing or misspelled `status:` | The page silently will not build. Nothing errors: it just is not there. |
+| 3 | `status: gated` with no password | The build refuses rather than shipping the page wide open. |
+| 4 | No blank line before a table or list | Renders as one mashed paragraph. **Does not fail the build**, which makes it worse. |
+| 5 | Two H1s on a page | Breaks the outline and the page title. |
+| 6 | Missing or misspelled `status:` | The page silently will not build. Nothing errors: it just is not there. |
 
 ---
 
@@ -254,10 +336,16 @@ Each carries a pointer comment at the top saying so.
 |---|---|---|
 | `mkdocs.yml` | Theme, features, markdown extensions | An extension is added or removed (changes what syntax works) |
 | `docs/.nav.yml` | Sidebar order and section titles | The add-a-page procedure changes |
-| `docs/stylesheets/uritp.css` | Palette, headings, `.tbc`, print rules | A custom class is added, renamed, or dropped |
-| `hooks/visibility.py` | The `status:` gate | A status value is added, renamed, or its behaviour changes |
+| `docs/stylesheets/uritp.css` | Palette, headings, `.tbc`, `.gate`, print rules | A custom class is added, renamed, or dropped |
+| `hooks/visibility.py` | The `status:` gate and the encryption | A status value is added or renamed, or its behaviour changes |
+| `docs/javascripts/gate.js` | Browser-side unlock | The crypto parameters or the unlock flow change |
 
 A syntax rule described here that no longer has an extension behind it is worse than
 no documentation: it teaches something that silently renders as literal text. A status
 value described here that the hook does not recognise is worse still: the page falls
 back to `hidden` and quietly disappears.
+
+**The two halves of the gate must change together.** `hooks/visibility.py` and
+`docs/javascripts/gate.js` share the cipher, the KDF, and the iteration count. Change
+one without the other and every gated page fails to unlock with no error anyone can
+read.

@@ -1,11 +1,11 @@
 @import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600&display=swap");
 /* ^ MUST stay line 1. CSS silently drops any @import that follows another rule. */
 
-/* ⚠️ POINTER: adding, renaming, or dropping a custom class (.tbc and friends) means
-   updating ../../AUTHORING.md in the SAME PR. Authors write the class by hand, so a
-   renamed class renders as nothing with no error. */
+/* POINTER: adding, renaming, or dropping a custom class (.tbc, .gate) means
+   updating ../../AUTHORING.md in the SAME PR. Authors write .tbc by hand and the
+   visibility hook emits .gate, so a renamed class breaks silently with no error. */
 
-/* ── PALETTE. Change these six values and the whole site follows. ─────────── */
+/* -- PALETTE. Change these six values and the whole site follows. ---------- */
 :root, [data-md-color-primary=custom], [data-md-color-accent=custom] {
   --md-primary-fg-color: oklch(48% 0.145 282);    /* header bar, active nav item */
   --md-accent-fg-color:  oklch(44% 0.155 282);    /* link hover, focus ring */
@@ -18,7 +18,7 @@
   --amber: oklch(52% 0.12 62);                    /* the unconfirmed marker */
 }
 
-/* ── HEADINGS. Serif, tight, hairline rule above each section. ────────────── */
+/* -- HEADINGS. Serif, tight, hairline rule above each section. ------------- */
 .md-typeset h1, .md-typeset h2 { font-family: var(--serif); font-weight: 500; letter-spacing: -.015em; }
 .md-typeset h1 { font-size: 2.55rem; line-height: 1.06; }
 .md-typeset h2 { font-size: 1.72rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--md-default-fg-color--lightest); }
@@ -27,23 +27,35 @@
 /* First paragraph after the page title becomes the lede automatically. */
 .md-typeset h1 + p { font-size: 1.06rem; font-weight: 300; color: var(--md-default-fg-color--light); }
 
-/* ── TABLES. No outer box, uppercase heads, digits that line up. ──────────── */
+/* -- TABLES. No outer box, uppercase heads, digits that line up. ----------- */
 .md-typeset table:not([class]) { border: 0; font-variant-numeric: tabular-nums; }
 .md-typeset table:not([class]) th { background: none; padding-left: 0; font-size: .62rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--md-default-fg-color--light); }
 .md-typeset table:not([class]) td { padding-left: 0; border-top: 0; border-bottom: 1px solid var(--md-default-fg-color--lightest); }
 
-/* ── [To be confirmed]{.tbc} ── documented in AUTHORING.md ────────────────── */
+/* -- [To be confirmed]{.tbc} -- documented in AUTHORING.md ----------------- */
 .md-typeset .tbc { padding: 1px 7px; border: 1px solid var(--amber); border-radius: 5px; font-size: .62rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--amber); }
 
-/* ── CALLOUTS. Drop Material's thick left stripe for an even hairline box. ── */
+/* -- CALLOUTS. Drop Material's thick left stripe for an even hairline box. - */
 .md-typeset .admonition, .md-typeset details { border: 1px solid var(--md-default-fg-color--lightest); border-radius: 10px; box-shadow: none; }
 
-/* ── PRINT. Strip chrome; unstack department tabs so paper loses nothing. ─── */
+/* -- GATE. Emitted by hooks/visibility.py for `status: gated`. ------------- */
+.md-typeset .gate { max-width: 30rem; margin: 3rem 0; padding: 1.75rem; border: 1px solid var(--md-default-fg-color--lightest); border-radius: 12px; }
+.md-typeset .gate__label { margin: 0 0 .4rem; font-size: .62rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--amber); }
+.md-typeset .gate__note { margin: 0 0 1.1rem; font-size: .72rem; color: var(--md-default-fg-color--light); }
+.md-typeset .gate__row { display: flex; gap: .5rem; }
+.md-typeset .gate__input { flex: 1; min-width: 0; padding: .55rem .7rem; border: 1px solid var(--md-default-fg-color--lighter); border-radius: 7px; background: var(--md-default-bg-color); color: var(--md-typeset-color); font: inherit; font-size: .78rem; }
+.md-typeset .gate__input:focus { outline: none; border-color: var(--md-primary-fg-color); box-shadow: 0 0 0 3px color-mix(in oklch, var(--md-primary-fg-color) 18%, transparent); }
+.md-typeset .gate__btn { padding: .55rem 1.1rem; border: 0; border-radius: 7px; background: var(--md-primary-fg-color); color: var(--md-primary-bg-color); font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer; }
+.md-typeset .gate__btn:disabled { opacity: .55; cursor: default; }
+.md-typeset .gate__error { margin: .8rem 0 0; font-size: .72rem; color: oklch(52% 0.16 25); }
+
+/* -- PRINT. Strip chrome; unstack department tabs so paper loses nothing. -- */
 @media print {
   .md-header, .md-sidebar, .md-footer, .md-content__button, .md-typeset .tabbed-labels { display: none !important; }
   .md-main__inner, .md-content { margin: 0 !important; }
   .md-typeset .tabbed-content { display: block !important; }
   .md-typeset h2, .md-typeset .admonition, .md-typeset table { break-inside: avoid; }
+  .md-typeset .gate { display: none !important; }   /* never print an empty lock box */
 }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
