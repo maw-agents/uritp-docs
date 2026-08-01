@@ -9,13 +9,19 @@ as a reader-facing page: it documents the machine, not the theatre.
 > land in one PR or the pointer has failed.
 
 **Describes:** `mkdocs.yml` · `requirements.txt` · `.github/workflows/deploy.yml` ·
-`docs/.nav.yml` and per-folder `.nav.yml` · `docs/stylesheets/uritp.css` ·
-`docs/stylesheets/links.css` · `hooks/links.py` · `hooks/buildstamp.py`
+`docs/.nav.yml` and per-folder `.nav.yml` · `hooks/links.py` · `hooks/buildstamp.py`
 
 🔒 **Gates, keys and page visibility live in [AUTHORING-GATES.md](AUTHORING-GATES.md)**
-(`hooks/visibility.py` + `docs/javascripts/gate.js`). Split out 2026-08-01: the gate
-changed five times in twelve hours and re-emitting a 29KB file for each change is how a
-section gets silently dropped. **Highest churn, smallest file.**
+(`hooks/visibility.py` + `docs/javascripts/gate.js`).
+
+🎨 **Theme, colour, type, spacing and search behaviour live in
+[AUTHORING-LOOK.md](AUTHORING-LOOK.md)** (`theme.yml` + `hooks/theme.py` +
+`docs/stylesheets/`).
+
+Both were split out 2026-08-01 for the same reason: there is no partial-edit path
+through this toolchain, so every change re-emits the whole file, and a 29KB canonical
+document rewritten five times in a day is five chances to silently drop a section.
+**Highest churn, smallest file.**
 
 ---
 
@@ -95,6 +101,9 @@ Frontmatter, one H1, one lede paragraph.
 Sections are `##`. Sub-points are `###`. Deeper than that means the page wants
 splitting. The theme styles the **first paragraph after the H1** as lede text
 automatically; do not try to make it big yourself.
+
+⭐ **That lede is also what the search result shows.** It is not decoration and it is
+not optional. See AUTHORING-LOOK → *What the search result says*.
 
 ### Which title shows where
 
@@ -286,7 +295,7 @@ tables). That one rule prevents most formatting surprises.
 ## The footer build stamp
 
 ```
-University of Rochester International Theatre Program · PR #19
+URITP | MAW · PR #19
 ```
 
 **The only signal that a build failed.** When one does, Pages keeps serving the
@@ -320,6 +329,7 @@ both now fail locally and loudly instead.
 | 7 | Missing `status:` with no gated ancestor | No | The page silently will not build. |
 | 8 | Lowering `mkdocs-material` below 9.7 | **Yes** | `material.extensions.preview` does not exist there. |
 | 9 | A workflow change that trips an approval gate | **Worse than Yes** | Reports `action_required` with zero jobs and never deploys. **Every PR now runs a build check** so this is caught on a branch. |
+| 10 | An `active:` theme or a token that does not resolve in `theme.yml` | **Yes, deliberately** | A theme has no single page to fail on, and a silent fallback to the wrong design is the invisible failure this repo's other rules exist to prevent. Caught on the branch. See AUTHORING-LOOK. |
 
 ---
 
@@ -327,7 +337,7 @@ both now fail locally and loudly instead.
 
 No git, no terminal, nothing installed. Works from a phone.
 
-1. Open the page on the live site, click the **pencil icon**.
+1. Open the page on the live site, click **Edit this page** at the bottom.
 2. Edit the markdown. Commit.
 3. Wait about ninety seconds.
 4. **Check the footer stamp.** If it is not your edit, the build failed.
@@ -342,15 +352,16 @@ If you change any file this document describes, **update this file in the same P
 
 | File | Holds | Update here when |
 |---|---|---|
-| `mkdocs.yml` | Theme, features, extensions, hook order | An extension, plugin, or hook is added or removed |
+| `mkdocs.yml` | Features, extensions, hook order | An extension, plugin, or hook is added or removed |
 | `requirements.txt` | Build dependency floors | A floor moves, or a pinned feature changes |
 | `.github/workflows/deploy.yml` | The keystore wiring + the PR build check | The keystore mechanism changes → **AUTHORING-GATES too** |
 | `docs/.nav.yml` | Top-level sidebar order | The add-a-page procedure changes |
 | `docs/<folder>/.nav.yml` | That section's displayed title | The per-folder title mechanism changes |
-| `docs/stylesheets/uritp.css` | Palette, headings, `.tbc`, `.gate`, print | A custom class is added, renamed, or dropped |
-| `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
 | `hooks/links.py` | `@id` resolution, backlinks, aliases, link report | Link syntax, a report kind, or backlink rules change |
 | `hooks/buildstamp.py` | The footer stamp | What the stamp shows changes |
+| **`theme.yml`** | The four theme vectors | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
+| **`hooks/theme.py`** | Token composition + validation | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
+| **`docs/stylesheets/*`** | Every rule on the site | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)** — **except** a renamed author-typed class like `.tbc`, which belongs in both |
 | **`hooks/visibility.py`** | Status, the keystore, encryption | → **[AUTHORING-GATES.md](AUTHORING-GATES.md)**, not here |
 | **`docs/javascripts/gate.js`** | Browser-side unlock, the keyring | → **[AUTHORING-GATES.md](AUTHORING-GATES.md)**, not here |
 
@@ -359,5 +370,7 @@ documentation: it teaches something that silently renders as literal text. A sta
 value the hook does not recognise is worse still: the page falls back to `hidden` and
 quietly disappears.
 
-**Hook order in `mkdocs.yml` is load-bearing.** `visibility.py` resolves status and
-drops `hidden` pages before `links.py` builds its id registry.
+**Hook order in `mkdocs.yml` is load-bearing for the middle two.** `visibility.py`
+resolves status and drops `hidden` pages before `links.py` builds its id registry.
+`theme.py` and `buildstamp.py` touch neither the file list nor the markdown, so their
+position does not matter.
