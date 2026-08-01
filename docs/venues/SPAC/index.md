@@ -28,6 +28,13 @@ The mainstage performance building; theatre inside = Smith Theatre.
     The venue has an inventory that our productions utilize. This is the majority inventory for the productions: LED fixtures, moving lights, truss, and wireless.
     At times, you may here reference to another "Todd" Inventory - this is a smaller set of, typically older, gear that we can sometimes integrate into the other venue based on availability.
 
+!!! note "Technical Specifications '(Box Folder)'"
+    Technical Specifications for Sloan Performing Arts Center. [(Box Folder)](https://rochester.box.com/s/njykueuu2enohjjdfphpi354nyegfcwk)
+
+## Parking
+There is no public parking available at the theatre. Un/loading spots can be reserved ahead of time with Production Management.
+Patrons of the show are suggested to part in Library Lot after locked hours or along Joseph C. Wilson Blvd.
+
 ## Related
 
 - [Smith Theatre](@smith-theatre)
