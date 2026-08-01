@@ -2,7 +2,8 @@
 title: Paperwork standards
 id: paperwork-standards
 status: gated
-password: theatre2026
+gates: [psm, admin]
+
 ---
 
 # Paperwork standards
