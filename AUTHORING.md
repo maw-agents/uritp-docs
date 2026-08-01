@@ -9,7 +9,8 @@ as a reader-facing page: it documents the machine, not the theatre.
 > land in one PR or the pointer has failed.
 
 **Describes:** `mkdocs.yml` · `docs/.nav.yml` · `docs/stylesheets/uritp.css` ·
-`hooks/visibility.py` · `docs/javascripts/gate.js`
+`docs/stylesheets/links.css` · `hooks/visibility.py` · `hooks/links.py` ·
+`docs/javascripts/gate.js`
 
 ---
 
@@ -50,6 +51,14 @@ without a signpost*. An unlisted URL forwarded in one email is public from then 
 | Draft you are circulating to named people for comment | `gated` |
 | One-off you want to send to a single person, no password ceremony | `unlisted` |
 | Half-written, not for anyone yet | `hidden` |
+
+### A status change only exists once it deploys
+
+Marking a page `gated` does nothing until a build succeeds. On 2026-08-01 a page was
+switched to `gated` two minutes after the last passing build, and then served in full
+plaintext for the next half hour while six consecutive builds failed on an unrelated
+broken link. **Check the footer build stamp after changing a status.** If the SHA is
+not your commit, your change is not live, whatever the source says.
 
 ---
 
@@ -134,11 +143,14 @@ A fully private *site* (readers must be logged-in GitHub users with repo access)
 Enterprise Cloud only, and would be wrong here anyway: guest designers and students
 do not have GitHub accounts.
 
-### Linking to a hidden page fails the build
+### Linking to a hidden page
 
-A hidden page is not built, so a link pointing at it cannot resolve, and `--strict`
-kills the deploy. Deliberate: you cannot publish a dead end. Promote the target to
-`unlisted` or remove the link.
+~~A hidden page is not built, so a link pointing at it cannot resolve, and `--strict`
+kills the deploy.~~ **Changed 2026-08-01.** That rule made one unpublished target
+capable of freezing the entire site. A link to a hidden or missing page now renders as
+a visible dead-link marker on that page only, is listed in the link report, and the
+build continues. You still cannot publish a working dead end; you can no longer take
+the whole site down with one.
 
 ---
 
@@ -152,6 +164,7 @@ its section automatically, sorted alphabetically by filename. Nothing to registe
 ```markdown
 ---
 title: Rehearsal Studio
+id: rehearsal-studio
 status: hidden
 ---
 
@@ -165,7 +178,7 @@ One line on what this space is and who uses it.
 
 A new **folder** becomes a new sidebar section and lands at the bottom. To place it
 somewhere specific, add its name to `docs/.nav.yml`. That is the only reason to open
-that file.
+that file. A folder's `index.md` becomes its section landing page.
 
 ---
 
@@ -176,6 +189,7 @@ Every page opens the same way: frontmatter, one H1, one lede paragraph.
 ```markdown
 ---
 title: Smith Theatre
+id: smith-theatre
 status: public
 ---
 
@@ -192,6 +206,100 @@ level, the page wants splitting.
 
 The theme styles the **first paragraph after the H1** as large light lede text
 automatically. Do not try to make it big yourself.
+
+---
+
+## Links
+
+**A link points at a page's `id`, never at its file path.**
+
+```markdown
+[Smith Theatre](@smith-theatre)
+[the venue notes](@smith-theatre#venue-notes)
+[Technical drawings](https://rochester.box.com/s/x5582ig...)
+```
+
+That is the whole syntax. There is no relative path to count, no `../`, and nothing
+about the link changes when the target moves. `@smith-theatre` resolves at build time
+to wherever that page currently lives.
+
+### Why, in one paragraph
+
+On 2026-08-01 Smith Theatre moved from `docs/venues/` into `docs/venues/SPAC/`. That
+single rename broke **eight links across six files**, in both directions: every page
+linking *to* Smith, plus Smith's own links *out*. Because the build runs `--strict`,
+the deploy died and the live site silently froze on an older commit for over half an
+hour. Two rounds of hand-patching the paths still missed three of them. Paths encode
+where a page happens to sit today, which is the one fact about a page most likely to
+change.
+
+### Declaring an id
+
+Add `id:` to frontmatter. **Set it once and never change it** — that promise is the
+entire mechanism.
+
+```markdown
+---
+title: Smith Theatre
+id: smith-theatre
+status: public
+---
+```
+
+No `id:` is fine for a page nothing links to yet: the filename stands in, and a
+folder's `index.md` takes the folder's name. Declare one properly the moment anything
+links to the page.
+
+### Linking to a heading
+
+Give the heading an explicit anchor and link to that:
+
+```markdown
+## Venue notes {#venue-notes}
+
+[the venue notes](@smith-theatre#venue-notes)
+```
+
+Without `{#...}` the anchor is generated from the heading **text**, so retitling
+"Venue notes" to "Notes by department" breaks every link into it, silently. The build
+reports any deep link riding on heading text as `fragile-anchor`. Fix those by adding
+the explicit id, not by editing the links.
+
+### When a page moves anyway
+
+Ids keep *internal* links working. They cannot fix a bookmark, an email, a syllabus, or
+a QR code on a callboard. Record the retired address:
+
+```markdown
+aliases:
+  - venues/smith-theatre     # lived here until 2026-08-01
+```
+
+The build writes a redirect at the old URL. An alias that collides with a real page is
+skipped and reported rather than overwriting it.
+
+### What a broken link looks like now
+
+It does **not** fail the build. The link text renders in red with a dashed underline
+and a ⚠, on that page only, and the reason appears in the build's link report. One
+typo can no longer freeze a site people are trying to load a show from.
+
+Every build writes:
+
+- a **Link report** table in the Actions run summary, and
+- `/link-report.json` on the live site, listing every issue with its page and reason.
+
+| Report kind | Means |
+|---|---|
+| `dead-link` | Nothing carries that id, or the target is `hidden`. Rendered as a marker. Includes a did-you-mean. |
+| `legacy-path` | An old `path.md` link. Still resolved, but rewrite it as `@id`. |
+| `fragile-anchor` | Deep link riding on heading text. Add `{#anchor}` to the heading. |
+| `missing-anchor` | The anchor does not exist; the link lands at the top of the page. |
+| `duplicate-id` | Two pages claim one id. The second is unreachable by id. |
+| `alias-collision` | A retired URL is already a real page. Redirect skipped. |
+
+**Never use a full `https://` URL for an internal page.** It works, which is the
+problem: it dodges every check above and rots silently.
 
 ---
 
@@ -217,6 +325,10 @@ spaces.** That indent is the whole trick and it is the thing people get wrong.
 
 That is the whole vocabulary. **Resist inventing more.** Four callout colors on one
 page means none of them read as urgent.
+
+⚠️ **The GitHub web editor sometimes collapses that four-space indent to one** when you
+edit a line next to it. The body then falls silently out of the box. If a callout looks
+wrong after a phone edit, check the indent first.
 
 ---
 
@@ -261,26 +373,6 @@ here." An unconfirmed row reads as "measure this before you draft it," which is 
 
 ---
 
-## Links
-
-Internal links point at the **`.md` file**, not the live URL. The build rewrites them
-and fails loudly if the target does not exist or is `hidden`.
-
-```markdown
-Same folder:       [SPAC Lobby](spac-lobby.md)
-Different folder:  [Safety](../safety/index.md)
-To a heading:      [see the notes](smith-theatre.md#venue-notes)
-External:          [Technical drawings](https://rochester.box.com/s/x5582ig...)
-```
-
-Heading anchors are the heading text, lowercased, spaces to hyphens.
-`## Venue notes` becomes `#venue-notes`.
-
-**Never use a full `https://` URL for an internal page.** It works, which is the
-problem: it dodges the broken-link check and rots silently.
-
----
-
 ## Text
 
 Standard markdown, nothing exotic. **Blank line between every block** (paragraphs,
@@ -302,18 +394,21 @@ lists, headings, tables). That one rule prevents most formatting surprises.
 
 ## What breaks the build
 
-The site builds with `--strict`, so these **fail the deploy** instead of quietly
-shipping something broken. A red X in Actions is the system working; the log names
-the file.
+The site builds with `--strict`. The list of things that can take the whole deploy down
+is deliberately short, and **links are no longer on it**.
 
-| # | Failure | Why |
-|---|---|---|
-| 1 | Callout or tab body not indented four spaces | Content falls out of the box. Four spaces, not a tab, not two. |
-| 2 | Link pointing at a missing or `hidden` page | Typo, or you linked something not published yet. |
-| 3 | `status: gated` with no password | The build refuses rather than shipping the page wide open. |
-| 4 | No blank line before a table or list | Renders as one mashed paragraph. **Does not fail the build**, which makes it worse. |
-| 5 | Two H1s on a page | Breaks the outline and the page title. |
-| 6 | Missing or misspelled `status:` | The page silently will not build. Nothing errors: it just is not there. |
+| # | Failure | Fails the deploy? | Why |
+|---|---|---|---|
+| 1 | Callout or tab body not indented four spaces | No, renders wrong | Content falls out of the box. Four spaces, not a tab, not two. |
+| 2 | Link to a missing, moved, or `hidden` page | **No, as of 2026-08-01** | Renders as a dead-link marker and appears in the link report. |
+| 3 | `status: gated` with no password | **Yes** | The build refuses rather than shipping the page wide open. |
+| 4 | No blank line before a table or list | No | Renders as one mashed paragraph, which makes it easier to miss. |
+| 5 | Two H1s on a page | No, renders wrong | Breaks the outline and the page title. |
+| 6 | Missing or misspelled `status:` | No | The page silently will not build. Nothing errors: it just is not there. |
+
+**When a build does fail, the live site keeps serving the previous commit.** There is
+no banner and no error page: it simply stops updating. The footer build stamp is the
+only signal, which is why it exists. Check it before concluding a change did not work.
 
 ---
 
@@ -324,6 +419,7 @@ No git, no terminal, nothing installed. Works from a phone.
 1. Open the page on the live site, click the **pencil icon** in the header.
 2. Edit the markdown. Commit.
 3. Wait about ninety seconds. Actions rebuilds and the page updates.
+4. **Check the footer stamp.** If the SHA is not yours, the build failed.
 
 ---
 
@@ -334,10 +430,12 @@ Each carries a pointer comment at the top saying so.
 
 | File | Holds | Update here when |
 |---|---|---|
-| `mkdocs.yml` | Theme, features, markdown extensions | An extension is added or removed (changes what syntax works) |
+| `mkdocs.yml` | Theme, features, markdown extensions, hook order | An extension, plugin, or hook is added or removed |
 | `docs/.nav.yml` | Sidebar order and section titles | The add-a-page procedure changes |
 | `docs/stylesheets/uritp.css` | Palette, headings, `.tbc`, `.gate`, print rules | A custom class is added, renamed, or dropped |
+| `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
 | `hooks/visibility.py` | The `status:` gate and the encryption | A status value is added or renamed, or its behaviour changes |
+| `hooks/links.py` | `@id` resolution, aliases, the link report | The link syntax, a report kind, or the fail-vs-report stance changes |
 | `docs/javascripts/gate.js` | Browser-side unlock | The crypto parameters or the unlock flow change |
 
 A syntax rule described here that no longer has an extension behind it is worse than
@@ -349,3 +447,7 @@ back to `hidden` and quietly disappears.
 `docs/javascripts/gate.js` share the cipher, the KDF, and the iteration count. Change
 one without the other and every gated page fails to unlock with no error anyone can
 read.
+
+**Hook order in `mkdocs.yml` is load-bearing.** `visibility.py` drops `hidden` pages
+before `links.py` builds its id registry. Swap them and a link to a hidden page would
+resolve to a URL that 404s instead of being caught.

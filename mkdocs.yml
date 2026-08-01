@@ -2,6 +2,7 @@
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml, not here.
 # VISIBILITY: every page needs `status:` in its frontmatter or it will not build.
 # COLOR: chrome color is theme.palette below, NOT uritp.css. See the note there.
+# LINKS: internal links are ids, not paths. See hooks/links.py + AUTHORING.md.
 #
 # POINTER: adding or removing a markdown_extension changes what page authors can
 #   write, and changing hooks/visibility.py changes what publishes. Update
@@ -43,13 +44,14 @@ theme:
   features:
     - navigation.sections    # sidebar groups instead of one flat list
     - navigation.expand      # no drilling: whole tree open on desktop
+    - navigation.indexes     # a folder's index.md becomes its section landing page
     - navigation.top         # back-to-top button
     - toc.follow             # right rail tracks the scroll position
     - search.suggest         # autocomplete in the search box
     - content.action.edit    # pencil icon on every page
     - content.tabs.link      # picking "Lighting" holds across the whole page
 
-extra_css: [stylesheets/uritp.css]
+extra_css: [stylesheets/uritp.css, stylesheets/links.css]
 extra_javascript: [javascripts/gate.js]   # client half of `status: gated`
 extra: {generator: false}                 # hides the "Made with Material" footer line
 
@@ -57,15 +59,19 @@ plugins:
   - search        # must be listed: declaring plugins replaces the defaults
   - awesome-nav   # builds the sidebar from docs/, steered by docs/.nav.yml
 
+# ORDER MATTERS. visibility.py drops `hidden` pages from the file list first, so
+# links.py builds its id registry from pages that will actually exist. Reverse
+# these two and a link to a hidden page would resolve to a URL that 404s.
 hooks:
   - hooks/visibility.py   # frontmatter `status:` gate, hidden by default
+  - hooks/links.py        # @page-id link resolution + retired-URL redirects
   - hooks/buildstamp.py   # deploy time + commit SHA in the footer
 
 # Each line below enables authoring syntax documented in AUTHORING.md.
 markdown_extensions:
   - tables
   - admonition                                 # !!! warning "Title"
-  - attr_list                                  # [To be confirmed]{.tbc}
+  - attr_list                                  # [To be confirmed]{.tbc} + {#anchor}
   - pymdownx.superfences                       # safe nesting inside tabs
   - pymdownx.tabbed: {alternate_style: true}   # === "Lighting"
   - toc: {permalink: true}

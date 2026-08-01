@@ -1,6 +1,9 @@
 ---
 title: Smith Theatre
+id: smith-theatre
 status: public
+aliases:
+  - venues/smith-theatre     # lived here until 2026-08-01; keeps old links alive
 ---
 
 # Smith Theatre
@@ -10,7 +13,7 @@ Primary performance space in the Sloan Performing Arts Center. URITP produces Ma
 !!! warning "Before you design"
     Smith is a blackbox with real constraints that will bite a design late if you learn them late. The non-dimmable relays and the absent west crossover are the two that most often force a redesign in week three.
 
-## Technical specifications
+## Technical specifications {#technical-specifications}
 
 Confirmed values only. Anything marked to be confirmed has not been re-measured and should be verified on site before it lands in your paperwork.
 
@@ -25,9 +28,9 @@ Confirmed values only. Anything marked to be confirmed has not been re-measured 
 | Seating capacity | [To be confirmed]{.tbc} |
 | Stage floor finish | [To be confirmed]{.tbc} |
 
-Position-by-position detail lives in the [rigging detail sheet](../smith-rigging-detail.md).
+Position-by-position detail lives in the [rigging detail sheet](@smith-rigging-detail).
 
-## Venue notes
+## Venue notes {#venue-notes}
 
 Notes exist here because it caught someone out. Pick your department.
 
@@ -61,7 +64,7 @@ Notes exist here because it caught someone out. Pick your department.
 
     If a moment in your production depends on absolute darkness, redesign the moment. This is a life-safety requirement and there is no waiver.
 
-## Drawings and files
+## Drawings and files {#drawings-and-files}
 
 Hosted in Box. Access follows your University of Rochester account.
 
@@ -71,7 +74,7 @@ Hosted in Box. Access follows your University of Rochester account.
 - [Base show files](https://rochester.box.com/s/h8eh6cuigbpd6fso4gziljc87rqdr3tz)
 - [Technical specifications](https://rochester.box.com/s/njykueuu2enohjjdfphpi354nyegfcwk)
 
-## Who to ask
+## Who to ask {#who-to-ask}
 
 Anything structural, rigged, or hung goes through production management before it goes into a drafting file. Questions about what is *possible* are always cheaper than questions about what went wrong.
 

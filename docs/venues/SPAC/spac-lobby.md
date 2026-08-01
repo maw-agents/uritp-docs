@@ -1,6 +1,9 @@
 ---
 title: SPAC Lobby
+id: spac-lobby
 status: public
+aliases:
+  - venues/spac-lobby        # lived here until 2026-08-01
 ---
 
 # SPAC Lobby
@@ -23,4 +26,4 @@ Front-of-house gathering space, box office, and small event venue in the Sloan P
 
 ## Related
 
-- [Smith Theatre](smith-theatre.md)
+- [Smith Theatre](@smith-theatre)
