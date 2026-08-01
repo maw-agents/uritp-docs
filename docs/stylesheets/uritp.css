@@ -1,42 +1,60 @@
-/* URITP Production Resources — utility restyle.
+/* URITP Production Resources — the site stylesheet.
 
-   Target: a reference database, not a brochure. Neutral chrome, one blue
-   carried only by links, a tight type scale, and tables that stay dense on a
-   phone. Nothing decorative survives here that does not help someone find a
-   number in a hurry.
+   ⚠️ THIS FILE CONTAINS NO COLOUR, NO FONT NAME, NO SIZE AND NO RADIUS.
+   Every value below is a --u-* token composed from ../../theme.yml by
+   hooks/theme.py. To change how the site LOOKS, change the one `active:` line
+   in theme.yml. To change how the site is WIRED, change this file.
+
+   That split is the whole design. A "theme" that means "a second stylesheet"
+   produces two files that drift the moment one of them gains a rule; a theme
+   that means "a row of values" cannot drift, because there is only ever one
+   set of rules.
+
+   ⚠️ A LITERAL VALUE COMMITTED HERE SILENTLY OPTS THAT ELEMENT OUT OF EVERY
+   FUTURE SWAP. If a token is missing, add it to theme.yml and to REQUIRED in
+   hooks/theme.py -- do not hard-code it here. The build fails by name when a
+   palette forgets a token; it cannot detect a stylesheet that stopped asking.
 
    POINTER: adding, renaming, or dropping a custom class (.tbc, .gate) means
-   updating ../../AUTHORING.md in the SAME PR. Authors write .tbc by hand and the
-   visibility hook emits .gate, so a renamed class breaks silently with no error.
+   updating ../../AUTHORING.md in the SAME PR. Authors write .tbc by hand and
+   the visibility hook emits .gate, so a renamed class breaks silently.
 
-   ⚠️ CHROME COLOR LIVES IN mkdocs.yml (theme.palette), not here. Do NOT set
-   --md-primary-fg-color in :root: unscoped, it hits BOTH schemes and breaks the
-   dark toggle. This file only tunes what a named palette cannot express. */
+   Layout of this file:  BRIDGE -> TYPE -> CHROME -> NAV -> TABLES -> MARKERS
+                         -> CALLOUTS -> TABS -> LINKS -> GATE -> MOBILE -> PRINT */
 
-/* ── LIGHT ─────────────────────────────────────────────────────────────── */
+/* ══ BRIDGE ═══════════════════════════════════════════════════════════════
+   Our vector tokens -> Material's variables. The one place the two systems
+   touch. Both selectors are listed so this matches Material's own
+   scheme-scoped rules on specificity and wins on order.
+
+   ⚠️ Do NOT move these to :root. Material sets its scheme colours from
+   [data-md-color-scheme=...]; an unscoped rule loses and the dark toggle
+   breaks in a way that only shows in one mode. */
+[data-md-color-scheme=slate],
 [data-md-color-scheme=default] {
-  --md-default-bg-color:           oklch(99% 0.002 250);
-  --md-typeset-color:              oklch(34% 0.008 250);
-  --md-default-fg-color:           oklch(18% 0.010 250);
-  --md-default-fg-color--light:    oklch(52% 0.008 250);
-  --md-default-fg-color--lighter:  oklch(72% 0.006 250);
-  --md-default-fg-color--lightest: oklch(90% 0.004 250);
-  --md-code-bg-color:              oklch(96.5% 0.004 250);
-  --surface-2:                     oklch(97.3% 0.003 250);
-  --amber:                         oklch(48% 0.11 65);
-}
+  --md-default-bg-color:           var(--u-bg);
+  --md-typeset-color:              var(--u-text);
+  --md-default-fg-color:           var(--u-text-strong);
+  --md-default-fg-color--light:    var(--u-text-soft);
+  --md-default-fg-color--lighter:  var(--u-border);
+  --md-default-fg-color--lightest: var(--u-hairline);
+  --md-code-bg-color:              var(--u-surface-1);
 
-/* ── DARK. Depth from surface lightness, never pure black. ─────────────── */
-[data-md-color-scheme=slate] {
-  --md-default-bg-color:           oklch(19% 0.008 250);
-  --md-typeset-color:              oklch(80% 0.006 250);
-  --md-default-fg-color:           oklch(95% 0.003 250);
-  --md-default-fg-color--light:    oklch(64% 0.008 250);
-  --md-default-fg-color--lighter:  oklch(46% 0.008 250);
-  --md-default-fg-color--lightest: oklch(30% 0.008 250);
-  --md-code-bg-color:              oklch(24% 0.008 250);
-  --surface-2:                     oklch(22% 0.008 250);
-  --amber:                         oklch(76% 0.10 70);   /* lifted, or it glows */
+  /* The header. Flat: same ground as the page, separated by a rule, not a
+     block of colour. `primary` in mkdocs.yml is only the first-paint floor. */
+  --md-primary-fg-color:           var(--u-bg);
+  --md-primary-bg-color:           var(--u-text-strong);
+  --md-primary-bg-color--light:    var(--u-text-soft);
+
+  /* Links and the active nav item. Previously this was whatever Material
+     defaults to under `primary: black` -- a blue nobody chose. It is a token
+     now, so it can be changed and it can be contrast-checked. */
+  --md-typeset-a-color:            var(--u-accent);
+  --md-accent-fg-color:            var(--u-accent-hover);
+  --md-accent-fg-color--transparent: color-mix(in oklab, var(--u-accent) 12%, transparent);
+
+  --md-text-font-family:           var(--u-font-body);
+  --md-code-font-family:           var(--u-font-mono);
 }
 
 /* Light text on dark reads heavier than it measures. Ease the weight AND open
@@ -44,66 +62,72 @@
 [data-md-color-scheme=slate] .md-typeset { letter-spacing: .006em; }
 [data-md-color-scheme=slate] .md-typeset strong { font-weight: 600; }
 
-/* ── TYPE. One family. Hierarchy from weight and space, not size alone. ─── */
+/* ══ TYPE. One family. Hierarchy from weight and space, not size alone. ══ */
 .md-typeset {
-  font-size: .78rem;          /* ~15.6px against Material's 20px root */
-  line-height: 1.62;
+  font-size: var(--u-fs-body);
+  line-height: var(--u-lh-body);
+  letter-spacing: var(--u-track-body);
 }
 .md-typeset h1 {
-  font-size: clamp(1.35rem, 1.05rem + 1.4vw, 1.72rem);
+  font-size: clamp(var(--u-fs-h1-min), var(--u-fs-h1-fluid), var(--u-fs-h1-max));
   font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -.014em;
-  color: var(--md-default-fg-color);
+  line-height: var(--u-lh-tight);
+  letter-spacing: var(--u-track-tight);
+  color: var(--u-text-strong);
   margin: 0 0 .35em;
 }
 .md-typeset h2 {
-  font-size: 1.02rem;
+  font-size: var(--u-fs-h2);
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -.008em;
-  color: var(--md-default-fg-color);
-  margin: 2.1rem 0 .7rem;
+  color: var(--u-text-strong);
+  margin: var(--u-gap-lg) 0 .7rem;
   padding-top: 1.1rem;
-  border-top: 1px solid var(--md-default-fg-color--lightest);
+  border-top: var(--u-rule-w) solid var(--u-hairline);
 }
 .md-typeset h3 {
-  font-size: .8rem;
+  font-size: var(--u-fs-h3);
   font-weight: 600;
   letter-spacing: .01em;
-  color: var(--md-default-fg-color);
+  color: var(--u-text-strong);
   margin: 1.4rem 0 .4rem;
 }
 .md-typeset p { margin: 0 0 .85em; }
 .md-typeset ul, .md-typeset ol { margin: 0 0 .9em; }
-.md-typeset li { margin-bottom: .2em; }
+.md-typeset li { margin-bottom: var(--u-gap-xs); }
 
-/* Lede: the one paragraph after the title. Restrained, not oversized. */
+/* Lede: the one paragraph after the title. Restrained, not oversized.
+   ⚠️ This is also the text the SEARCH RESULT shows for the page. See
+   AUTHORING-LOOK.md -> "What the search result says". */
 .md-typeset h1 + p {
-  font-size: .84rem;
+  font-size: var(--u-fs-lead);
   line-height: 1.55;
-  color: var(--md-default-fg-color--light);
-  max-width: 68ch;
+  color: var(--u-text-soft);
+  max-width: var(--u-measure);
   margin-bottom: 1.4em;
 }
 
-/* ── HEADER. Flat, quiet, no shadow. ───────────────────────────────────── */
-.md-header { box-shadow: none; border-bottom: 1px solid var(--md-default-fg-color--lightest); }
+/* ══ CHROME. Flat, quiet, no shadow. ═════════════════════════════════════ */
+.md-header {
+  box-shadow: var(--u-shadow);
+  border-bottom: var(--u-rule-w) solid var(--u-hairline);
+}
 .md-header__title { font-size: .82rem; font-weight: 500; }
-.md-tabs { border-bottom: 1px solid var(--md-default-fg-color--lightest); }
+.md-tabs { border-bottom: var(--u-rule-w) solid var(--u-hairline); }
 
-/* ── NAV. Reads as a file tree. ────────────────────────────────────────── */
+/* ══ NAV. Reads as a file tree. ══════════════════════════════════════════ */
 .md-nav { font-size: .72rem; }
 .md-nav__title {
-  font-size: .62rem;
+  font-size: var(--u-fs-xs);
   font-weight: 600;
-  letter-spacing: .1em;
+  letter-spacing: var(--u-track-caps);
   text-transform: uppercase;
-  color: var(--md-default-fg-color--light);
+  color: var(--u-text-soft);
 }
-.md-nav__link { color: var(--md-typeset-color); }
+.md-nav__link { color: var(--u-text); }
 .md-nav__link--active, .md-nav__item .md-nav__link--active {
-  color: var(--md-accent-fg-color);
+  color: var(--u-accent);
   font-weight: 600;
 }
 
@@ -113,14 +137,14 @@
 @media screen and (max-width: 76.1875em) {
   .md-nav--primary,
   .md-nav--primary .md-nav {
-    background-color: var(--md-default-bg-color);
-    color: var(--md-typeset-color);
+    background-color: var(--u-bg);
+    color: var(--u-text);
   }
   .md-nav--primary .md-nav__title {
-    background-color: var(--surface-2);
-    color: var(--md-default-fg-color);
+    background-color: var(--u-surface-2);
+    color: var(--u-text-strong);
     box-shadow: none;
-    border-bottom: 1px solid var(--md-default-fg-color--lightest);
+    border-bottom: var(--u-rule-w) solid var(--u-hairline);
     line-height: 2.8rem;
     height: auto;
     padding: 0 .8rem;
@@ -128,159 +152,209 @@
   .md-nav--primary .md-nav__title .md-nav__button { display: none; }
   .md-nav--primary .md-nav__list { padding: 0; }
   .md-nav--primary .md-nav__item {
-    border-top: 1px solid var(--md-default-fg-color--lightest);
+    border-top: var(--u-rule-w) solid var(--u-hairline);
     font-size: .78rem;
   }
   .md-nav--primary .md-nav__link { padding: .72rem .8rem; }
-  /* Info icons on every row are noise on a phone. */
   .md-nav--primary .md-nav__icon:not(.md-nav__button) { opacity: .45; }
 }
 
-/* ── TABLES. The main event. Dense, borderless, aligned digits. ────────── */
+/* ══ TABLES. The main event. Dense, borderless, aligned digits. ══════════ */
 .md-typeset table:not([class]) {
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  font-size: .75rem;
+  font-size: var(--u-fs-sm);
   font-variant-numeric: tabular-nums;
   line-height: 1.45;
 }
 .md-typeset table:not([class]) th {
   background: none;
   padding: 0 1.1rem .45rem 0;
-  font-size: .6rem;
+  font-size: var(--u-fs-xs);
   font-weight: 600;
-  letter-spacing: .09em;
+  letter-spacing: var(--u-track-caps);
   text-transform: uppercase;
-  color: var(--md-default-fg-color--light);
-  border-bottom: 1px solid var(--md-default-fg-color--lighter);
+  color: var(--u-text-soft);
+  border-bottom: var(--u-border-w) solid var(--u-border);
   white-space: nowrap;
 }
 .md-typeset table:not([class]) td {
-  padding: .5rem 1.1rem .5rem 0;
+  padding: var(--u-pad-cell) 1.1rem var(--u-pad-cell) 0;
   border-top: 0;
-  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  border-bottom: var(--u-rule-w) solid var(--u-hairline);
   vertical-align: top;
 }
 .md-typeset table:not([class]) tr:last-child td { border-bottom: 0; }
 .md-typeset table:not([class]) td:first-child {
-  color: var(--md-default-fg-color);
+  color: var(--u-text-strong);
   font-weight: 500;
   padding-right: 1.4rem;
 }
-.md-typeset table:not([class]) tbody tr:hover { background: var(--surface-2); }
+.md-typeset table:not([class]) tbody tr:hover { background: var(--u-surface-2); }
 
-/* ── [To be confirmed]{.tbc} — documented in AUTHORING.md ──────────────── */
+/* ══ [To be confirmed]{.tbc} — documented in AUTHORING.md ════════════════ */
 .md-typeset .tbc {
   display: inline-block;
   padding: 0 .4rem;
-  border: 1px solid var(--amber);
-  border-radius: 3px;
-  font-family: var(--md-code-font-family), monospace;
+  border: var(--u-border-w) solid var(--u-marker);
+  border-radius: var(--u-radius);
+  font-family: var(--u-font-mono);
   font-size: .58rem;
   font-weight: 500;
   letter-spacing: .06em;
   text-transform: uppercase;
-  color: var(--amber);
+  color: var(--u-marker);
   white-space: nowrap;
 }
 
-/* ── CALLOUTS. Square, hairline, no shadow, no fat left stripe. ────────── */
+/* ══ CALLOUTS. Square, hairline, no shadow, no fat left stripe. ══════════ */
 .md-typeset .admonition, .md-typeset details {
-  border: 1px solid var(--md-default-fg-color--lightest);
-  border-radius: 3px;
-  box-shadow: none;
-  font-size: .75rem;
+  border: var(--u-border-w) solid var(--u-hairline);
+  border-radius: var(--u-radius);
+  box-shadow: var(--u-shadow);
+  font-size: var(--u-fs-sm);
   margin: 1.2em 0;
 }
 .md-typeset .admonition-title, .md-typeset summary {
-  background: var(--surface-2);
+  background: var(--u-surface-2);
   border: 0;
-  border-bottom: 1px solid var(--md-default-fg-color--lightest);
-  font-size: .6rem;
+  border-bottom: var(--u-rule-w) solid var(--u-hairline);
+  font-size: var(--u-fs-xs);
   font-weight: 600;
-  letter-spacing: .09em;
+  letter-spacing: var(--u-track-caps);
   text-transform: uppercase;
-  padding: .4rem .7rem .4rem 2rem;
+  padding: .4rem var(--u-pad-block) .4rem 2rem;
 }
 .md-typeset .admonition-title::before, .md-typeset summary::before {
   top: .38rem; left: .7rem; width: .9rem; height: .9rem;
 }
-.md-typeset .admonition > :not(.admonition-title) { padding-left: .7rem; padding-right: .7rem; }
+.md-typeset .admonition > :not(.admonition-title) {
+  padding-left: var(--u-pad-block);
+  padding-right: var(--u-pad-block);
+}
 
-/* ── CONTENT TABS (department notes). Underline, not pills. ────────────── */
-.md-typeset .tabbed-labels { box-shadow: none; border-bottom: 1px solid var(--md-default-fg-color--lightest); }
+/* ══ CONTENT TABS (department notes). Underline, not pills. ══════════════ */
+.md-typeset .tabbed-labels {
+  box-shadow: none;
+  border-bottom: var(--u-rule-w) solid var(--u-hairline);
+}
 .md-typeset .tabbed-labels > label {
   font-size: .7rem;
   font-weight: 500;
   padding: .4rem .7rem;
-  color: var(--md-default-fg-color--light);
+  color: var(--u-text-soft);
 }
-.md-typeset .tabbed-set > input:checked + label { color: var(--md-accent-fg-color); font-weight: 600; }
+.md-typeset .tabbed-set > input:checked + label {
+  color: var(--u-accent);
+  font-weight: 600;
+}
 
-/* ── LINKS + CODE ──────────────────────────────────────────────────────── */
+/* ══ LINKS + CODE ════════════════════════════════════════════════════════ */
 .md-typeset a { text-underline-offset: .18em; text-decoration-thickness: 1px; }
 .md-typeset code {
   font-size: .8em;
   padding: .1em .35em;
-  border-radius: 3px;
+  border-radius: var(--u-radius);
   font-variant-ligatures: none;
 }
 
-/* ── GATE (hooks/visibility.py, status: gated) ─────────────────────────── */
-.md-typeset .gate { max-width: 26rem; margin: 2.2rem 0; padding: 1.1rem; border: 1px solid var(--md-default-fg-color--lightest); border-radius: 3px; background: var(--surface-2); }
-.md-typeset .gate__label { margin: 0 0 .3rem; font-size: .6rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--amber); }
-.md-typeset .gate__note { margin: 0 0 .8rem; font-size: .72rem; color: var(--md-default-fg-color--light); }
+/* ══ GATE (hooks/visibility.py, status: gated) ═══════════════════════════ */
+.md-typeset .gate {
+  max-width: 26rem;
+  margin: 2.2rem 0;
+  padding: 1.1rem;
+  border: var(--u-border-w) solid var(--u-hairline);
+  border-radius: var(--u-radius);
+  background: var(--u-surface-2);
+}
+.md-typeset .gate__label {
+  margin: 0 0 .3rem;
+  font-size: var(--u-fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--u-track-caps);
+  text-transform: uppercase;
+  color: var(--u-marker);
+}
+.md-typeset .gate__note {
+  margin: 0 0 .8rem;
+  font-size: .72rem;
+  color: var(--u-text-soft);
+}
 .md-typeset .gate__row { display: flex; gap: .4rem; }
-.md-typeset .gate__input { flex: 1; min-width: 0; padding: .45rem .6rem; border: 1px solid var(--md-default-fg-color--lighter); border-radius: 3px; background: var(--md-default-bg-color); color: var(--md-typeset-color); font: inherit; font-size: .75rem; }
-.md-typeset .gate__input:focus { outline: none; border-color: var(--md-accent-fg-color); }
-.md-typeset .gate__btn { padding: .45rem 1rem; border: 0; border-radius: 3px; background: var(--md-accent-fg-color); color: var(--md-default-bg-color); font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer; }
+.md-typeset .gate__input {
+  flex: 1;
+  min-width: 0;
+  padding: .45rem .6rem;
+  border: var(--u-border-w) solid var(--u-border);
+  border-radius: var(--u-radius);
+  background: var(--u-bg);
+  color: var(--u-text);
+  font: inherit;
+  font-size: var(--u-fs-sm);
+}
+.md-typeset .gate__btn {
+  padding: .45rem 1rem;
+  border: 0;
+  border-radius: var(--u-radius);
+  background: var(--u-accent);
+  color: var(--u-on-accent);
+  font: inherit;
+  font-size: var(--u-fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
 .md-typeset .gate__btn:disabled { opacity: .5; cursor: default; }
-.md-typeset .gate__error { margin: .7rem 0 0; font-size: .72rem; color: oklch(62% .16 25); }
+.md-typeset .gate__error { margin: .7rem 0 0; font-size: .72rem; color: var(--u-bad); }
 
-/* ── FOOTER build stamp (hooks/buildstamp.py) ──────────────────────────── */
+/* ══ FOOTER build stamp (hooks/buildstamp.py) ════════════════════════════ */
 .md-footer-meta { font-size: .68rem; }
 .buildstamp { white-space: nowrap; }
 
-/* ── MOBILE. Reclaim the margins; a phone has none to spare. ───────────── */
+/* ══ MOBILE. Reclaim the margins; a phone has none to spare. ═════════════ */
 @media screen and (max-width: 44.9375em) {
-  .md-typeset { font-size: .8rem; }
+  .md-typeset { font-size: calc(var(--u-fs-body) + .02rem); }
   .md-typeset h2 { margin-top: 1.7rem; padding-top: .9rem; }
   .md-main__inner { margin-top: .6rem; }
   .md-content__inner { padding: 0 .7rem 1.5rem; }
   .md-content__inner::before { height: .4rem; }
 
   /* Stacked label/value beats a squeezed two-column table on a 390px screen. */
-  .md-typeset table:not([class]) { font-size: .78rem; }
+  .md-typeset table:not([class]) { font-size: calc(var(--u-fs-sm) + .03rem); }
   .md-typeset table:not([class]) thead { display: none; }
   .md-typeset table:not([class]) tr {
     display: block;
     padding: .55rem 0;
-    border-bottom: 1px solid var(--md-default-fg-color--lightest);
+    border-bottom: var(--u-rule-w) solid var(--u-hairline);
   }
   .md-typeset table:not([class]) tr:last-child { border-bottom: 0; }
   .md-typeset table:not([class]) td { display: block; padding: 0; border: 0; }
   .md-typeset table:not([class]) td:first-child {
-    font-size: .62rem;
+    font-size: var(--u-fs-xs);
     font-weight: 600;
     letter-spacing: .07em;
     text-transform: uppercase;
-    color: var(--md-default-fg-color--light);
+    color: var(--u-text-soft);
     margin-bottom: .1rem;
   }
 }
 
-/* ── PRINT. Paper-white regardless of the scheme on screen. ────────────── */
+/* ══ PRINT. Paper-white regardless of the scheme on screen. ══════════════
+   Overrides the TOKENS, not Material's variables, so the bridge above keeps
+   doing the translating and this block stays four lines long forever. */
 @media print {
   :root, [data-md-color-scheme=slate], [data-md-color-scheme=default] {
-    --md-default-bg-color: #fff;
-    --md-typeset-color: #222;
-    --md-default-fg-color: #000;
-    --md-default-fg-color--light: #555;
-    --md-default-fg-color--lighter: #999;
-    --md-default-fg-color--lightest: #ccc;
-    --surface-2: #f5f5f5;
-    --amber: #7a4f00;
+    --u-bg: #fff;
+    --u-surface-1: #f5f5f5;
+    --u-surface-2: #f5f5f5;
+    --u-border: #999;
+    --u-hairline: #ccc;
+    --u-text: #222;
+    --u-text-strong: #000;
+    --u-text-soft: #555;
+    --u-accent: #000;
+    --u-marker: #7a4f00;
+    --u-shadow: none;
   }
   [data-md-color-scheme=slate] .md-typeset { letter-spacing: normal; }
   .md-header, .md-sidebar, .md-footer, .md-content__button,
@@ -291,4 +365,6 @@
   .md-typeset .gate { display: none !important; }
 }
 
-@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

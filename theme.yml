@@ -1,0 +1,348 @@
+# ══════════════════════════════════════════════════════════════════════════
+#  URITP DOCS — THEME VECTORS
+#
+#  A theme here is not a stylesheet. It is FOUR independent choices:
+#
+#        colour  ×  typography  ×  forms  ×  spacing
+#
+#  Ported from mawizorek/ClickUp_apps -> shared/themes/ (the 4-vector matrix
+#  every ClickUp app build points at) so the same vocabulary works in both
+#  places. Token NAMES match that system wherever the concept exists.
+#
+#  ┌──────────────────────────────────────────────────────────────────────┐
+#  │  TO RESKIN THE WHOLE SITE, CHANGE THE ONE LINE BELOW.                │
+#  │  No second file. No CSS. No stylesheet swap.                         │
+#  └──────────────────────────────────────────────────────────────────────┘
+
+active: uritp-prp
+
+#  Read by hooks/theme.py, which composes the four vectors into --u-* custom
+#  properties and injects them into every page's <head>. docs/stylesheets/
+#  uritp.css consumes those tokens and contains no literal colour, font, size
+#  or radius of its own. Documented in AUTHORING-LOOK.md.
+#
+#  A name that does not resolve FAILS THE BUILD, on purpose. Unlike a dead
+#  link or a missing gate key, a theme has no page to fail locally on, and a
+#  theme that silently fell back to something else is a defect nobody notices.
+#  Every PR runs a build check, so a typo is caught on the branch.
+#
+#  ⚠️ EDITING THIS FILE: a `note:` is a plain YAML scalar and MUST NOT contain
+#  a colon followed by a space. `set theme.font: false` reads as a nested
+#  mapping and fails the whole parse with a message that points at the wrong
+#  line. Quote the value or reword it. This cost one build on 2026-08-01.
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  THE JOIN TABLE — named combinations. This is the menu `active:` picks from.
+# ══════════════════════════════════════════════════════════════════════════
+
+themes:
+
+  uritp-prp:
+    note: The house look. Neutral slate, one owned blue, hairline rules.
+    color: uritp-prp
+    typography: plex-docs
+    forms: hairline
+    spacing: standard
+
+  uritp-prp-large:
+    note: Same skin, bigger type and more air. For a callboard screen or anyone reading at arm's length.
+    color: uritp-prp
+    typography: plex-large
+    forms: hairline
+    spacing: roomy
+
+  utility:
+    note: The ClickUp_apps anchor palette (maw-dark-utility), teal accent. Proves the vocabulary transfers.
+    color: maw-dark-utility
+    typography: plex-docs
+    forms: hairline
+    spacing: standard
+
+  paper:
+    note: High-contrast greyscale, squared edges, roomy. Closest to a printed document.
+    color: paper-mono
+    typography: plex-docs
+    forms: square
+    spacing: roomy
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  VECTOR 1 — COLOUR.  "What colours do I have to design with?"  This is it.
+#
+#  Every palette declares BOTH modes, because a docs site has a dark/light
+#  toggle and a one-mode palette would half-work. That is this port's one
+#  addition to the ClickUp_apps colour schema.
+#
+#  bg          the page
+#  surface-1   code blocks, inset panels
+#  surface-2   raised strips: callout headers, table row hover, drawer header
+#  border      a line you are meant to SEE (inputs, table header underline)
+#  hairline    a line you are meant to barely notice (row rules, dividers)
+#  text        body copy
+#  text-strong headings, the first cell of a table row
+#  text-soft   ledes, captions, the small uppercase labels
+#  accent      links, the active nav item, focus rings.  ONE colour, owned.
+#  accent-hover  its hover/press state
+#  on-accent   text sitting ON an accent fill (the Unlock button)
+#  marker      [To be confirmed]{.tbc} and the gate label. Deliberately not the accent.
+#  bad         dead links, errors
+# ══════════════════════════════════════════════════════════════════════════
+
+color:
+
+  uritp-prp:
+    note: The house palette. Cool near-neutral slate; the blue is a real choice now, not Material's leftover default.
+    dark:
+      bg:           oklch(19% 0.008 250)
+      surface-1:    oklch(24% 0.008 250)
+      surface-2:    oklch(22% 0.008 250)
+      border:       oklch(46% 0.008 250)
+      hairline:     oklch(30% 0.008 250)
+      text:         oklch(80% 0.006 250)
+      text-strong:  oklch(95% 0.003 250)
+      text-soft:    oklch(64% 0.008 250)
+      accent:       oklch(74% 0.110 240)
+      accent-hover: oklch(85% 0.095 240)
+      on-accent:    oklch(19% 0.020 240)
+      marker:       oklch(76% 0.100 70)
+      bad:          oklch(72% 0.150 25)
+    light:
+      bg:           oklch(99% 0.002 250)
+      surface-1:    oklch(96.5% 0.004 250)
+      surface-2:    oklch(97.3% 0.003 250)
+      border:       oklch(72% 0.006 250)
+      hairline:     oklch(90% 0.004 250)
+      text:         oklch(34% 0.008 250)
+      text-strong:  oklch(18% 0.010 250)
+      text-soft:    oklch(52% 0.008 250)
+      accent:       oklch(47% 0.150 250)
+      accent-hover: oklch(37% 0.160 250)
+      on-accent:    oklch(99% 0.002 250)
+      marker:       oklch(48% 0.110 65)
+      bad:          oklch(56% 0.170 25)
+
+  maw-dark-utility:
+    note: >-
+      The anchor palette from ClickUp_apps/shared/themes/maw-dark-utility.json.
+      Dark values are that file's tokens verbatim. The light mode is authored
+      here: the original is dark-only, and a docs site cannot be.
+    dark:
+      bg:           oklch(20% 0.010 260)
+      surface-1:    oklch(24.5% 0.014 260)
+      surface-2:    oklch(28.5% 0.016 260)
+      border:       oklch(44% 0.020 260)
+      hairline:     oklch(31% 0.018 260)
+      text:         oklch(88% 0.008 260)
+      text-strong:  oklch(95% 0.008 260)
+      text-soft:    oklch(72% 0.012 260)
+      accent:       oklch(72% 0.110 205)
+      accent-hover: oklch(80% 0.090 195)
+      on-accent:    oklch(20% 0.020 205)
+      marker:       oklch(80% 0.130 80)
+      bad:          oklch(62% 0.200 25)
+    light:
+      bg:           oklch(98.5% 0.003 260)
+      surface-1:    oklch(95.5% 0.006 260)
+      surface-2:    oklch(96.5% 0.005 260)
+      border:       oklch(70% 0.012 260)
+      hairline:     oklch(89% 0.006 260)
+      text:         oklch(33% 0.012 260)
+      text-strong:  oklch(17% 0.014 260)
+      text-soft:    oklch(51% 0.012 260)
+      accent:       oklch(45% 0.110 205)
+      accent-hover: oklch(36% 0.115 205)
+      on-accent:    oklch(98.5% 0.003 260)
+      marker:       oklch(47% 0.120 75)
+      bad:          oklch(52% 0.190 25)
+
+  paper-mono:
+    note: Greyscale, maximum contrast, no hue anywhere except the two signal colours. For long reading and for anything that gets printed.
+    dark:
+      bg:           oklch(16% 0 0)
+      surface-1:    oklch(22% 0 0)
+      surface-2:    oklch(20% 0 0)
+      border:       oklch(50% 0 0)
+      hairline:     oklch(30% 0 0)
+      text:         oklch(86% 0 0)
+      text-strong:  oklch(98% 0 0)
+      text-soft:    oklch(66% 0 0)
+      accent:       oklch(88% 0 0)
+      accent-hover: oklch(98% 0 0)
+      on-accent:    oklch(16% 0 0)
+      marker:       oklch(78% 0.110 70)
+      bad:          oklch(70% 0.150 25)
+    light:
+      bg:           oklch(100% 0 0)
+      surface-1:    oklch(95% 0 0)
+      surface-2:    oklch(97% 0 0)
+      border:       oklch(62% 0 0)
+      hairline:     oklch(88% 0 0)
+      text:         oklch(28% 0 0)
+      text-strong:  oklch(10% 0 0)
+      text-soft:    oklch(46% 0 0)
+      accent:       oklch(22% 0 0)
+      accent-hover: oklch(10% 0 0)
+      on-accent:    oklch(100% 0 0)
+      marker:       oklch(46% 0.110 65)
+      bad:          oklch(50% 0.170 25)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  VECTOR 2 — TYPOGRAPHY. The voice.
+#
+#  ⚠️ ONE SEAM WE CANNOT CLOSE, so it is named instead of hidden: this vector
+#  sets which family the CSS ASKS FOR. Material owns DOWNLOADING the webfont,
+#  via the `font` block in mkdocs.yml. Point at a family Material has not been
+#  told to fetch and you get the fallback in the stack, silently. Change both,
+#  or stay inside a family already loaded.
+# ══════════════════════════════════════════════════════════════════════════
+
+typography:
+
+  plex-docs:
+    note: The house voice. One family, hierarchy from weight and space rather than size.
+    font-body:   "'IBM Plex Sans', system-ui, -apple-system, sans-serif"
+    font-mono:   "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+    fs-body:     .78rem
+    fs-lead:     .84rem
+    fs-sm:       .75rem
+    fs-xs:       .62rem
+    fs-h1-min:   1.35rem
+    fs-h1-fluid: 1.05rem + 1.4vw
+    fs-h1-max:   1.72rem
+    fs-h2:       1.02rem
+    fs-h3:       .8rem
+    lh-body:     1.62
+    lh-tight:    1.2
+    track-body:  0
+    track-tight: -.014em
+    track-caps:  .09em
+
+  plex-large:
+    note: Same family, everything up a step. For a phone at arm's length or a shop callboard.
+    font-body:   "'IBM Plex Sans', system-ui, -apple-system, sans-serif"
+    font-mono:   "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+    fs-body:     .88rem
+    fs-lead:     .95rem
+    fs-sm:       .84rem
+    fs-xs:       .68rem
+    fs-h1-min:   1.5rem
+    fs-h1-fluid: 1.15rem + 1.6vw
+    fs-h1-max:   2rem
+    fs-h2:       1.14rem
+    fs-h3:       .9rem
+    lh-body:     1.66
+    lh-tight:    1.22
+    track-body:  0
+    track-tight: -.012em
+    track-caps:  .08em
+
+  system-quick:
+    note: "No webfont at all. Instant first paint on a bad connection; set the mkdocs.yml `font` block to false if you use it."
+    font-body:   "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+    font-mono:   "ui-monospace, SFMono-Regular, Menlo, monospace"
+    fs-body:     .8rem
+    fs-lead:     .86rem
+    fs-sm:       .76rem
+    fs-xs:       .63rem
+    fs-h1-min:   1.35rem
+    fs-h1-fluid: 1.05rem + 1.4vw
+    fs-h1-max:   1.72rem
+    fs-h2:       1.02rem
+    fs-h3:       .8rem
+    lh-body:     1.6
+    lh-tight:    1.2
+    track-body:  0
+    track-tight: -.014em
+    track-caps:  .09em
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  VECTOR 3 — FORMS.  "Which edges are mutable?"  These, and only these.
+#
+#  radius / radius-lg   corner rounding: small things / panels
+#  border-w             a line you are meant to see
+#  rule-w               a line you are meant to barely notice
+#  shadow               depth. `none` is a real value and the house answer.
+#  motion / ease        transition duration + curve (wrapped by prefers-reduced-motion)
+#  focus-w              thickness of the keyboard focus ring. Never 0.
+# ══════════════════════════════════════════════════════════════════════════
+
+forms:
+
+  hairline:
+    note: The house feel. Barely-rounded, flat, one-pixel rules. A reference database, not a card UI.
+    radius:    3px
+    radius-lg: 4px
+    border-w:  1px
+    rule-w:    1px
+    shadow:    none
+    motion:    120ms
+    ease:      cubic-bezier(.2,.7,.2,1)
+    focus-w:   2px
+
+  square:
+    note: No rounding anywhere. Reads as a printed form.
+    radius:    0
+    radius-lg: 0
+    border-w:  1px
+    rule-w:    1px
+    shadow:    none
+    motion:    100ms
+    ease:      cubic-bezier(.2,.7,.2,1)
+    focus-w:   2px
+
+  soft:
+    note: Rounded and lifted, the ClickUp_apps `soft` feel. Included so the difference is visible, not because this site wants it.
+    radius:    8px
+    radius-lg: 12px
+    border-w:  1px
+    rule-w:    1px
+    shadow:    0 2px 8px rgba(0,0,0,.18)
+    motion:    150ms
+    ease:      cubic-bezier(.16,1,.3,1)
+    focus-w:   2px
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  VECTOR 4 — SPACING. The density.
+#
+#  touch      minimum tap target. 44px is the accessibility floor; do not go under.
+#  pad-cell   table cell padding
+#  pad-block  padding inside a callout / the gate box
+#  gap-*      the rhythm between things
+#  measure    maximum line length for prose
+# ══════════════════════════════════════════════════════════════════════════
+
+spacing:
+
+  standard:
+    note: The house density.
+    touch:     44px
+    pad-cell:  .5rem
+    pad-block: .7rem
+    gap-xs:    .2rem
+    gap-md:    .85rem
+    gap-lg:    2.1rem
+    measure:   68ch
+
+  dense:
+    note: Tighter. More rows on screen, less air.
+    touch:     44px
+    pad-cell:  .34rem
+    pad-block: .55rem
+    gap-xs:    .14rem
+    gap-md:    .65rem
+    gap-lg:    1.6rem
+    measure:   76ch
+
+  roomy:
+    note: More air. Easier at distance and on a phone in a dark theatre.
+    touch:     48px
+    pad-cell:  .68rem
+    pad-block: .95rem
+    gap-xs:    .28rem
+    gap-md:    1.05rem
+    gap-lg:    2.6rem
+    measure:   62ch
