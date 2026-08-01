@@ -122,6 +122,11 @@
   color: var(--u-text-strong);
   margin: 1.4rem 0 .4rem;
 }
+/* ⚠️ ZERO TOP MARGIN IS LOAD-BEARING AND IT HAS A KNOWN VICTIM. The tight
+   prose rhythm here is deliberate, but Material's callouts get their entire
+   gap under the title bar from this margin. See CALLOUTS below, which now
+   pads the callout body itself rather than depending on this line. Anything
+   else that relies on a paragraph's top margin will have the same problem. */
 .md-typeset p { margin: 0 0 .85em; }
 .md-typeset ul, .md-typeset ol { margin: 0 0 .9em; }
 .md-typeset li { margin-bottom: var(--u-gap-xs); }
@@ -390,9 +395,62 @@
 .md-typeset .admonition-title::before, .md-typeset summary::before {
   top: .38rem; left: .7rem; width: .9rem; height: .9rem;
 }
-.md-typeset .admonition > :not(.admonition-title) {
+
+/* THE BODY INSET, and why it needs padding of its own instead of a margin.
+
+   ⚠️ Material pads the callout box HORIZONTALLY ONLY -- `.admonition
+   { padding: 0 .6rem }` -- and leaves the gap under the title bar entirely to
+   the first child's OWN TOP MARGIN, which its default type scale supplies as
+   `p { margin: 1em 0 }`.
+
+   The TYPE section above sets `p { margin: 0 0 .85em }`. Zero top. So there
+   was nothing left to make that gap, and the first line of every callout sat
+   flush against the title bar's bottom rule (Michael, 2026-08-01: "content
+   boxes are a bit tight to their header banners").
+
+   Neither half is wrong on its own. Material leaning on a child margin is
+   ordinary; a prose rhythm with no top margins is deliberate. THE PAIR is the
+   bug -- the same shape as the drawer chevron in the NAV block above, where a
+   component's absolute positioning depended on a title height we had
+   flattened. A component whose spacing lives somewhere we can reach is a
+   collision waiting for the day we reach there.
+
+   So the body carries real padding, and the first body element's top margin
+   is zeroed so that padding is the ONLY source of the gap: an h3 or a nested
+   callout landing first cannot stack its own margin on top of it.
+
+   `details` gets every rule too. It `@extend`s `.admonition` in Material's own
+   SCSS, so it inherits the identical box and the identical omission -- and it
+   was ALSO missing our horizontal inset entirely, because a `details` element
+   does not carry the `.admonition` CLASS the old selector keyed on. One box,
+   one set of rules, no second shape to remember.
+
+   ⚠️ THE HORIZONTAL INSET IS A SUM: Material's .6rem on the box PLUS
+   `pad-block` on the child. Documented because it is not obvious from either
+   half. Zeroing Material's share would make `pad-block` the single dial, but
+   `.md-typeset__scrollwrap` (margin: 1em -.6rem) and `.md-typeset__table`
+   (padding: 0 .6rem) both escape that padding to let a table inside a callout
+   run full width -- so removing it breaks them. Left as a sum on purpose. Do
+   not "simplify" it without fixing those two in the same pass. */
+.md-typeset .admonition > :not(.admonition-title),
+.md-typeset details > :not(summary) {
   padding-left: var(--u-pad-block);
   padding-right: var(--u-pad-block);
+}
+.md-typeset .admonition > .admonition-title + *,
+.md-typeset details > summary + * {
+  margin-top: 0;
+  padding-top: var(--u-pad-block);
+}
+/* Bottom to match, so the box reads as even. This REPLACES Material's
+   `html & > :last-child { margin-bottom: .6rem }` rather than adding to it:
+   two sources for one gap is how a box goes lopsided the first time somebody
+   changes one of them. The `:not(...)` guards a title-only callout, which
+   must stay tight to its own bar -- Material zeroes that case and so do we. */
+.md-typeset .admonition > :last-child:not(.admonition-title),
+.md-typeset details > :last-child:not(summary) {
+  margin-bottom: 0;
+  padding-bottom: var(--u-pad-block);
 }
 
 /* ══ CONTENT TABS (department notes). Underline, not pills. ══════════════ */
