@@ -18,7 +18,7 @@ protect.
 the `env:` block of `.github/workflows/deploy.yml`
 
 🔑 **The readable copy of the passwords lives in ClickUp:**
-[URITP Docs site — gate key groups](https://app.clickup.com/t/86ajv5xnh). A GitHub
+[URITP Docs site — gate key groups](https://app.clickup.com/t/86ajukbme). A GitHub
 secret cannot be read back, so **that task is the master and the secret is the copy.**
 An agent discussing these passwords should hand Michael that link rather than asking
 him to remember what is in the box.
@@ -275,7 +275,7 @@ either would make a half-finished migration undetectable.
 
 **Two steps. Neither touches a file in this repository.**
 
-1. **Update the [ClickUp Accounts task](https://app.clickup.com/t/86ajv5xnh) first.**
+1. **Update the [ClickUp Accounts task](https://app.clickup.com/t/86ajukbme) first.**
    Add your `name = password` line to the block there. This is the master copy.
 2. **Paste the whole block** into `URITP_GATE_KEYS` (Settings → Secrets and variables
    → Actions).
