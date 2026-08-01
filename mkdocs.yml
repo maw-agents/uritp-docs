@@ -1,7 +1,7 @@
 # THEME SWAP: change theme.name. Nothing in docs/*.md is affected by a swap.
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml, not here.
 # VISIBILITY: every page needs `status:` in its frontmatter or it will not build.
-# COLOR: brand color is theme.palette below, NOT uritp.css. See the note there.
+# COLOR: chrome color is theme.palette below, NOT uritp.css. See the note there.
 #
 # POINTER: adding or removing a markdown_extension changes what page authors can
 #   write, and changing hooks/visibility.py changes what publishes. Update
@@ -15,30 +15,34 @@ copyright: University of Rochester International Theatre Program
 
 theme:
   name: material
-  font: {text: DM Sans, code: IBM Plex Mono}
+
+  # One family, two weights of use. Plex Sans is a technical face that holds up
+  # at small sizes in dense tables, and it is the sibling of the Plex Mono
+  # already used for code, so the site speaks with one voice.
+  font: {text: IBM Plex Sans, code: IBM Plex Mono}
 
   # First entry is the default, so the site opens DARK.
-  # `primary` and `accent` take Material's named colors, which is the whole
-  # point of this block: the brand color is config, not CSS. Valid primary
-  # names: red, pink, purple, deep purple, indigo, blue, light blue, cyan,
-  # teal, green, light green, lime, yellow, amber, orange, deep orange,
-  # brown, grey, blue grey, black, white.
+  # Chrome is deliberately NEUTRAL: `black` header, one blue accent carried only
+  # by links and focus. Reference material should not have a brand color
+  # shouting over the data. Valid primary names include black, white, grey,
+  # blue grey, and the standard Material hues.
   palette:
     - scheme: slate
-      primary: deep purple
-      accent: purple
+      primary: black
+      accent: blue
       toggle:
-        icon: material/weather-night
-        name: Switch to light mode
+        icon: material/circle-half-full
+        name: Light
     - scheme: default
-      primary: deep purple
-      accent: deep purple
+      primary: black
+      accent: blue
       toggle:
-        icon: material/weather-sunny
-        name: Switch to dark mode
+        icon: material/circle-outline
+        name: Dark
 
   features:
     - navigation.sections    # sidebar groups instead of one flat list
+    - navigation.expand      # no drilling: whole tree open on desktop
     - navigation.top         # back-to-top button
     - toc.follow             # right rail tracks the scroll position
     - search.suggest         # autocomplete in the search box
