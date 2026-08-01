@@ -1,212 +1,134 @@
 """
-Page visibility gate + inline span markers.
-
-Reads `status:` from each page's frontmatter and decides whether the page is
-built, listed, indexed, or encrypted. **A page with no `status:` is hidden.**
+Page visibility. Reads `status:` from frontmatter and decides what publishes.
 
     status: public      listed in the sidebar, indexed, plaintext
     status: gated       listed, body AES-encrypted, needs a password
     status: unlisted    direct link only: no nav, no search, no search engines
     status: hidden      never built                          (DEFAULT)
 
-And one independent switch, because the four statuses conflated two questions:
+    listed: false       an INDEPENDENT switch: out of the nav, search and
+                        sitemap WHATEVER the status is. The four statuses
+                        conflated two questions (is it published / can it be
+                        found); this separates them. `unlisted` is the
+                        shorthand for public + not-listed.
 
-    listed: false       keep this page out of the nav, search and sitemap,
-                        WHATEVER its status is
+A gated page's KEY MATERIAL can be written six ways -- `gates` `gate` `keys`
+`key` `password` `passwords` -- each taking one value or a list, all merging,
+any one opening the page. A value matching a keystore group resolves to that
+group's secret; anything else is the password itself. hooks/gate/keystore.py
+owns that rule and the reasoning behind it.
 
 ⚠️ `hidden` IS NOT ACCESS CONTROL, IT IS NOT-PUBLISHED. This repository is
-public. The markdown source of every page -- including a `hidden` page and a
-`gated` page's plaintext -- is readable at github.com by anyone who looks.
-`hidden` keeps a page off the SITE. It is the strongest thing this file can do
-and it is still not a permission. Only `gated` resembles one, and only for the
-built page, never for the source. See AUTHORING-GATES.md -> "What the gate
-actually does".
+public, so the markdown source of every page -- including a `hidden` page and a
+`gated` page's plaintext -- is readable at github.com by anyone. `hidden` keeps
+a page off the SITE. It is the strongest thing this file can do and it is still
+not a permission.
+
+📋 AUTHORING REFERENCE: AUTHORING-GATES.md. Deliberately not repeated here --
+it is read by whoever writes a page, this file is read by whoever changes the
+machine, and one document serving both is how both go stale.
 
 =======================================================================
-A TYPO MUST NOT DELETE A PAGE IN SILENCE   (added 2026-08-01, Michael)
+FOUR FILES, ONE HOOK
 =======================================================================
 
-An unrecognised value falls through to `hidden`, because guessing what someone
-meant is worse than not publishing. But it used to do that WITHOUT SAYING SO:
-`status: publi`, a stray capital, `status: new` -- the page vanished from the
-site, the build went green, and the only way to find out was for a reader to go
-looking for something that used to be there.
+    hooks/visibility.py      THIS FILE. MkDocs events, the status decision,
+                             the folder waterfall, and ALL build state.
+    hooks/gate/keystore.py   frontmatter -> passwords, with provenance.
+    hooks/gate/envelope.py   AES-GCM + PBKDF2 + the unlock markup.
+                             ⚠️ PAIRED WITH docs/javascripts/gate.js.
+    hooks/gate/report.py     every warning and run-summary table.
 
-That is a worse failure than the one that started this. A build that breaks
-screams. A page that quietly stops existing does not, and this site's whole
-promise is "assume the PDF is out of date, check here instead."
+Split 2026-08-01 at 33.8KB, past the ~30KB an agent can fetch whole: a file
+that cannot be read before it is edited cannot be edited safely, and this is
+the file where a silent mistake is most expensive.
 
-So three things are now REPORTED BY NAME every build, none of which fail it:
+🔴 THE LIBRARIES ARE NOT HOOKS AND MUST NEVER BE REGISTERED. The hook order in
+mkdocs.yml is load-bearing -- this file drops `hidden` pages BEFORE links.py
+builds its id registry. One feature, one slot in that order. gate/__init__.py
+has the full rule, including why every name over there is public not private.
 
-  * an unrecognised `status:` value, quoted back exactly as written, with the
-    four legal values and the page it removed
-  * the count of pages hidden purely by DEFAULT -- no `status:` at all. Safe,
-    and the right default, but a forgotten frontmatter block should be visible
-    once rather than never
-  * every page this build refused to publish, handed to hooks/links.py so a
-    link pointing at one can say "hidden" instead of "broken"
-
-The list of hidden pages is stashed on the config as `_uritp_hidden`
-(src_uri -> its declared `id:` or None) for links.py, which runs after this
-hook. It is deliberately a plain dict on the config rather than a cross-hook
-import: if this hook is ever unwired, links.py reads an empty dict and behaves
-exactly as it did before.
-
-MULTIPLE KEYS
-A gated page may name several groups, and ANY ONE of their passwords opens it:
-
-    status: gated
-    gates: [psm, admin]
-
-ENVELOPE encryption, not N copies: a random content key (CEK) encrypts the
-finished HTML ONCE, then the CEK is separately encrypted for each group. A
-wrapped CEK is ~100 bytes, so page weight is effectively independent of how
-many groups can open it. The wrap list is SHUFFLED and unlabelled: which desk
-can open a document is itself information.
-
-A ONE-PAGE PASSWORD IS A FIRST-CLASS OPTION, not a leftover
-
-    status: gated
-    password: rehearsal26
-
-A literal `password:` locks that one page and nothing else. It is deliberately
-trivial to add and to delete -- one line, no secret to update, no group to
-invent, nothing else on the site affected. Use it for a page that needs a lock
-for a fortnight. Use a `gates:` group for a lock that outlives the page, or for
-anything that must survive a rotation. ONE CAVEAT, and it is the whole reason
-the keystore exists: a literal password is committed to the repository in
-plaintext and stays in git history forever, so it must never be a password that
-opens anything else.
+ALL MUTABLE BUILD STATE LIVES HERE. The modules in gate/ are pure.
 
 =======================================================================
-WHERE A GROUP NAME FINDS ITS PASSWORD -- two tiers, and the name never
-changes shape
+NOTHING FAILS SILENTLY, AND NOTHING FAILS THE BUILD
 =======================================================================
 
-TIER 1, the container. ONE repository secret, URITP_GATE_KEYS, holding a
-block of lines:
+An unrecognised `status:` falls through to `hidden` -- guessing what someone
+meant is worse than not publishing -- but it used to do that WITHOUT SAYING SO.
+`status: publi` and the page vanished, green build, no signal. That is worse
+than a broken build: a build that breaks screams, a page that quietly stops
+existing does not, and this site's promise is "assume the PDF is stale, check
+here instead."
 
-    # URITP docs gate keys. One group per line: name = password
-    admin = ...
-    dev   = ...
-    psm   = ...
+Reported BY NAME every build, none of it fatal: an unrecognised status, pages
+hidden only by default, every key each gated page resolved and whether it came
+from the keystore or the page, groups nothing names, and pages naming nothing
+that exists.
 
-The key in that block is the EXACT string a page writes in `gates:`. No
-uppercasing, no prefix, no transformation. `gates: [psm]` looks up `psm`.
-Adding a group is adding a line to that secret's value -- no file in this
-repository changes, and no name is chosen by anything but Michael.
-
-TIER 2, the rotation hatch. A single group MAY instead live in its own
-secret, URITP_GATE_<GROUP>, uppercased with hyphens as underscores.
-
-    THIS EXISTS FOR EXACTLY ONE REASON and it is not "the other way to do
-    it": rotating a key inside the container means repasting the WHOLE block
-    from memory, because GitHub never shows you a secret's current value. For
-    a high-churn key -- the one reissued to a new cohort every September --
-    that risks the other nine every time it turns over. Its own secret makes
-    that rotation atomic.
-
-    A group in its own secret needs one line in deploy.yml, because GitHub
-    only hands a workflow the secrets it names. That is the cost of the
-    hatch and it is why the hatch is the exception, not the default.
-
-PRECEDENCE: the container wins. A name present in both tiers resolves from
-the container and the duplicate is reported -- silently preferring either one
-would make a half-finished migration undetectable.
-
-NOTE what disappeared with the old single-tier design: `_env_key()` for
-container groups, the mandatory URITP_GATE_ prefix, the reserved-namespace
-rule, and the URITP_GATE_STRICT collision that rule existed to prevent. The
-derivation survives ONLY inside the hatch, where a real environment variable
-name is unavoidable.
+⚠️ NOTHING HERE FAILS THE BUILD, deliberately. Failing took the site stale over
+one page's config on 2026-08-01 -- the same trade `--strict` used to make,
+rejected for the same reason and removed from deploy.yml the same day. Local
+and visible beats global and silent. URITP_GATES_STRICT=1 restores hard-fail.
 
 =======================================================================
 THE FOLDER WATERFALL  (precedence FLIPPED 2026-08-01, Michael)
 =======================================================================
 
 **A gated `index.md` locks its whole subtree, at any depth, and it BEATS what
-the child page declared.** Dropping an index.md into a folder IS the switch:
-folders that have one are locked as a unit, folders that do not are ordinary.
-Every page beneath a locked index is genuinely encrypted, not merely hidden
-from the sidebar -- which would leave every child readable by direct URL while
-looking protected.
+the child declared.** Dropping an index.md in IS the switch. Every page beneath
+a locked index is genuinely encrypted, not merely hidden from the sidebar --
+which would leave every child readable by direct URL while looking protected.
 
     docs/safety/index.md         status: gated   <- the switch
     docs/safety/test.md          status: public  <- LOCKED ANYWAY, and reported
     docs/safety/keys/master.md   (silent)        <- locked, at any depth
 
-~~A page overrides by declaring its own `status:` (any value) or
-`inherit: false`. Only silence inherits.~~ REVERSED on the day it shipped: it
-meant `status: public` on one child quietly punched a hole in a locked safety
-section, and the page that did it looked completely normal. The folder is now
-the stronger statement.
+~~A page overrides by declaring its own `status:` (any value).~~ REVERSED on
+the day it shipped: it meant `status: public` on one child quietly punched a
+hole in a locked safety section, and the page that did it looked normal.
 
-Two things the waterfall deliberately CANNOT do:
+Two things it deliberately CANNOT do: it cannot publish a `hidden` page (a rule
+whose job is to RAISE protection must never be why something reached a reader),
+and it cannot be silent (`inherit: false` is the one escape hatch, one greppable
+line, and every overruled page is named at build time).
 
-  * It cannot publish a `hidden` page. `hidden` is the author saying "this is
-    not finished"; a rule whose entire job is to RAISE protection must never
-    be the reason something reached a reader.
-  * It cannot be silent. `inherit: false` is the one escape hatch, it is one
-    greppable line, and every page whose declared status was overruled is
-    REPORTED BY NAME at build time. An override nobody can see would just be
-    the old defect wearing the other mask.
+⚠️ THERE IS A SECOND WATERFALL AND IT RUNS THE OTHER WAY. hooks/theme.py's SKIN
+waterfall is child-wins; this LOCK waterfall is parent-wins. Precedence follows
+CONSEQUENCE, not symmetry: a skin is a preference, a lock is not. Both fire off
+index.md and walk the same ancestors, so merging them will look like tidying.
+That is the day a locked page publishes. Do not.
 
-KEYS UNDER THE WATERFALL: a locked child KEEPS its own `password:`/`gates:`
-and GAINS the parent's. Any one of them opens the page, which the envelope
-already supported, so a local one-page password stays a one-line thing to add
-and delete without disturbing the folder key.
+KEYS UNDER THE WATERFALL: a locked child KEEPS its own keys and GAINS the
+parent's. Any one opens the page, which the envelope already supported, so a
+one-page password stays a one-line thing to add and delete without disturbing
+the folder key.
 
-A MISSING KEY LOCKS THE PAGE, IT DOES NOT FREEZE THE SITE
-A gated page naming a group with no password behind it publishes as an
-unopenable notice: the content is DROPPED (not encrypted, not shipped), the
-page says so plainly, the build reports it loudly, and everything else
-deploys. Failing the whole build here took the entire site stale over one
-page's missing config on 2026-08-01 -- the same trade `--strict` used to make
-over a single dead link, rejected for the same reason. The failure must be
-local and visible, not global and silent. URITP_GATES_STRICT=1 restores
-hard-fail. (`--strict` itself was removed from deploy.yml on 2026-08-01, for
-this exact argument, after it froze the site a third time.)
+A MISSING KEY LOCKS THE PAGE, IT DOES NOT FREEZE THE SITE: content DROPPED,
+page says so, build reports it, everything else deploys.
 
-🔒 NEVER PRINT A PASSWORD, ONLY A GROUP NAME. Names are already public in page
-frontmatter. Values are not, and GitHub's log masking is a literal string
-match that is NOT known to survive splitting a multi-line secret into lines --
-unverified as of 2026-08-01, so this file simply never emits one.
-
-NONE of this is access control while the repository is public. The markdown
-source of every page, INCLUDING a gated page's plaintext, is readable at
-github.com by anyone. The keystore keeps PASSWORDS out of the repo; it does
-not keep CONTENT out. See AUTHORING-GATES.md -> "What the gate actually does".
-
-📋 The readable copy of the keys lives in the ClickUp Accounts task, linked
-from AUTHORING-GATES.md -> Adding a key group. A secret cannot be read back,
-so that task is the master and this build is the copy.
-
-Wired in mkdocs.yml under `hooks:`. Documented in AUTHORING-GATES.md. Its
-browser half is docs/javascripts/gate.js: the two share the cipher, the KDF and
-the iteration count, so they change in the SAME PR or every gated page fails to
-unlock with no error anyone can read.
+Wired in mkdocs.yml under `hooks:`.
 """
 
-import base64
 import gzip
 import os
 import posixpath
-import random
 import re
-import secrets
+import sys
 
 import yaml
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from mkdocs.structure.files import Files, InclusionLevel
+
+# MkDocs loads a hook as a standalone module, not as part of a package, so a
+# relative import does not work. Same bootstrap hooks/contrast.py uses.
+_HOOKS = os.path.dirname(os.path.abspath(__file__))
+if _HOOKS not in sys.path:
+    sys.path.insert(0, _HOOKS)
+
+from gate import envelope, keystore, report      # noqa: E402  (path set above)
 
 DEFAULT = "hidden"
 ALLOWED = {"public", "gated", "unlisted", "hidden"}
-ITERATIONS = 250000
-
-CONTAINER = "URITP_GATE_KEYS"
-ENV_PREFIX = "URITP_GATE_"      # tier 2 only: the rotation hatch
 
 # The key links.py reads off the config to learn what this hook refused to
 # build. Underscored because it is not MkDocs configuration, it is a handoff.
@@ -222,8 +144,8 @@ _FRONTMATTER = re.compile(rb"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
 _SPAN = re.compile(r"\[([^\[\]\n]+)\]\{\s*\.([A-Za-z][\w-]*)\s*\}")
 _FENCE = re.compile(r"(^```.*?^```)", re.DOTALL | re.MULTILINE)
 
-_keystore = {}      # group name -> password
-_store_notes = []   # parse warnings, safe to print (names only)
+_store = None       # the Keystore for this build. Loaded in on_files.
+_store_notes = []   # parse + resolution warnings. NAMES ONLY, safe to print.
 _status = {}
 _keys = {}
 _unconfigured = {}
@@ -231,58 +153,11 @@ _overridden = {}    # src_uri -> (status it declared, the index that overruled)
 _nolist = set()
 _inherited = set()
 _noindex_paths = set()
-_unknown = {}       # src_uri -> the unrecognised value, exactly as written
+_unknown = {}       # src_uri -> the unrecognised status, exactly as written
 _defaulted = set()  # src_uri -> no `status:` key at all
 _hidden = {}        # src_uri -> declared `id:` or None. Handed to links.py.
-
-
-def _load_keystore():
-    """Parse URITP_GATE_KEYS once per build.
-
-    Every rule below is a real failure mode raised in review, not defensive
-    habit -- each one is silent and each one produces a working site with one
-    broken group, which is worse than a loud failure.
-    """
-    _keystore.clear()
-    del _store_notes[:]
-
-    raw = os.environ.get(CONTAINER, "")
-    if not raw.strip():
-        return
-
-    for number, line in enumerate(raw.splitlines(), start=1):
-        line = line.strip()
-        if not line:
-            continue
-        # `#` is a comment ONLY at the start of a line. Mid-line it is an
-        # ordinary password character and must survive.
-        if line.startswith("#"):
-            continue
-        if "=" not in line:
-            _store_notes.append("line " + str(number) + " has no '=', skipped")
-            continue
-
-        # Split on the FIRST '=' only: a password may legitimately contain one.
-        name, _, value = line.partition("=")
-        name = name.strip().lower()
-        # Trailing spaces are invisible in the GitHub secret box and would
-        # break every unlock with no error anywhere.
-        value = value.strip()
-
-        if not name:
-            _store_notes.append("line " + str(number) + " has no name, skipped")
-            continue
-        if not value:
-            _store_notes.append("group '" + name + "' has an empty password, skipped")
-            continue
-        if name in _keystore:
-            # FIRST wins, and say so. Last-wins would be silent.
-            _store_notes.append(
-                "group '" + name + "' appears twice; the first one is used"
-            )
-            continue
-
-        _keystore[name] = value
+_named_groups = {}  # group name -> set of pages that asked for it
+_trace = {}         # src_uri -> [Resolved]. The per-page key trace.
 
 
 def _read_meta(abs_path):
@@ -302,14 +177,14 @@ def _read_meta(abs_path):
 
 
 def _declared_status(meta, src_uri=None):
-    """The page's OWN status, or None if it did not declare one. Distinguishing
-    'said nothing' from 'said hidden' is what makes the waterfall safe: silence
-    inherits, `hidden` is never overruled.
+    """The page's OWN status, or None if it did not declare one.
 
-    Pass `src_uri` to RECORD what happened. It is optional because this runs
-    twice over index.md files -- once in the folder-gate pre-pass and once in
-    the main walk -- and a page must not be reported twice. The main walk is
-    the one that passes it.
+    Distinguishing 'said nothing' from 'said hidden' is what makes the
+    waterfall safe: silence inherits, `hidden` is never overruled.
+
+    Pass `src_uri` to RECORD what happened. Optional because this runs twice
+    over index.md files -- once in the folder-gate pre-pass, once in the main
+    walk -- and a page must not be reported twice. The main walk passes it.
     """
     raw = meta.get("status")
     if raw is None:
@@ -319,8 +194,6 @@ def _declared_status(meta, src_uri=None):
     status = str(raw).strip().lower()
     if status in ALLOWED:
         return status
-    # Unrecognised. Fall through to hidden -- guessing what someone meant is
-    # worse than not publishing -- but never in silence again.
     if src_uri is not None:
         _unknown[src_uri] = str(raw)
     return DEFAULT
@@ -333,111 +206,60 @@ def _is_unlisted(meta, status):
     return listed is False or str(listed).strip().lower() == "false"
 
 
-def _gate_names(meta):
-    """`gates: [psm, admin]`, or the singular `gate: psm`."""
-    names = meta.get("gates")
-    if names is None:
-        names = meta.get("gate")
-    if names is None:
-        return []
-    if isinstance(names, str):
-        names = [names]
-    return [str(n).strip().lower() for n in names if str(n).strip()]
-
-
-def _has_own_keys(meta):
-    """Did this page bring key material of its own to the party?"""
-    return bool(meta.get("password")) or bool(_gate_names(meta))
-
-
-def _hatch_var(name):
-    """Tier 2 only. psm -> URITP_GATE_PSM."""
-    return ENV_PREFIX + name.upper().replace("-", "_")
-
-
-def _password_for(name):
-    """Container first, then the rotation hatch. Returns (password, note)."""
-    inside = _keystore.get(name)
-    outside = os.environ.get(_hatch_var(name))
-
-    if inside and outside:
-        return inside, (
-            "group '" + name + "' is in both " + CONTAINER + " and "
-            + _hatch_var(name) + "; the container wins -- remove one"
-        )
-    if inside:
-        return inside, None
-    if outside:
-        return outside, None
-    return None, None
-
-
-def _available():
-    """Every group the build can satisfy, from both tiers. NAMES ONLY -- these
-    are already written in page frontmatter and are not secret."""
-    found = set(_keystore)
-    for key, value in os.environ.items():
-        if key.startswith(ENV_PREFIX) and value and key != CONTAINER:
-            found.add(key[len(ENV_PREFIX):].lower())
-    return sorted(found)
-
-
 def _resolve_keys(metas, src_uri):
     """Return (passwords, problems) for a LIST of key sources, nearest first.
 
     More than one source is the normal case under the waterfall: a locked child
-    contributes its own local password and the locking index contributes the
-    folder key, and either one opens the page. Never raises unless
-    URITP_GATES_STRICT=1.
+    contributes its own keys and the locking index contributes the folder's,
+    and any of them opens the page. Never raises unless URITP_GATES_STRICT=1.
 
-    `problems` non-empty means this page cannot be published at all: it is
-    rendered as an unopenable notice rather than encrypted, and reported.
+    `problems` non-empty means the page cannot be published at all: it renders
+    as an unopenable notice rather than ciphertext, and is reported.
+
+    keystore.resolve() does the interpreting. This function only merges,
+    dedupes across sources, and records the trace.
     """
     found = []
-    missing = []
+    seen = set()
+    resolved = []
+    refused = []
 
     for meta in metas:
-        literal = meta.get("password")
-        if literal:
-            found.append(str(literal))
+        for item in _store.resolve(meta):
+            if item.note and item.note not in _store_notes:
+                _store_notes.append(item.note)
+            if item.kind == "refused":
+                refused.append(item)
+                continue
+            if item.kind == "group":
+                _named_groups.setdefault(item.name.lower(), set()).add(src_uri)
+            if item.password in seen:
+                continue
+            seen.add(item.password)
+            found.append(item.password)
+            resolved.append(item)
 
-        for name in _gate_names(meta):
-            password, note = _password_for(name)
-            if note and note not in _store_notes:
-                _store_notes.append(note)
-            if password:
-                found.append(password)
-            elif name not in missing:
-                missing.append(name)
+    _trace[src_uri] = resolved + refused
 
     problems = []
-    if missing:
-        have = _available()
-        detail = "no password for group(s): " + ", ".join(missing)
-        detail += (
-            "; groups available right now: " + ", ".join(have)
-            if have else "; the keystore is empty -- is " + CONTAINER + " set?"
-        )
-        problems.append(detail)
+    for item in refused:
+        problems.append(item.note)
 
     if not found and not problems:
+        have = _store.available()
         problems.append(
-            "status is 'gated' but no `gates:` and no `password:` was given"
+            "status is 'gated' but no key was given. Add one of "
+            + "/".join(keystore.FIELDS)
+            + " with either a group name or a literal password"
+            + ("; groups available right now: " + ", ".join(have)
+               if have else
+               "; the keystore is empty -- is " + keystore.CONTAINER + " set?")
         )
 
     if problems and STRICT:
         raise ValueError(src_uri + ": " + "; ".join(problems))
 
-    # Two groups sharing one password would ship two wraps that both open,
-    # which leaks that they are the same secret. Deduping also means a child
-    # repeating its parent's password costs nothing.
-    seen = set()
-    unique = []
-    for value in found:
-        if value not in seen:
-            seen.add(value)
-            unique.append(value)
-    return unique, problems
+    return found, problems
 
 
 def _ancestors(src_uri):
@@ -458,47 +280,27 @@ def _opted_out(meta):
 
 
 def _expand_spans(markdown):
+    """`[To be confirmed]{.tbc}` -> a real span.
+
+    ⚠️ THIS DOES NOT BELONG IN A VISIBILITY HOOK and it may not need to exist.
+    It is a markdown transform with no relationship to publishing, gating or
+    encryption -- a second thing that moved into this file, which is half of
+    why the file got too big to read.
+
+    AND IT MAY BE REDUNDANT: `attr_list` is enabled in mkdocs.yml and the
+    comment beside it credits that extension with exactly this syntax.
+    attr_list natively supports `[text]{.class}`. So either this is dead code
+    or that comment is wrong -- two claimants on one behaviour, one of them
+    lying. UNMEASURED as of 2026-08-01, deliberately: settle it by deleting
+    this on a branch and looking at a rendered `.tbc`, not by reasoning, and
+    not folded into an unrelated PR.
+    """
     parts = _FENCE.split(markdown)
     for i, part in enumerate(parts):
         if part.startswith("```"):
             continue
         parts[i] = _SPAN.sub(r'<span class="\2">\1</span>', part)
     return "".join(parts)
-
-
-def _b64(raw):
-    return base64.b64encode(raw).decode()
-
-
-def _derive(password, salt):
-    return PBKDF2HMAC(
-        algorithm=hashes.SHA256(), length=32, salt=salt, iterations=ITERATIONS
-    ).derive(password.encode())
-
-
-def _encrypt(plaintext, passwords):
-    """Envelope: one body ciphertext, one wrapped content key per password."""
-    cek = AESGCM.generate_key(bit_length=256)
-    nonce = secrets.token_bytes(12)
-    body = AESGCM(cek).encrypt(nonce, plaintext.encode(), None)
-
-    wraps = []
-    for password in passwords:
-        salt = secrets.token_bytes(16)
-        wrap_nonce = secrets.token_bytes(12)
-        wrapped = AESGCM(_derive(password, salt)).encrypt(wrap_nonce, cek, None)
-        wraps.append({"s": _b64(salt), "n": _b64(wrap_nonce), "w": _b64(wrapped)})
-
-    random.SystemRandom().shuffle(wraps)
-    return _b64(nonce), _b64(body), wraps
-
-
-def _keys_attr(wraps):
-    parts = [
-        '{"s":"' + w["s"] + '","n":"' + w["n"] + '","w":"' + w["w"] + '"}'
-        for w in wraps
-    ]
-    return base64.b64encode(("[" + ",".join(parts) + "]").encode()).decode()
 
 
 def on_files(files, config):
@@ -508,14 +310,20 @@ def on_files(files, config):
     Two passes over the pages, because the waterfall cannot be decided while
     still walking: a folder's index.md may be read after one of its children.
     """
-    _load_keystore()
+    global _store
+    _store = keystore.load()
 
-    for store in (_status, _keys, _unconfigured, _overridden, _unknown, _hidden):
+    for store in (
+        _status, _keys, _unconfigured, _overridden, _unknown, _hidden,
+        _named_groups, _trace,
+    ):
         store.clear()
     _nolist.clear()
     _inherited.clear()
     _noindex_paths.clear()
     _defaulted.clear()
+    del _store_notes[:]
+    _store_notes.extend(_store.notes)
 
     pages = []
     folder_gate = {}
@@ -526,8 +334,8 @@ def on_files(files, config):
         meta = _read_meta(f.abs_src_path)
         pages.append((f, meta))
         if posixpath.basename(f.src_uri) == "index.md":
-            # No src_uri: this is the pre-pass, and the main walk below will
-            # report this same file. Passing it here would double-count.
+            # No src_uri: this is the pre-pass, and the main walk below reports
+            # this same file. Passing it here would double-count.
             if _declared_status(meta) == "gated":
                 folder_gate[posixpath.dirname(f.src_uri)] = (meta, f.src_uri)
 
@@ -543,13 +351,12 @@ def on_files(files, config):
         source_uri = f.src_uri
 
         # A page's own key material always counts, even when a parent locks it.
-        # That is what keeps a one-page local password a one-line thing.
-        key_metas = [meta] if _has_own_keys(meta) else []
+        # That is what keeps a one-page password a one-line thing.
+        key_metas = [meta] if keystore.declares_keys(meta) else []
 
         # THE WATERFALL. The nearest gated index.md wins over whatever this page
         # declared -- see the module docstring for why that precedence flipped.
-        # `hidden` is the one status it may not overrule: this rule raises
-        # protection and must never be the reason a page got published.
+        # `hidden` is the one status it may not overrule.
         if declared != "hidden" and not _opted_out(meta):
             for folder in _ancestors(f.src_uri):
                 if folder in folder_gate and folder_gate[folder][1] != f.src_uri:
@@ -576,7 +383,7 @@ def on_files(files, config):
             continue
 
         if status == "gated":
-            passwords, problems = _resolve_keys(key_metas or [meta], source_uri)
+            passwords, problems = _resolve_keys(key_metas or [meta], f.src_uri)
             if problems:
                 _unconfigured[f.src_uri] = problems
             else:
@@ -641,20 +448,15 @@ def on_page_markdown(markdown, page, config, files):
     return _expand_spans(markdown)
 
 
-def _notice(problems):
-    """A page whose key is not configured. The content is DROPPED, not
-    encrypted and not published: there is no key to open it with, so shipping
-    ciphertext nobody can decrypt would only be confusing."""
-    return (
-        '<div class="gate">'
-        '<p class="gate__label">Unavailable</p>'
-        '<p class="gate__note">This page is restricted and its key has not been '
-        'set up yet, so it cannot be opened by anyone. Nothing is missing from '
-        'the page itself. Ask production management, or see AUTHORING-GATES.md '
-        '&rarr; Adding a key group.</p>'
-        '<p class="gate__error">' + "; ".join(problems) + '</p>'
-        '</div>'
-    )
+def _scrub(page):
+    """Every key spelling out of page.meta before anything can render it.
+
+    🔒 A literal password is a real secret sitting in page metadata. Material
+    does not print it today, but a future template or plugin that iterates meta
+    would, and the page it would print it on is the locked one.
+    """
+    for field in keystore.FIELDS:
+        page.meta.pop(field, None)
 
 
 def on_page_content(html, page, config, files):
@@ -667,36 +469,15 @@ def on_page_content(html, page, config, files):
     src = page.file.src_uri
 
     if src in _unconfigured:
-        page.meta.pop("password", None)
-        return _notice(_unconfigured[src])
+        _scrub(page)
+        return envelope.notice(_unconfigured[src])
 
     if _status.get(src) != "gated":
         return html
 
-    nonce, ciphertext, wraps = _encrypt(html, _keys[src])
-    page.meta.pop("password", None)
-
-    note = (
-        "This page is not public. Enter the password you were given, or ask "
-        "production management."
-    )
-
-    return (
-        '<div class="gate" data-nonce="' + nonce + '"'
-        ' data-iter="' + str(ITERATIONS) + '"'
-        ' data-keys="' + _keys_attr(wraps) + '"'
-        ' data-ct="' + ciphertext + '">'
-        '<form class="gate__form" autocomplete="off">'
-        '<p class="gate__label">Restricted page</p>'
-        '<p class="gate__note">' + note + '</p>'
-        '<div class="gate__row">'
-        '<input class="gate__input" type="password" name="gatepw"'
-        ' placeholder="Password" aria-label="Page password" required>'
-        '<button class="gate__btn" type="submit">Unlock</button>'
-        '</div>'
-        '<p class="gate__error" hidden>That password did not work.</p>'
-        '</form></div>'
-    )
+    nonce, ciphertext, wraps = envelope.encrypt(html, _keys[src])
+    _scrub(page)
+    return envelope.form(nonce, ciphertext, wraps)
 
 
 def on_post_page(output, page, config):
@@ -707,154 +488,25 @@ def on_post_page(output, page, config):
     return output.replace("<head>", "<head>" + NOINDEX, 1)
 
 
-def _summary(lines):
-    path = os.environ.get("GITHUB_STEP_SUMMARY")
-    if not path:
-        return
-    with open(path, "a", encoding="utf-8") as fh:
-        fh.write("\n".join(lines) + "\n")
-
-
-def _report_status_typos():
-    """The loudest thing this file does, because it is the quietest failure it
-    can produce: a page that stopped existing while the build went green."""
-    if _defaulted:
-        # Not a warning. The default is correct and a new page SHOULD start
-        # unpublished. But a forgotten frontmatter block should be visible
-        # once rather than never.
-        print(
-            "gate: " + str(len(_defaulted))
-            + " page(s) hidden by DEFAULT (no `status:` at all): "
-            + ", ".join(sorted(_defaulted))
-        )
-
-    if not _unknown:
-        return
-
-    legal = ", ".join(sorted(ALLOWED))
-    for src, written in sorted(_unknown.items()):
-        print(
-            "::warning file=" + src + "::status: '" + written + "' is not one of "
-            + legal + " -- this page is being treated as `hidden` and will NOT "
-            "publish. If that is not what you meant, it is a typo."
-        )
-
-    lines = [
-        "### \u26a0\ufe0f Unrecognised `status:` -- these pages did not publish",
-        "",
-        "An unrecognised value falls through to `hidden`, because guessing what "
-        "you meant is worse than publishing the wrong thing. The build did not "
-        "fail. **The page simply is not on the site.**",
-        "",
-        "Legal values: `public`, `gated`, `unlisted`, `hidden`.",
-        "",
-        "| Page | It says | Result |",
-        "|---|---|---|",
-    ]
-    for src, written in sorted(_unknown.items()):
-        lines.append("| `" + src + "` | `" + written + "` | not published |")
-    _summary(lines + [""])
-
-
-def _report():
-    """Loud, because the whole point of not failing the build is that the
-    problem must not become invisible instead.
-
-    🔒 Group NAMES only. Never a password, never a length, never a fragment.
-    """
-    _report_status_typos()
-
-    if _hidden:
-        print("gate: " + str(len(_hidden)) + " page(s) not published (`hidden`)")
-
-    have = _available()
-    print("gate: " + str(len(have)) + " group(s) loaded -- "
-          + (", ".join(have) if have else "NONE"))
-
-    for note in _store_notes:
-        print("::warning::gate keystore: " + note)
-
-    if _inherited:
-        print("gate: " + str(len(_inherited)) + " page(s) locked by a parent index")
-
-    # The waterfall overruling a page is legitimate and expected. It is
-    # reported anyway, by name: an override you cannot see is the same class of
-    # defect as the hole the override closed.
-    if _overridden:
-        print("gate: " + str(len(_overridden)) + " page(s) OVERRULED by a parent index:")
-        for src, (was, parent) in sorted(_overridden.items()):
-            print("  " + src + " -- declared '" + was + "', locked by " + parent)
-        lines = [
-            "### 🔒 Locked by a parent index",
-            "",
-            "These pages declared their own status and the folder's gated "
-            "`index.md` overruled it. This is the intended behaviour -- the "
-            "folder is the switch. Add `inherit: false` to a page that must "
-            "genuinely stand outside its folder's lock.",
-            "",
-            "| Page | It declared | Locked by |",
-            "|---|---|---|",
-        ]
-        for src, (was, parent) in sorted(_overridden.items()):
-            lines.append("| `" + src + "` | `" + was + "` | `" + parent + "` |")
-        _summary(lines + [""])
-
-    if not _unconfigured:
-        return
-
-    print(
-        "gate: " + str(len(_unconfigured))
-        + " page(s) UNAVAILABLE, key not configured:"
-    )
-    for src, problems in sorted(_unconfigured.items()):
-        print("  " + src + " -- " + "; ".join(problems))
-
-    if not os.environ.get("GITHUB_STEP_SUMMARY"):
-        return
-
-    # Distinguish "no keystore at all" from "keystore present but this group
-    # is not in it" -- identical symptoms, completely different fixes.
-    if not have:
-        cause = (
-            "**No gate keys reached this build at all.** Either the "
-            "`" + CONTAINER + "` secret does not exist, or it is empty, or "
-            "everything in it failed to parse (see any keystore warnings "
-            "above)."
-        )
-    else:
-        cause = (
-            "The keystore loaded **" + str(len(have)) + " group(s)** ("
-            + ", ".join(have) + "), but the page(s) below name something else. "
-            "Check the spelling in `gates:` against that list."
-        )
-
-    lines = [
-        "### \u26a0\ufe0f Gate keys not configured",
-        "",
-        cause,
-        "",
-        "These pages published as an unopenable notice. Their content was NOT "
-        "shipped, and the rest of the site deployed normally.",
-        "",
-        "| Page | Problem |",
-        "|---|---|",
-    ]
-    for src, problems in sorted(_unconfigured.items()):
-        lines.append("| `" + src + "` | " + "; ".join(problems) + " |")
-    lines += [
-        "",
-        "Add the group to the `" + CONTAINER + "` secret as a "
-        "`name = password` line (**Settings -> Secrets and variables -> "
-        "Actions**). The readable copy of that block lives in the ClickUp "
-        "Accounts task -- update it there first, then paste. "
-        "See AUTHORING-GATES.md -> Adding a key group.",
-    ]
-    _summary(lines)
-
-
 def on_post_build(config):
     """Report, then strip undiscoverable pages out of the sitemap."""
-    _report()
+    report.build(
+        {
+            "store": _store,
+            "notes": _store_notes,
+            "hidden": _hidden,
+            "defaulted": _defaulted,
+            "unknown": _unknown,
+            "named": _named_groups,
+            "inherited": _inherited,
+            "overridden": _overridden,
+            "unconfigured": _unconfigured,
+            "trace": _trace,
+            "allowed": ALLOWED,
+            "fields": keystore.FIELDS,
+        },
+        keystore.CONTAINER,
+    )
 
     if not _noindex_paths:
         return
