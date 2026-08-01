@@ -1,27 +1,13 @@
 ---
-title: Page title here
-status: gated | hidden | unlisted | public
-password: 
+title: Todd Union
+status: public
 ---
 
-<!-- ─────────────────────────────────────────────────────────
-     URITP DOCS — NEW PAGE TEMPLATE
+# Todd Union
 
-     1. Copy this file. Rename it kebab-case: rehearsal-studio.md
-     2. Drop it in the right folder under docs/. That registers it.
-     3. Set `title:` above. Leave `status: hidden` until it is worth reading.
-     4. Delete every block you do not use, including this comment.
+URITP's second production venue. Nothing in this section is documented yet. Until it is, treat Todd as an unknown room and take questions to production management rather than assuming anything from the Smith Theatre page carries over.
 
-     STATUS      hidden -> not built at all, URL 404s        (start here)
-                 unlisted -> live URL, no sidebar, no search
-                 gated -> in the sidebar, asks for a password
-                 public -> listed, searchable, done
-
-     GATED also needs, on its own line under status:
-                 password: theatre2026
-                 gate: designers   (reads URITP_GATE_DESIGNERS instead)
-
-     Full reference: AUTHORING.md at the repo root.
-     ───────────────────────────────────────────────────────── -->
-
-# Todd index
+| Page | State |
+|---|---|
+| [Todd Theatre](todd-theatre.md) | Placeholder, unlisted |
+| [Todd Lobby](todd-lobby.md) | Placeholder |

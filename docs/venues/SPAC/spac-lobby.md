@@ -23,4 +23,4 @@ Front-of-house gathering space, box office, and small event venue in the Sloan P
 
 ## Related
 
-- [Smith Theatre](smith-theatre.md)
+- [Smith Theatre](../smith-theatre.md)

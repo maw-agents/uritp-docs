@@ -21,5 +21,5 @@ URITP's second production venue.
 
 ## Related
 
-- [Smith Theatre](smith-theatre.md)
-- [Safety and health](../safety/index.md)
+- [Smith Theatre](../smith-theatre.md)
+- [Safety and health](../../safety/index.md)
