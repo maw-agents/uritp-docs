@@ -37,6 +37,22 @@ row resolves against. ``_default`` is the join's equivalent.
 [!] An empty cell is INHERIT, never "nothing". A token that wants to be off
 says so with a real value: ``shadow`` is the word ``none``, not a blank.
 
+THE WEBFONT SEAM IS CLOSED (2026-08-01) -- this hook now writes the config
+Until today the typography grid said which family the CSS ASKED FOR while
+``mkdocs.yml -> theme.font`` said which family Material DOWNLOADED, in a
+different file, kept in agreement by hand. Point one at a family the other had
+not been told to fetch and the page silently rendered the next entry in the
+fallback stack, with no error anywhere. It was documented as "a seam that
+cannot be closed." It can: ``on_config`` runs before any template renders, so
+the grid simply SETS ``theme.font`` from its own ``webfont-text`` and
+``webfont-code`` columns. One file decides, so the two cannot disagree.
+
+    webfont-text = IBM Plex Sans      download it
+    webfont-text = none               download nothing (system fonts only)
+
+These two columns are the only ones that are NOT emitted as CSS -- they
+configure Material rather than describing a style. ``NOT_CSS`` holds them.
+
 WHY A BAD NAME STILL FAILS THE BUILD
 The house rule is that failures should be local and visible, not global and
 silent -- a dead link marks one link, a missing gate key locks one page. A
@@ -75,20 +91,32 @@ DEFAULT = "_default"    # the same idea, one level up, inside themes.tsv
 META = {"slug", "mode", "inherits", "name", "note"}
 MAX_HOPS = 8
 
-# Every token docs/stylesheets/uritp.css reads. Adding a var() there means
-# adding its name here AND a column to that vector's grid, in the SAME PR.
+# Required, but NOT written into the CSS: these configure Material's webfont
+# loader instead of describing a style. See THE WEBFONT SEAM above.
+NOT_CSS = {"webfont-text", "webfont-code"}
+OFF = "none"            # `webfont-text = none` means download nothing
+
+# Every token docs/stylesheets/uritp.css reads, plus the two webfont names.
+# Adding a var() to the stylesheet means adding its name here AND a column to
+# that vector's grid, in the SAME PR.
 REQUIRED = {
     "color": (
         "bg surface-1 surface-2 border hairline text text-strong text-soft "
         "accent accent-hover on-accent chrome on-chrome marker bad"
     ).split(),
     "typography": (
-        "font-body font-mono fs-body fs-lead fs-sm fs-xs fs-h1-min "
-        "fs-h1-fluid fs-h1-max fs-h2 fs-h3 lh-body lh-tight track-body "
-        "track-tight track-caps"
+        "webfont-text webfont-code font-body font-mono "
+        "fs-body fs-lead fs-sm fs-xs fs-micro fs-nav fs-nav-mobile "
+        "fs-h1-min fs-h1-fluid fs-h1-max fs-h2 fs-h3 "
+        "lh-body lh-tight track-body track-tight track-caps"
     ).split(),
-    "forms": "radius radius-lg border-w rule-w shadow motion ease focus-w".split(),
-    "spacing": "touch pad-cell pad-block gap-xs gap-md gap-lg measure".split(),
+    "forms": (
+        "radius radius-lg border-w rule-w bar-w shadow motion ease "
+        "focus-w icon-dim"
+    ).split(),
+    "spacing": (
+        "touch pad-cell pad-block pad-row gap-xs gap-md gap-lg measure"
+    ).split(),
 }
 
 # Colour is the only vector with modes, because the site has a scheme toggle.
@@ -216,14 +244,44 @@ def _compose(vector, table, slug, mode=None):
 
 def _declare(tokens, vector):
     """Only the tokens the stylesheet actually reads. A `note` is prose for a
-    human and has no business in the CSS."""
+    human, and the webfont names configure Material -- neither belongs in CSS."""
     return "".join(
-        "--u-" + key + ":" + tokens[key] + ";" for key in REQUIRED[vector]
+        "--u-" + key + ":" + tokens[key] + ";"
+        for key in REQUIRED[vector]
+        if key not in NOT_CSS
     )
 
 
 def _block(selector, body):
     return selector + "{" + body + "}"
+
+
+def _apply_webfont(config, tokens):
+    """Write the family names Material should DOWNLOAD, from the same grid row
+    that decided which families the CSS asks for. This is the seam-closing
+    move: one file decides, so the two cannot drift apart.
+
+    Material takes `font: false` to mean "load nothing", and it is all or
+    nothing -- there is no per-face switch. So `none` in one column and a real
+    family in the other is a contradiction, and it is refused rather than
+    silently resolved in whichever direction happens to be first."""
+    text = tokens["webfont-text"]
+    code = tokens["webfont-code"]
+
+    if (text == OFF) != (code == OFF):
+        _fail(
+            GRID["typography"],
+            "webfont-text is `" + text + "` and webfont-code is `" + code
+            + "`. Material loads webfonts all-or-nothing, so these must both "
+            "be `" + OFF + "` or both name a family.",
+        )
+
+    if text == OFF:
+        config["theme"]["font"] = False
+        return OFF
+
+    config["theme"]["font"] = {"text": text, "code": code}
+    return text + " + " + code
 
 
 def _active():
@@ -293,8 +351,11 @@ def on_config(config):
         css.append(_block(selector, _declare(tokens, "color")))
 
     root = ""
+    webfont = ""
     for vector in ("typography", "forms", "spacing"):
         tokens = _compose(vector, _index(vector, GRID[vector]), chosen[vector])
+        if vector == "typography":
+            webfont = _apply_webfont(config, tokens)
         root += _declare(tokens, vector)
     css.insert(0, _block(":root", root))
 
@@ -305,6 +366,7 @@ def on_config(config):
     print("theme: " + active + " = " + " x ".join(chosen[v] for v in VECTORS))
     for line in _trace:
         print(line)
+    print("  webfont = " + webfont)
     return config
 
 
