@@ -6,44 +6,48 @@ hooks/visibility.py decided and turns it into workflow annotations plus a run
 summary. It owns no state, reads no frontmatter, and makes no decisions.
 
 =======================================================================
-WHY THIS IS A THIRD FILE AND NOT A SECTION
+THE TRACE IS THE POINT
 =======================================================================
 
-Because it is a THIRD of the gate by weight, and because it is the part that
-keeps growing. Every silent failure this repo has found on 2026-08-01 was
-closed by adding a report, not by adding a rule -- the unrecognised status, the
-overruled page, the unconfigured key, the unused group. That is the correct
-response and it means this concern grows every time the gate learns something,
-while the decision logic barely moves. Growth belongs in its own file.
+This gate deliberately GUESSES: any of six frontmatter spellings, one value or
+a list, and a value that matches a keystore group becomes that group's secret
+while anything else is the password itself. That is the right trade for a
+casual lock on a public repo -- but a system that guesses MUST show its work,
+or a wrong guess is exactly the silent failure the guessing was meant to avoid.
+
+So every build prints, per gated page, every key it resolved and whether it
+came from the keystore or from the page. Michael's ask, verbatim: "easy to
+debug and trace back but also implement."
 
 =======================================================================
 🔒 THE ONE HARD RULE: NAMES, NEVER VALUES
 =======================================================================
 
-Nothing in here may print a password, its length, or a fragment of one. Group
-NAMES are already written in page frontmatter and are not secret. Values are.
+Nothing here may print a password, its length, or a fragment. Group NAMES are
+already in page frontmatter and are not secret. Values are.
+
+⚠️ THAT NOW CUTS BOTH WAYS AND IT IS EASY TO GET WRONG. A LITERAL key's `name`
+IS its password -- `password: need2026` means the word in the trace would be
+the secret. So a literal is reported by its FIELD and its PAGE, never by its
+value, while a group is reported by name. `Resolved.describe()` in keystore.py
+is the only formatter allowed to make that distinction, and this module calls
+it rather than formatting names itself.
 
 GitHub masks secrets in logs by literal string match, and that masking is NOT
-known to survive a multi-line secret being split into individual lines -- which
-is exactly what the keystore does to URITP_GATE_KEYS. So this file does not
-rely on masking. It simply never has a password in scope: it is handed the
-Keystore, and Keystore only exposes `available()`, which returns names.
-
-⚠️ If a future report needs to say something about a value -- that two groups
-share a password, that one is short -- it must say it about the NAMES. "groups
-x and y resolve to the same secret" is safe. Printing the secret to prove it is
-not, and neither is printing four characters of it.
+known to survive a multi-line secret being split into lines -- which is exactly
+what the keystore does. So this file does not rely on masking. It never has a
+secret in scope it is willing to print.
 
 =======================================================================
 NOTHING IN HERE FAILS A BUILD
 =======================================================================
 
-A report is the ALTERNATIVE to failing. The whole design of this gate is that a
-bad page is local and visible rather than global and silent -- one page shows
-an unopenable notice while the rest of the site deploys. If a report ever
-raises, that trade quietly reverses and one page's config takes the site down,
-which is the exact failure that removed `--strict` from deploy.yml on
-2026-08-01. Print. Never raise.
+A report is the ALTERNATIVE to failing. The whole design is that a bad page is
+local and visible rather than global and silent -- one page shows an unopenable
+notice while the rest of the site deploys. If a report ever raises, that trade
+quietly reverses and one page's config takes the site down, which is the exact
+failure that removed `--strict` from deploy.yml on 2026-08-01. Print, never
+raise.
 
 Called only by hooks/visibility.py.
 """
@@ -109,6 +113,55 @@ def _typos(unknown, allowed):
     _summary(lines + [""])
 
 
+def _keytrace(trace, fields):
+    """Every gated page and every key that opens it.
+
+    🔒 A group is named. A literal is NOT -- its name is its password. Both go
+    through Resolved.describe(), which is the only place that distinction is
+    encoded.
+    """
+    opened = {src: items for src, items in trace.items() if items}
+    if not opened:
+        return
+
+    print("gate: key trace --")
+    for src, items in sorted(opened.items()):
+        print("  " + src)
+        for item in items:
+            print(
+                "      " + item.field + ": " + item.describe()
+            )
+
+    lines = [
+        "### 🔑 Which key opens which page",
+        "",
+        "Any **one** of a page's keys opens it. A value matching a keystore "
+        "group resolves to that group's secret; anything else is the password "
+        "itself. All of `" + "`, `".join(fields) + "` mean the same thing and "
+        "each takes one value or a list.",
+        "",
+        "🔒 A literal password is shown by the field it came from, never by "
+        "its value -- this log is public.",
+        "",
+        "| Page | Written as | Resolved |",
+        "|---|---|---|",
+    ]
+    for src, items in sorted(opened.items()):
+        for item in items:
+            shown = (
+                "`" + item.name + "` → keystore group"
+                if item.kind == "group"
+                else (
+                    "🔴 refused" if item.kind == "refused"
+                    else "a literal password on this page"
+                )
+            )
+            lines.append(
+                "| `" + src + "` | `" + item.field + ":` | " + shown + " |"
+            )
+    _summary(lines + [""])
+
+
 def _groups(store, notes, named):
     """What the keystore holds, what asked for it, and what nothing asked for.
 
@@ -138,7 +191,7 @@ def _groups(store, notes, named):
     if not named:
         tail = (
             "  -- and NO page names any group at all, so every gated page here "
-            "is running on a literal `password:` and the keystore is doing "
+            "is running on a literal password and the keystore is doing "
             "nothing"
         )
     print(
@@ -179,34 +232,31 @@ def _overrules(overridden, inherited):
     _summary(lines + [""])
 
 
-def _unopenable(unconfigured, store, container):
+def _unopenable(unconfigured, store, container, fields):
     """Gated pages nobody can open. Content dropped, site still deployed."""
     if not unconfigured:
         return
 
     print(
         "gate: " + str(len(unconfigured))
-        + " page(s) UNAVAILABLE, key not configured:"
+        + " page(s) UNAVAILABLE, no usable key:"
     )
     for src, problems in sorted(unconfigured.items()):
         print("::warning file=" + src + "::gate: " + "; ".join(problems))
 
     have = store.available()
-    # Distinguish "no keystore at all" from "keystore present but this group is
-    # not in it" -- identical symptoms, completely different fixes.
     if not have:
         cause = (
             "**No gate keys reached this build at all.** Either the `"
             + container + "` secret does not exist, or it is empty, or "
             "everything in it failed to parse (see any keystore warnings "
-            "above)."
+            "above). A page can still lock itself with a literal password."
         )
     else:
         cause = (
             "The keystore loaded **" + str(len(have)) + " group(s)** ("
-            + ", ".join(have) + "). Check the spelling in `gates:` against that "
-            "list -- and check that a list of group NAMES is in `gates:` and "
-            "not in `password:`, which takes one literal value."
+            + ", ".join(have) + "). Any of `" + "`, `".join(fields)
+            + "` takes a group name, a literal password, or a list of either."
         )
 
     lines = [
@@ -235,7 +285,7 @@ def _unopenable(unconfigured, store, container):
 
 def build(state, container):
     """The whole report, in the order a reader wants it: what did not publish,
-    then what the keys look like, then what could not be opened.
+    then what opens what, then what could not be opened.
 
     `state` is a plain dict assembled by the hook rather than this module
     reaching into it -- so the seam is one call with visible arguments, not a
@@ -253,5 +303,8 @@ def build(state, container):
         )
 
     _groups(state["store"], state["notes"], state["named"])
+    _keytrace(state["trace"], state["fields"])
     _overrules(state["overridden"], state["inherited"])
-    _unopenable(state["unconfigured"], state["store"], container)
+    _unopenable(
+        state["unconfigured"], state["store"], container, state["fields"]
+    )
