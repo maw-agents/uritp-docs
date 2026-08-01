@@ -32,7 +32,7 @@ That is the entire procedure. The names available are the `slug` column of
 
 Body text a little bigger? `typography.tsv`, row `plex-docs`, column
 `fs-body`. Background less black? `colors.tsv`, row `uritp-prp`, mode `dark`,
-column `bg`.
+column `bg`. Menu rows too tight? `spacing.tsv`, column `pad-row`.
 
 That cell is the only place the value exists. Nothing else needs touching.
 
@@ -116,35 +116,75 @@ raising the lightness on `bg`.
 ⚠️ **`chrome` is the header bar.** Every palette here sets it equal to `bg`,
 which is the deliberate flat look: the header is the same ground as the page,
 separated by a rule instead of a block of colour. Give it its own value and
-the banner detaches. If you take it far from a dark neutral, mirror it in
-`mkdocs.yml` → `theme.palette` → `primary`, which is first paint and the phone
-browser's own bar colour.
+the banner detaches.
 
 ⚠️ **`marker` is deliberately not `accent`.** "This number is unconfirmed" and
 "this is a link" must not be the same colour.
 
 ### `typography.tsv` — the voice
 
-Families, the four-step size ramp (`fs-lead`, `fs-body`, `fs-sm`, `fs-xs`),
-the heading ramp, line height, letter tracking.
+| Column | Used for |
+|---|---|
+| `webfont-text` / `webfont-code` | **Which fonts get downloaded.** See below. |
+| `font-body` / `font-mono` | The CSS font stack, including fallbacks |
+| `fs-lead` | The one paragraph under a page title |
+| `fs-body` | Body copy |
+| `fs-sm` | Tables, callouts |
+| `fs-xs` | Small caps labels, table headers, the page-foot link |
+| `fs-micro` | The footer build stamp |
+| `fs-nav` | **Sidebar text**, content tabs, the gate's small print |
+| `fs-nav-mobile` | Sidebar text in the phone drawer, where it needs to be bigger |
+| `fs-h1-min` / `fs-h1-fluid` / `fs-h1-max` | The page title, which scales with the window |
+| `fs-h2` / `fs-h3` | Section headings |
+| `lh-body` / `lh-tight` | Line height: prose / headings |
+| `track-body` / `track-tight` / `track-caps` | Letter spacing: prose / headings / small caps |
 
-⚠️ **One seam that cannot be closed from here.** This grid says which family
-the CSS **asks for**. `mkdocs.yml` → `theme.font` says which family Material
-**downloads**. Point at something Material was not told to fetch and you get a
-silent fallback. Stay inside a family already loaded, or change both.
+**`webfont-text` and `webfont-code` are the two cells that are not a style.**
+They name the font families Material should **download**, and
+`hooks/theme.py` writes them into the build. Everything else in this grid is a
+CSS value; these two are configuration.
+
+    webfont-text = IBM Plex Sans      download it
+    webfont-text = none               download nothing, use system fonts
+
+⚠️ **They are all-or-nothing.** Material has no per-face switch, so both must
+say `none` or both must name a family. One of each fails the build rather than
+picking a winner quietly.
+
+> **This used to be a seam and it is now closed.** Until 2026-08-01 the font
+> the CSS *asked for* lived here and the font Material *downloaded* lived in
+> `mkdocs.yml`, two files kept in agreement by hand — and a mismatch silently
+> rendered the next fallback in the stack with no error anywhere. One row
+> decides both now, so they cannot disagree. **Do not add a `font:` block back
+> to `mkdocs.yml`**; it would be overwritten every build and would read as
+> configuration while doing nothing.
 
 ### `forms.tsv` — the edges
 
-Corner radius, border weights, shadow, motion timing, focus ring thickness.
-`shadow` = `none` is the house answer and a real value.
+| Column | Used for |
+|---|---|
+| `radius` / `radius-lg` | Corner rounding: small things / panels |
+| `border-w` | A line you are meant to see |
+| `rule-w` | A line you are meant to barely notice |
+| `bar-w` | The accent bar marking the row you are on in the menu |
+| `shadow` | Depth. `none` is the house answer and a real value. |
+| `motion` / `ease` | Transition duration and curve |
+| `focus-w` | Keyboard focus ring thickness. **Never 0.** |
+| `icon-dim` | How faded the menu chevrons are (`1` = full strength) |
 
 ### `spacing.tsv` — the density
 
-Tap target, cell and block padding, the three gaps, and `measure` (maximum
-line length for prose).
+| Column | Used for |
+|---|---|
+| `touch` | Minimum tap target |
+| `pad-cell` | Table cell padding |
+| `pad-block` | Padding inside a callout or the password box |
+| `pad-row` | **Menu row padding** — vertical then horizontal |
+| `gap-xs` / `gap-md` / `gap-lg` | The rhythm between things |
+| `measure` | Maximum line length for prose |
 
 ⚠️ **`touch` is an accessibility floor, not a taste dial.** 44px minimum. The
-mobile nav rows, the password field and the Unlock button all read it.
+menu rows, the password field and the Unlock button all read it.
 
 ---
 
@@ -163,23 +203,47 @@ that do. Both are deliberate: a theme has no single page to fail on, so a
 theme that quietly fell back to something else would be invisible.
 
 **The build log prints what resolved**, including which cells came from a
-fallback — so an inherited value is something you can see, not something you
-have to remember.
+fallback and which fonts were requested — so an inherited value is something
+you can see, not something you have to remember.
 
 ---
 
-## What is NOT in here
+## What is deliberately NOT a dial
 
-**Which Material class reads which token.** That is
-`docs/stylesheets/uritp.css`, which holds no colour, no font name, no size and
-no radius of its own — only `var(--u-*)` references and the rules that place
-them. If you need a value with no token, add the column here **and** its name
-to `REQUIRED` in `hooks/theme.py`, in the same commit.
+The stylesheet still contains numbers. They are there on purpose and this is
+the test: **a token answers "what should this look like"; a literal answers
+"where does this sit relative to the thing beside it".** A heading's bottom
+margin measured in its own size, an icon's offset inside its box, a line
+height of 1.3 — those follow the tokens automatically because they are
+relative, and turning them into cells would mean fifty columns nobody will
+ever set.
 
-**A link to the app themes.** These four vectors are a deliberate port of
-`mawizorek/ClickUp_apps` → `shared/themes/` so the vocabulary matches, but it
-is **a port, not a link.** That system resolves in the browser at runtime for
-apps with a live theme picker; this one composes at build time because MkDocs
-emits static HTML. Editing a grid there changes nothing here. The schemas also
-differ — that one carries light mode as extra columns and has tokens for
-objects a docs site does not have. Same words, separate files, on purpose.
+Three things are named exceptions, and none of them should become themeable:
+
+- **Breakpoints.** The two widths where the layout changes are Material's own,
+  matched deliberately so our rules switch on the same line its rules do. A
+  theme that could move them would let a palette desynchronise our layout from
+  the component's — the exact collision class that cost two fixes in one day.
+- **The print block.** Paper is not a theme, it is a physical constraint: ink
+  on white at full contrast, whichever skin was on screen. A themeable print
+  palette would let a swap produce an unreadable printout, and a venue page
+  carried into a production meeting is the case that must never break.
+- **Which Material class reads which token.** That mapping is
+  `docs/stylesheets/uritp.css` — the wiring, not the look.
+
+If you need a value that has no cell, add the column here **and** its name to
+`REQUIRED` in `hooks/theme.py`, in the same commit. `chrome`, `pad-row` and
+`fs-nav` all arrived that way, each one because a real question turned out to
+have no answer in the grid.
+
+---
+
+## Relation to the app themes
+
+These four vectors are a deliberate port of `mawizorek/ClickUp_apps` →
+`shared/themes/` so the vocabulary matches, but it is **a port, not a link.**
+That system resolves in the browser at runtime for apps with a live theme
+picker; this one composes at build time because MkDocs emits static HTML.
+Editing a grid there changes nothing here. The schemas also differ — that one
+carries light mode as extra columns and has tokens for objects a docs site
+does not have. Same words, separate files, on purpose.
