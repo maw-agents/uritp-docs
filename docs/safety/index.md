@@ -2,7 +2,7 @@
 title: Safety
 id: safety
 status: gated
-password: pmgate
+password: [ dev, admin, pm]
 ---
 
 # Safety and health
