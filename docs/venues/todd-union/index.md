@@ -1,5 +1,6 @@
 ---
 title: Todd Union
+id: todd-union
 status: public
 ---
 
@@ -9,5 +10,5 @@ URITP's second production venue. Nothing in this section is documented yet. Unti
 
 | Page | State |
 |---|---|
-| [Todd Theatre](todd-theatre.md) | Placeholder, unlisted |
-| [Todd Lobby](todd-lobby.md) | Placeholder |
+| [Todd Theatre](@todd-theatre) | Placeholder |
+| [Todd Lobby](@todd-lobby) | Placeholder |

@@ -1,5 +1,6 @@
 ---
 title: Smith Theatre — rigging detail
+id: smith-rigging-detail
 status: unlisted
 ---
 
@@ -31,5 +32,5 @@ All catwalk fixtures are yoked at 45 degrees. That is a physical constraint of r
 
 ## Related
 
-- [Smith Theatre](smith-theatre.md)
-- [Safety and health](../safety/index.md)
+- [Smith Theatre](@smith-theatre)
+- [Safety and health](@safety)

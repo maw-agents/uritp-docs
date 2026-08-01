@@ -1,9 +1,10 @@
 ---
-title: Todd Union
+title: Todd Theatre
+id: todd-theatre
 status: public
 ---
 
-# Todd Union
+# Todd Theatre
 
 URITP's second production venue.
 
@@ -21,5 +22,5 @@ URITP's second production venue.
 
 ## Related
 
-- [Smith Theatre](../SPAC/smith-theatre.md)
-- [Safety and health](../../safety/index.md)
+- [Smith Theatre](@smith-theatre)
+- [Safety and health](@safety)
