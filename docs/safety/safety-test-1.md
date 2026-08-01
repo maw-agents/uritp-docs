@@ -1,7 +1,7 @@
 ---
 title: Safety test page
 id: safety-test-1
-status: public
+status: hidden
 ---
 
 # Safety test page
