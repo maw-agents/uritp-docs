@@ -5,7 +5,7 @@ as tables. **No CSS. No code. No YAML.**
 
 | File | What it is |
 |---|---|
-| [`active.txt`](active.txt) | **The switch.** One word: which theme is live. |
+| [`active.txt`](active.txt) | **The switch.** One word: which theme the site wears. |
 | [`themes.tsv`](themes.tsv) | **The join.** One row per theme, pointing at four vectors. |
 | [`colors.tsv`](colors.tsv) | Vector 1 — the paint |
 | [`typography.tsv`](typography.tsv) | Vector 2 — the voice |
@@ -18,7 +18,7 @@ Edit a cell, commit, wait ninety seconds, check the footer stamp.
 
 ---
 
-## The three things you will actually do
+## The four things you will actually do
 
 ### 1. Swap the whole look — edit `active.txt`
 
@@ -86,6 +86,70 @@ instead of breaking the site.
 
 ---
 
+## One page, or one folder, wearing something else
+
+A page can name its own theme in frontmatter:
+
+```yaml
+---
+title: Electrics
+theme: utility
+---
+```
+
+**On an `index.md` that skins the whole folder**, every page beneath it, at any
+depth — the same shape as a gated index locking its subtree.
+
+Write **`theme: default`** to stay on the site theme inside a themed folder.
+A word rather than the site theme's name, which would rot the next time
+`active.txt` changes.
+
+### ⚠️ There are two waterfalls and they run in OPPOSITE directions
+
+| | Direction |
+|---|---|
+| **The LOCK** — a gated `index.md` | **The parent wins.** |
+| **The SKIN** — a themed `index.md` | **The child wins.** |
+
+This is deliberate and it must stay that way. **Precedence follows
+consequence.** A lock you can undo by accident, in a file nobody is looking
+at, is not a lock — so the folder overrules the page. A skin is a preference
+with nothing at risk, so the more specific statement is the one to honour.
+
+🔴 **Do not "make them consistent."** They are both triggered by `index.md` and
+both walk the same folders, which makes unifying them look like tidying. The
+day somebody does, a locked page quietly publishes.
+
+### What happens when the name is wrong
+
+**It falls back to the site theme, renders normally, and is reported by name**
+in the build log and the run summary. It does **not** fail the build — which
+is the opposite of what a bad name in `active.txt` does, for a reason: the
+site theme has no single page to fail on, so it has to stop everything. A page
+theme has exactly one page, so it fails there and says so.
+
+A theme that will not compose at all is warned about and skipped, so no page
+can wear it. Same principle as the contrast gate: **the active thing must be
+perfect, parked things only have to tell you.**
+
+### ⚠️ Three things worth knowing before you use this
+
+1. **It reskins the WHOLE WINDOW, not the content area.** The sidebar, header
+   and drawer share the page's tokens, so landing on a themed page recolours
+   everything. That may be exactly the wayfinding you want; it is not a tint.
+2. **It cannot change which webfont downloads.** Material's font loader is
+   global. A page whose theme names a different family gets its sizes and
+   colours but renders in the **fallback face**. The build warns by name when a
+   theme wants a font the site does not load — that check only became possible
+   once both values moved into one row.
+3. **Think twice about theming by MEANING.** The palette already uses colour
+   semantically: `bad` is red, `marker` is amber for unconfirmed values. A
+   red-tinted Safety section would stop the danger colour reading as danger on
+   the only pages where danger is the subject. Department wayfinding
+   (Electrics, Audio) has no such collision.
+
+---
+
 ## Is it readable? — `contrast.tsv`
 
 **Every build measures every palette, in both modes, and reports anything that
@@ -141,8 +205,12 @@ A row for it would only invite someone to "fix" the design, and a gate that
 flags intentional choices teaches people to ignore the gate.
 
 ⚠️ **The gate measures colour, not design.** It cannot tell you a palette is
-ugly, that two links are indistinguishable from each other, or that an amber
-warning reads as decorative. Passing is a floor, not an opinion.
+ugly, that two links are indistinguishable, or that an amber warning reads as
+decorative. Passing is a floor, not an opinion.
+
+⚠️ **It hard-fails only the palette in `active.txt`.** Now that a page can name
+its own theme, a "parked" palette can still be on the site. Read the warnings
+before pointing a page at one.
 
 `URITP_CONTRAST_STRICT=1` promotes every warning to a failure.
 
@@ -154,7 +222,7 @@ warning reads as decorative. Passing is a floor, not an opinion.
 rows in `colors.tsv` with the same `slug` and different `mode`:
 
 ```
-slug       mode    bg          text        accent      ...
+slug       mode    bg          text        accent
 mclaren    dark    #292420     #f2f1ec     #f5842f
 mclaren    light   #faf6f1     #2a2420     #a84f14
 ```
@@ -164,29 +232,27 @@ two rows the browser reads. **That is the whole mechanism** — both rows are
 always in the page, as two scoped blocks of CSS variables, and switching modes
 switches which block applies. Nothing is recomputed and nothing is fetched.
 
-**Why here and not in the join**, which is the obvious alternative:
+**Why here and not in the join:**
 
 1. **A palette is a relationship, not a list.** Its light and dark forms are
-   two expressions of one identity, tuned against each other. Splitting them
-   into two join columns would let you pair mismatched halves — `mclaren` dark
-   with `paper-mono` light — and there is no reason to make that expressible.
+   tuned against each other. Splitting them into two join columns would let
+   you pair mismatched halves — `mclaren` dark with `paper-mono` light — and
+   there is no reason to make that expressible.
 2. **Only colour has modes.** Type, edges and density do not change when you
    flip the toggle. Putting modes in the join would force all four vectors to
    be mode-aware, or force one special case into the join's schema.
 3. **A palette stays portable.** Copy the two `mclaren` rows into another
-   project and both modes come along. If the light half lived in the join,
-   half the palette would stay behind.
+   project and both modes come along.
 
-⚠️ **They are not automatic inversions and must not be treated as one.** The
-same hue that reads well on near-black is often unreadable on near-white:
-`mclaren` uses papaya for links in dark mode and a **deeper orange** in light,
-because papaya on near-white measures about 2.5:1. Each mode is authored, and
-the contrast gate checks both.
+⚠️ **They are not automatic inversions.** The same hue that reads well on
+near-black is often unreadable on near-white: `mclaren` uses papaya for links
+in dark mode and a **deeper orange** in light, because papaya on near-white
+measures about 2.5:1. Each mode is authored, and the contrast gate checks both.
 
-**If you ever genuinely need one theme's dark with another's light**, the
-escape is a `color-light` column in `themes.tsv`, empty meaning "use the
-palette's own light row." It is deliberately **not built** — an unused column
-is a second place to look for a value, and no real case has appeared yet.
+**If you ever need one theme's dark with another's light**, the escape is a
+`color-light` column in `themes.tsv`, empty meaning "use the palette's own
+light row." Deliberately **not built** — an unused column is a second place to
+look, and no real case has appeared.
 
 ### The toggle, and one trap that cost an afternoon
 
@@ -236,13 +302,12 @@ from `mawizorek/ClickUp_apps` → `shared/themes/colors.tsv`, which is a hex
 grid. Converting them by hand would mean typing numbers nobody could check
 against the source. Verbatim beats converted; the browser does not care.
 
-⚠️ **`chrome` is the header bar**, and it is also the tab strip and the phone
-drawer header. Every palette here sets it equal to `bg`, which is the
-deliberate flat look: the header is the same ground as the page, separated by
-a rule instead of a block of colour. Give it its own value and the banner
-detaches. The phone browser's own bar colour follows it automatically —
-Material reads the header's *rendered* background, so there is nothing to keep
-in sync.
+⚠️ **`chrome` is the header bar**, and also the tab strip and the phone drawer
+header. Every palette here sets it equal to `bg`, which is the deliberate flat
+look: the header is the same ground as the page, separated by a rule instead of
+a block of colour. Give it its own value and the banner detaches. The phone
+browser's own bar colour follows it automatically — Material reads the header's
+*rendered* background, so there is nothing to keep in sync.
 
 ⚠️ **`marker` is deliberately not `accent`.** "This number is unconfirmed" and
 "this is a link" must not be the same colour.
@@ -267,8 +332,7 @@ in sync.
 
 **`webfont-text` and `webfont-code` are the two cells that are not a style.**
 They name the font families Material should **download**, and
-`hooks/theme.py` writes them into the build. Everything else in this grid is a
-CSS value; these two are configuration.
+`hooks/theme.py` writes them into the build.
 
     webfont-text = IBM Plex Sans      download it
     webfont-text = none               download nothing, use system fonts
@@ -277,13 +341,16 @@ CSS value; these two are configuration.
 say `none` or both must name a family. One of each fails the build rather than
 picking a winner quietly.
 
+⚠️ **They are also SITE-WIDE.** A per-page theme cannot change them; see *One
+page, or one folder, wearing something else* above.
+
 > **This used to be a seam and it is now closed.** Until 2026-08-01 the font
 > the CSS *asked for* lived here and the font Material *downloaded* lived in
 > `mkdocs.yml`, two files kept in agreement by hand — and a mismatch silently
 > rendered the next fallback in the stack with no error anywhere. One row
-> decides both now, so they cannot disagree. **Do not add a `font:` block back
-> to `mkdocs.yml`**; it would be overwritten every build and would read as
-> configuration while doing nothing.
+> decides both now. **Do not add a `font:` block back to `mkdocs.yml`**; it
+> would be overwritten every build and would read as configuration while doing
+> nothing.
 
 ### `forms.tsv` — the edges
 
@@ -324,31 +391,29 @@ menu rows, the password field and the Unlock button all read it.
 4. Push. **The contrast gate measures it immediately, even before you switch to
    it** — read the warnings in the run summary and fix them while the palette
    is still parked.
-5. Point `active.txt` at that theme when it is clean.
+5. Point `active.txt` at that theme when it is clean, or name it in one page's
+   frontmatter to try it in place.
 
 A token still missing after the whole fallback chain **fails the build and
-names the token**. A theme name that does not exist fails and lists the names
-that do. Both are deliberate: a theme has no single page to fail on, so a
-theme that quietly fell back to something else would be invisible.
+names the token**. A theme name in `active.txt` that does not exist fails and
+lists the names that do.
 
-**The build log prints what resolved**, including which cells came from a
-fallback, which fonts were requested, and the tightest contrast pair in every
-palette — so an inherited value is something you can see, not something you
-have to remember.
+**The build log prints what resolved** — which cells came from a fallback,
+which fonts were requested, the tightest contrast pair in every palette, and
+any page wearing a theme other than the site's.
 
 ---
 
 ## What is deliberately NOT a dial
 
-The stylesheet still contains numbers. They are there on purpose and this is
-the test: **a token answers "what should this look like"; a literal answers
-"where does this sit relative to the thing beside it".** A heading's bottom
-margin measured in its own size, an icon's offset inside its box, a line
-height of 1.3 — those follow the tokens automatically because they are
-relative, and turning them into cells would mean fifty columns nobody will
-ever set.
+The stylesheet still contains numbers. This is the test: **a token answers
+"what should this look like"; a literal answers "where does this sit relative
+to the thing beside it".** A heading's bottom margin measured in its own size,
+an icon's offset inside its box, a line height of 1.3 — those follow the tokens
+automatically because they are relative, and turning them into cells would mean
+fifty columns nobody will ever set.
 
-Three things are named exceptions, and none of them should become themeable:
+Three named exceptions, none of which should become themeable:
 
 - **Breakpoints.** The two widths where the layout changes are Material's own,
   matched deliberately so our rules switch on the same line its rules do. A
@@ -363,8 +428,8 @@ Three things are named exceptions, and none of them should become themeable:
 
 If you need a value that has no cell, add the column here **and** its name to
 `REQUIRED` in `hooks/theme.py`, in the same commit. `chrome`, `pad-row` and
-`fs-nav` all arrived that way, each one because a real question turned out to
-have no answer in the grid.
+`fs-nav` all arrived that way, each because a real question turned out to have
+no answer in the grid.
 
 ---
 
@@ -379,8 +444,7 @@ carries light mode as extra columns and has tokens for objects a docs site
 does not have. Same words, separate files, on purpose.
 
 **`mclaren` is the first palette copied across**, and copying it showed where
-the two schemas do not line up. Three mappings are judgement calls, not
-translations, and they are worth knowing about if you edit that row:
+the two schemas do not line up. Three mappings are judgement calls:
 
 - **Their `text-soft` is teal** (`#5fc9d8`) — a deliberate McLaren secondary.
   Here `text-soft` is every lede and caption on the site, so teal prose would
@@ -389,5 +453,5 @@ translations, and they are worth knowing about if you edit that row:
   Upstream calls `accent` → `accent-2` "a two-hue sweep"; this is that sweep,
   spent on the one interaction a docs site has.
 - **Light mode does not use papaya at all.** Papaya on near-white is around
-  2.5:1. It uses a deeper orange, and the contrast gate is what settled the
-  exact value rather than an eye.
+  2.5:1. It uses a deeper orange, and the contrast gate settled the exact value
+  rather than an eye.
