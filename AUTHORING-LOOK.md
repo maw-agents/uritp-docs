@@ -35,6 +35,28 @@ nothing in `docs/` changes.
 
 Commit, wait ninety seconds, check the footer stamp. Same loop as any page edit.
 
+### Changing just the header banner
+
+```yaml
+color:
+  uritp-prp:
+    dark:
+      chrome:    oklch(26% 0.030 250)     # <- this line, and its light: twin
+```
+
+`chrome` is the header bar, the tab strip, and the drawer header on a phone. All
+three read the one token, so **that is the single line for "change the colour of
+the top bar everywhere"** — no CSS, no Material variable names, no hunting.
+
+Every palette we ship sets `chrome` equal to `bg`, which is the deliberate flat
+house look: the header is the same ground as the page, separated by a rule rather
+than a block of colour. Give it its own value and the banner detaches.
+
+⚠️ **If you take `chrome` far from a dark neutral, mirror it in `mkdocs.yml` →
+`theme.palette` → `primary`.** That entry is the first-paint floor and the source
+of the phone browser's own `<meta theme-color>`; leave it behind and the browser
+chrome above your header is a different colour from the header.
+
 ---
 
 ## Why a theme is four things, not one
@@ -70,14 +92,14 @@ docs site and not an app:**
 
 ### Colour — "what colours do I have to design with?"
 
-Thirteen tokens, per mode. This is the complete list; there is no fourteenth colour
+Fifteen tokens, per mode. This is the complete list; there is no sixteenth colour
 hiding in the stylesheet.
 
 | Token | Used for |
 |---|---|
 | `bg` | The page |
 | `surface-1` | Code blocks, inset panels |
-| `surface-2` | Raised strips: callout headers, table row hover, drawer header |
+| `surface-2` | Raised strips: callout headers, table row hover |
 | `border` | A line you are meant to **see** — inputs, the table header underline |
 | `hairline` | A line you are meant to barely notice — row rules, dividers |
 | `text` | Body copy |
@@ -86,6 +108,8 @@ hiding in the stylesheet.
 | `accent` | Links, the active nav item, focus rings |
 | `accent-hover` | Its hover and press state |
 | `on-accent` | Text sitting **on** an accent fill (the Unlock button) |
+| `chrome` | **The header banner**, the tab strip, the mobile drawer header |
+| `on-chrome` | Text and icons sitting on the chrome |
 | `marker` | `[To be confirmed]{.tbc}` and the gate label |
 | `bad` | Dead links, errors |
 
@@ -94,6 +118,11 @@ to under `primary: black` — a blue nobody chose, set in a different file from 
 other colour on the site. It is a token now, which means it can be changed in one
 place and it can be contrast-checked. That is the single biggest thing this port
 fixed.
+
+⭐ **`chrome` used to not exist either** (added 2026-08-01, same reasoning, same
+question from Michael: *where is the one line*). The header took `bg` through the
+bridge, so "a different colour top bar" was not a value you could set — it was a
+stylesheet edit. Now it is a row in the palette.
 
 **`marker` is deliberately not `accent`.** "This value is unconfirmed" and "this is
 a link" must not be the same colour, or the amber pill stops reading as a warning.
@@ -146,7 +175,7 @@ it needs no download at all.
 ## Adding a palette
 
 1. Add a block under `color:` in `theme.yml` with **both** `dark:` and `light:` and
-   **all thirteen tokens** in each.
+   **all fifteen tokens** in each.
 2. Add a row to `themes:` naming it.
 3. Point `active:` at that row.
 
@@ -178,7 +207,7 @@ radius.** Every value is a `--u-*` token.
 swap.** The build fails by name when a palette forgets a token; it cannot detect a
 stylesheet that stopped asking for one. If you need a value that has no token, add
 the token — to `theme.yml` **and** to `REQUIRED` in `hooks/theme.py` — in the same
-PR.
+PR. `chrome` is the worked example of exactly that.
 
 The file has one **bridge** block at the top mapping `--u-*` onto Material's own
 `--md-*` variables. That is the only place the two systems touch.
@@ -217,6 +246,13 @@ read aloud, and it works if the icon font never loads. Kill switch
 `URITP_EDITLINK=0`. A page with no `edit_url` — a redirect stub, anything generated
 — gets no link rather than a broken one.
 
+⚠️ **Anything that describes the chrome to READERS lives in `docs/`, and nothing
+points at it.** Removing the pencil left `docs/using-these-docs.md` telling guest
+designers to click an icon that no longer existed, and the repo's pointer discipline
+did not catch it because every pointer runs *code → AUTHORING\*.md*. `mkdocs.yml` has
+no idea an orientation page documents its feature flags. **Turning a chrome feature
+on or off means grepping `docs/` for it too.**
+
 ### 🔴 The blocked chevron, and how one fix broke another
 
 Michael's screenshot showed the mobile drawer's back arrow sitting **on top of the
@@ -235,6 +271,26 @@ overlap whatever the title height becomes.
 **The general lesson, worth more than the fix:** overriding a component's *layout*
 while leaving its *absolutely positioned children* alone is a collision waiting to
 happen. Absolute positioning is a contract with a box you just changed the shape of.
+
+### 🔴 The tall Safety row, and the same lesson again
+
+Michael, 2026-08-01: *"nav menu has weird spacing for safety?"* It did, and Safety
+was the only row it happened to.
+
+**Safety was the only top-level section carrying an `index.md`.** Venues, Production
+and Reference have none. Under `navigation.indexes` Material renders that case
+differently: it wraps the row in a `.md-nav__container` which **also carries
+`.md-nav__link`**, then nests the page link and the expand label inside it. Three
+elements, one class — so the drawer's row padding and its 44px tap floor were being
+applied at every level and the row grew.
+
+The container is a layout box now: flex row, no padding, no floor. The children keep
+both.
+
+**Same lesson as the chevron, one layer out:** a blanket rule on a component class is
+a bet that the component only ever renders one shape. It renders two here, and the
+second one only appears when a folder gains an index page — so the bug arrives on the
+day somebody adds a file, nowhere near the CSS.
 
 ### Focus and tap targets
 
@@ -336,7 +392,8 @@ This heading and everything under it stays out of the index.
   `hooks/visibility.py`. See AUTHORING-GATES.
 - **A `gated` page indexes its unlock box, never its content.** The gate replaces the
   body *before* the search plugin sees it, so the real text was never in the index to
-  leak. That is a property of hook order, not a filter.
+  leak. That is a property of hook order, not a filter. **This now covers every page
+  under a gated folder index**, since the waterfall locks them for real.
 - **`Linked from` and the edit link are in the index.** They are rendered content, so
   the plugin sees them. They sit at the bottom of a page, after the last heading, so
   they only surface as a teaser on a search that matched nothing better.
@@ -353,4 +410,5 @@ This heading and everything under it stays out of the index.
 | `docs/stylesheets/uritp.css` | Every rule on the site | A custom class is added, renamed, or dropped — **and [AUTHORING.md](AUTHORING.md) too**, since authors type `.tbc` by hand |
 | `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
 | `mkdocs.yml` → `theme.font` | Which webfont is downloaded | The typography vector points at a new family |
-| `mkdocs.yml` → `theme.features` | Which Material chrome is on | Anything in *The chrome* table above is restored or removed |
+| `mkdocs.yml` → `theme.palette` → `primary` | First paint + `<meta theme-color>` | The `chrome` token moves far from a dark neutral |
+| `mkdocs.yml` → `theme.features` | Which Material chrome is on | Anything in *The chrome* table above is restored or removed — **and grep `docs/` for pages that describe it** |
