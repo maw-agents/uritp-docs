@@ -25,6 +25,11 @@ active: uritp-prp
 #  link or a missing gate key, a theme has no page to fail locally on, and a
 #  theme that silently fell back to something else is a defect nobody notices.
 #  Every PR runs a build check, so a typo is caught on the branch.
+#
+#  ⚠️ EDITING THIS FILE: a `note:` is a plain YAML scalar and MUST NOT contain
+#  a colon followed by a space. `set theme.font: false` reads as a nested
+#  mapping and fails the whole parse with a message that points at the wrong
+#  line. Quote the value or reword it. This cost one build on 2026-08-01.
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -188,7 +193,7 @@ color:
 #
 #  ⚠️ ONE SEAM WE CANNOT CLOSE, so it is named instead of hidden: this vector
 #  sets which family the CSS ASKS FOR. Material owns DOWNLOADING the webfont,
-#  via `theme.font` in mkdocs.yml. Point at a family Material has not been
+#  via the `font` block in mkdocs.yml. Point at a family Material has not been
 #  told to fetch and you get the fallback in the stack, silently. Change both,
 #  or stay inside a family already loaded.
 # ══════════════════════════════════════════════════════════════════════════
@@ -234,7 +239,7 @@ typography:
     track-caps:  .08em
 
   system-quick:
-    note: No webfont at all. Instant first paint on a bad connection; set `theme.font: false` in mkdocs.yml if you use it.
+    note: "No webfont at all. Instant first paint on a bad connection; set the mkdocs.yml `font` block to false if you use it."
     font-body:   "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
     font-mono:   "ui-monospace, SFMono-Regular, Menlo, monospace"
     fs-body:     .8rem
