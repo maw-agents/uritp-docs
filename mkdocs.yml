@@ -38,21 +38,47 @@ theme:
   # A `font:` block written here would be overwritten on every build, so it
   # would read as configuration while doing nothing at all.
 
-  # ⚠️ `palette` IS NOT THE DESIGN, and it does less than it looks like.
-  # The real chrome colour is the `chrome` column in theme/colors.tsv, applied
-  # through uritp.css. These two entries exist for exactly two reasons: the
-  # scheme TOGGLE needs two palettes declared to have something to toggle
-  # between, and Material derives the phone browser's own bar colour
-  # (<meta theme-color>) from `primary`. `black` is a deliberate neutral
-  # choice for that bar. First entry is the default, so the site opens DARK.
+  # 🔴 NO `primary:` KEY HERE EITHER, AND THIS ONE IS A TRAP. DO NOT ADD IT.
+  #
+  # `primary: black` sat here until 2026-08-01 and it was silently DEFEATING
+  # the `chrome` colour token. Material special-cases black in
+  # palette/_primary.scss: instead of only setting `--md-primary-fg-color`
+  # (which our bridge overrides), it writes a LITERAL background on the
+  # component --
+  #
+  #     [data-md-color-primary=black] .md-header { background-color: ... }
+  #     html & .md-nav--primary .md-nav__title[for=__drawer] { ... }
+  #     .md-tabs { background-color: ... }
+  #
+  # -- so no variable could reach the header at all. The banner was hard black
+  # in BOTH modes. Nobody caught it in dark mode because black is close enough
+  # to our dark `bg`; in light mode the background stayed black while
+  # `--md-primary-bg-color` (which we DO control) flipped the text to the
+  # light-mode `on-chrome`, giving dark-brown text on a black bar. Michael,
+  # 2026-08-01: "the header didn't render well in light mode... it kept banner
+  # color but swapped color text."
+  #
+  # ⚠️ AND THE REASON THIS KEY WAS KEPT WAS FALSE. It was documented here as
+  # the source of the phone browser's <meta name="theme-color">. It is not.
+  # Material's palette component reads the HEADER'S COMPUTED BACKGROUND
+  # (assets/javascripts/components/palette/index.ts: getComputedStyle(header)
+  # .backgroundColor) and writes that into the meta tag on every scheme
+  # change. So with this key GONE, the phone's browser bar now tracks the
+  # `chrome` token per mode, for free, which is what we wanted all along.
+  #
+  # With no `primary`, no `[data-md-color-primary=...]` rule matches, and
+  # Material's own default applies: `.md-header { background-color:
+  # var(--md-primary-fg-color) }` -- which uritp.css points at `--u-chrome`.
+  #
+  # The two entries below still need to exist: the scheme TOGGLE needs two
+  # palettes to switch between. That is now their ONLY job. First entry is the
+  # default, so the site opens DARK.
   palette:
     - scheme: slate
-      primary: black
       toggle:
         icon: material/circle-half-full
         name: Light
     - scheme: default
-      primary: black
       toggle:
         icon: material/circle-outline
         name: Dark

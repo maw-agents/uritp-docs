@@ -38,10 +38,10 @@ That cell is the only place the value exists. Nothing else needs touching.
 
 ### 3. Repaint a theme without making a new one — edit ITS colour cell
 
-A theme is four pointers, so you can repoint one of them and leave the rest
-alone. Changing the `color` cell of the `uritp-prp` row swaps that theme's
-entire palette — same type, same edges, same density, different paint. That is
-what happened on 2026-08-01: the house theme's colour cell was pointed at
+A theme is four pointers, so you can repoint one and leave the rest alone.
+Changing the `color` cell of the `uritp-prp` row swaps that theme's entire
+palette — same type, same edges, same density, different paint. That is what
+happened on 2026-08-01: the house theme's colour cell was pointed at
 `mclaren`, and putting `uritp-prp` back in that one cell restores the slate.
 
 **A new theme is for a new COMBINATION.** Repointing is for "same site,
@@ -85,14 +85,57 @@ instead of breaking the site.
 
 ---
 
-## Colour has two modes
+## How light and dark work
 
-The site has a dark/light toggle, so **every palette needs two rows** in
-`colors.tsv` — one `dark`, one `light`, same `slug`. Miss one and the build
-says so.
+**Light and dark belong to the PALETTE, not to the theme.** A palette is two
+rows in `colors.tsv` with the same `slug` and different `mode`:
 
-The other three vectors have no modes. Type, edges and density do not change
-when you flip the scheme.
+```
+slug       mode    bg          text        accent      ...
+mclaren    dark    #292420     #f2f1ec     #f5842f
+mclaren    light   #faf6f1     #2a2420     #c05e18
+```
+
+The theme names `mclaren` once. The toggle in the header decides which of the
+two rows the browser reads. **That is the whole mechanism** — both rows are
+always in the page, as two scoped blocks of CSS variables, and switching modes
+switches which block applies. Nothing is recomputed and nothing is fetched.
+
+**Why here and not in the join**, which is the obvious alternative:
+
+1. **A palette is a relationship, not a list.** Its light and dark forms are
+   two expressions of one identity, tuned against each other. Splitting them
+   into two join columns would let you pair mismatched halves — `mclaren` dark
+   with `paper-mono` light — and there is no reason to make that expressible.
+2. **Only colour has modes.** Type, edges and density do not change when you
+   flip the toggle. Putting modes in the join would force all four vectors to
+   be mode-aware, or force one special case into the join's schema.
+3. **A palette stays portable.** Copy the two `mclaren` rows into another
+   project and both modes come along. If the light half lived in the join,
+   half the palette would stay behind.
+
+⚠️ **They are not automatic inversions and must not be treated as one.** The
+same hue that reads well on near-black is often unreadable on near-white:
+`mclaren` uses papaya for links in dark mode and a **deeper orange** in light,
+because papaya on near-white measures about 2.5:1. Each mode is authored.
+
+**If you ever genuinely need one theme's dark with another's light**, the
+escape is a `color-light` column in `themes.tsv`, empty meaning "use the
+palette's own light row." It is deliberately **not built** — an unused column
+is a second place to look for a value, and no real case has appeared yet.
+
+### The toggle, and one trap that cost an afternoon
+
+The two entries under `theme.palette` in `mkdocs.yml` exist for exactly one
+reason: **the toggle needs two palettes to switch between.** They set nothing
+about the look.
+
+🔴 **Do not add a `primary:` key to them.** `primary: black` lived there until
+2026-08-01 and it silently defeated the `chrome` token: Material special-cases
+black and writes a *literal* background onto `.md-header`, so no variable
+could reach it. The banner was hard black in both modes — invisible in dark
+mode because black is close to our dark `bg`, and obvious the moment anyone
+opened light mode and found dark text on a black bar.
 
 ---
 
@@ -129,10 +172,13 @@ from `mawizorek/ClickUp_apps` → `shared/themes/colors.tsv`, which is a hex
 grid. Converting them by hand would mean typing numbers nobody could check
 against the source. Verbatim beats converted; the browser does not care.
 
-⚠️ **`chrome` is the header bar.** Every palette here sets it equal to `bg`,
-which is the deliberate flat look: the header is the same ground as the page,
-separated by a rule instead of a block of colour. Give it its own value and
-the banner detaches.
+⚠️ **`chrome` is the header bar**, and it is also the tab strip and the phone
+drawer header. Every palette here sets it equal to `bg`, which is the
+deliberate flat look: the header is the same ground as the page, separated by
+a rule instead of a block of colour. Give it its own value and the banner
+detaches. The phone browser's own bar colour follows it automatically —
+Material reads the header's *rendered* background, so there is nothing to keep
+in sync.
 
 ⚠️ **`marker` is deliberately not `accent`.** "This number is unconfirmed" and
 "this is a link" must not be the same colour.
@@ -224,7 +270,10 @@ you can see, not something you have to remember.
 
 ⚠️ **Nothing yet checks that a palette is READABLE.** The build proves every
 token exists; it does not prove the text can be seen against its background.
-That gap is real and it is the next thing worth building.
+The `mclaren` light row had to be corrected by hand for exactly this — its
+first `text-soft` measured about 3.65:1 against the page, under the 4.5 floor,
+and every check we have passed it green. **This is the next thing worth
+building.**
 
 ---
 
