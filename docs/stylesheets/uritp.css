@@ -3,20 +3,47 @@
 
 /* POINTER: adding, renaming, or dropping a custom class (.tbc, .gate) means
    updating ../../AUTHORING.md in the SAME PR. Authors write .tbc by hand and the
-   visibility hook emits .gate, so a renamed class breaks silently with no error. */
+   visibility hook emits .gate, so a renamed class breaks silently with no error.
 
-/* -- PALETTE. Change these six values and the whole site follows. ---------- */
-:root, [data-md-color-primary=custom], [data-md-color-accent=custom] {
-  --md-primary-fg-color: oklch(48% 0.145 282);    /* header bar, active nav item */
-  --md-accent-fg-color:  oklch(44% 0.155 282);    /* link hover, focus ring */
-  --md-primary-bg-color: oklch(99% 0.003 282);    /* text sitting on the header */
-  --md-typeset-a-color:  oklch(48% 0.145 282);    /* links in body copy */
-  --md-default-bg-color: oklch(98.4% 0.006 258);  /* page background */
-  --md-typeset-color:    oklch(41% 0.014 258);    /* body text */
+   ⚠️ BRAND COLOR NO LONGER LIVES HERE. It is theme.palette in mkdocs.yml, using
+   Material's named colors. Do NOT reintroduce --md-primary-fg-color below: an
+   unscoped override would apply to BOTH schemes and break the dark toggle. This
+   file now only tunes what a named palette cannot express. */
 
+/* -- SHARED TOKENS -------------------------------------------------------- */
+:root {
   --serif: "Crimson Pro", Georgia, serif;
-  --amber: oklch(52% 0.12 62);                    /* the unconfirmed marker */
 }
+
+/* -- LIGHT: paper, not stark white ---------------------------------------- */
+[data-md-color-scheme=default] {
+  --md-default-bg-color:           oklch(98.4% 0.006 285);
+  --md-typeset-color:              oklch(41% 0.014 285);
+  --md-default-fg-color:           oklch(21% 0.018 285);
+  --md-default-fg-color--light:    oklch(58% 0.012 285);
+  --md-default-fg-color--lightest: oklch(91% 0.008 285);
+  --amber: oklch(52% 0.12 62);
+}
+
+/* -- DARK: depth from surface lightness, never pure black ----------------- */
+[data-md-color-scheme=slate] {
+  --md-default-bg-color:           oklch(17% 0.014 285);
+  --md-code-bg-color:              oklch(22% 0.014 285);
+  --md-typeset-color:              oklch(84% 0.008 285);
+  --md-default-fg-color:           oklch(96% 0.005 285);
+  --md-default-fg-color--light:    oklch(68% 0.010 285);
+  --md-default-fg-color--lightest: oklch(31% 0.012 285);
+  --amber: oklch(78% 0.11 68);   /* desaturated + lifted, or it glows */
+
+  /* Light text on dark reads heavier, so ease the weight and open the
+     tracking slightly. Compensating on one axis only never looks right. */
+  --md-typeset-font-weight: 350;
+}
+[data-md-color-scheme=slate] .md-typeset {
+  font-weight: 350;
+  letter-spacing: 0.008em;
+}
+[data-md-color-scheme=slate] .md-typeset strong { font-weight: 600; }
 
 /* -- HEADINGS. Serif, tight, hairline rule above each section. ------------- */
 .md-typeset h1, .md-typeset h2 { font-family: var(--serif); font-weight: 500; letter-spacing: -.015em; }
@@ -47,10 +74,22 @@
 .md-typeset .gate__input:focus { outline: none; border-color: var(--md-primary-fg-color); box-shadow: 0 0 0 3px color-mix(in oklch, var(--md-primary-fg-color) 18%, transparent); }
 .md-typeset .gate__btn { padding: .55rem 1.1rem; border: 0; border-radius: 7px; background: var(--md-primary-fg-color); color: var(--md-primary-bg-color); font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer; }
 .md-typeset .gate__btn:disabled { opacity: .55; cursor: default; }
-.md-typeset .gate__error { margin: .8rem 0 0; font-size: .72rem; color: oklch(52% 0.16 25); }
+.md-typeset .gate__error { margin: .8rem 0 0; font-size: .72rem; color: oklch(62% 0.16 25); }
 
-/* -- PRINT. Strip chrome; unstack department tabs so paper loses nothing. -- */
+/* -- FOOTER build stamp (hooks/buildstamp.py) ------------------------------ */
+.buildstamp { white-space: nowrap; }
+
+/* -- PRINT. Always on paper-white, whichever scheme is on screen. ---------- */
 @media print {
+  :root, [data-md-color-scheme=slate], [data-md-color-scheme=default] {
+    --md-default-bg-color:           #fff;
+    --md-typeset-color:              #222;
+    --md-default-fg-color:           #000;
+    --md-default-fg-color--light:    #555;
+    --md-default-fg-color--lightest: #ccc;
+    --amber: #8a5a00;
+  }
+  [data-md-color-scheme=slate] .md-typeset { font-weight: 400; letter-spacing: normal; }
   .md-header, .md-sidebar, .md-footer, .md-content__button, .md-typeset .tabbed-labels { display: none !important; }
   .md-main__inner, .md-content { margin: 0 !important; }
   .md-typeset .tabbed-content { display: block !important; }
