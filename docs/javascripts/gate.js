@@ -36,7 +36,7 @@
    case here.
 
    Cost: one PBKDF2 derivation (250k iterations, ~100-200ms on a phone) per
-   candidate key per wrap, worst case, and it stops at the first success. Three
+   candidate key per wrap, worst case, stopping at the first success. Three
    groups and two remembered keys is imperceptible. Dozens would not be, which
    is the practical ceiling on both numbers. */
 
@@ -71,14 +71,6 @@
     try {
       sessionStorage.setItem(STORE, JSON.stringify(held.slice(0, LIMIT)));
     } catch (e) { /* private mode: unlocking still works, just not sticky */ }
-  }
-
-  function forget(password) {
-    try {
-      sessionStorage.setItem(STORE, JSON.stringify(
-        keyring().filter(function (k) { return k !== password; })
-      ));
-    } catch (e) { /* nothing to do */ }
   }
 
   function wrappedKeys() {
@@ -137,16 +129,13 @@
     return attempt(0);
   }
 
-  /* Every key we already hold, newest first. Resolves with the html AND the
-     key that worked, so a stale key can be dropped from the ring. */
+  /* Every key we already hold, newest first. */
   function tryKeyring() {
     var held = keyring();
 
     function attempt(i) {
       if (i >= held.length) return Promise.reject(new Error('keyring exhausted'));
-      return tryPassword(held[i]).then(function (html) {
-        return { html: html, key: held[i] };
-      }).catch(function () {
+      return tryPassword(held[i]).catch(function () {
         return attempt(i + 1);
       });
     }
@@ -179,15 +168,17 @@
     });
   });
 
-  /* Held a working key already this session? Open without asking. The form
-     stays in the DOM until a key actually decrypts, so a failed keyring is
-     indistinguishable from arriving cold -- which is correct. */
+  /* Held a working key already this session? Open without asking.
+
+     The lock box is hidden inline while the keyring runs, or every page a
+     reader can already open would flash a password prompt for a moment and
+     read as broken. Inline rather than a CSS class on purpose: a class in a
+     stylesheet that only this file sets is the kind of pairing that rots the
+     moment somebody tidies the CSS. */
   if (keyring().length) {
-    gate.classList.add('gate--checking');
-    tryKeyring().then(function (result) {
-      reveal(result.html);
-    }).catch(function () {
-      gate.classList.remove('gate--checking');
+    gate.style.visibility = 'hidden';
+    tryKeyring().then(reveal).catch(function () {
+      gate.style.visibility = '';
     });
   }
 })();
