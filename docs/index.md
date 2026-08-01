@@ -1,5 +1,5 @@
 ---
-title: Overview
+title: Home
 status: public
 ---
 
@@ -22,4 +22,4 @@ This site is the current version. If you are reading a PDF or a slide deck someo
 This site holds **written information**: dimensions, constraints, policies, and the notes that keep a design from failing in week three. It does not hold the drawings themselves. CAD files, reference photography, and base show files live in Box, linked from each venue page.
 
 !!! note "Found something wrong?"
-    Every page has an edit pencil in its header. Use it to open the source file and propose a change, or send a note to production management. Corrections are welcome and get folded into the next revision.
+     Send a note to production management. Corrections are welcome and get folded into the next revision.
