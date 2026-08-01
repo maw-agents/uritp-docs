@@ -5,13 +5,13 @@
    Change one without the other and every gated page fails to unlock with no
    error anyone can read. They move in the same PR, always.
 
-   ENVELOPE UNWRAP (2026-08-01)
+   ENVELOPE UNWRAP
    A page may be openable by several groups (`gates: [psm, admin]`). The build
    encrypts the body ONCE with a random content key, then ships that content
-   key wrapped separately for each group. So unlocking is two steps:
+   key wrapped separately for each group. Unlocking is two steps:
 
-     1. try the typed password against each wrapped key until one unwraps,
-        which recovers the content key
+     1. try the password against each wrapped key until one unwraps, which
+        recovers the content key
      2. decrypt the body with the content key
 
    A wrong password unwraps nothing and decrypts nothing: it fails to DECRYPT
@@ -19,11 +19,31 @@
    read around. That only matters once the repo is private, since the markdown
    source is public until then.
 
-   Cost note: each candidate costs one PBKDF2 derivation (250k iterations,
-   roughly 100-200ms on a phone). Three groups is imperceptible. A few dozen
-   would not be, and that is the practical ceiling on keys per page. */
+   THE KEYRING (2026-08-01)
+   Unlocking is per SESSION, not per page. A password that works anywhere is
+   remembered, and every gated page afterwards tries the whole keyring on load
+   before showing the form. Unlock the Safety index with the PSM key and every
+   other PSM page opens by itself.
+
+   Note what this does NOT require: the page never learns which GROUP a key
+   belongs to. The wraps are deliberately unlabelled, so the keyring just
+   re-attempts the same trial decryption it would do anyway. Access is proven
+   by decryption every single time, never by a remembered "I am PSM" flag that
+   a reader could set in devtools.
+
+   Storage is sessionStorage: closing the tab re-locks everything. Deliberately
+   NOT localStorage, because a shared machine in a shop or a lab is the normal
+   case here.
+
+   Cost: one PBKDF2 derivation (250k iterations, ~100-200ms on a phone) per
+   candidate key per wrap, worst case, and it stops at the first success. Three
+   groups and two remembered keys is imperceptible. Dozens would not be, which
+   is the practical ceiling on both numbers. */
 
 (function () {
+  var STORE = 'uritp.gate.keyring';
+  var LIMIT = 8;               // keep the worst-case derivation count sane
+
   var gate = document.querySelector('.gate');
   if (!gate) return;
 
@@ -31,10 +51,34 @@
   var input = gate.querySelector('.gate__input');
   var button = gate.querySelector('.gate__btn');
   var error = gate.querySelector('.gate__error');
-  var storeKey = 'gate:' + location.pathname;
 
   function b64(s) {
     return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); });
+  }
+
+  function keyring() {
+    try {
+      var held = JSON.parse(sessionStorage.getItem(STORE));
+      return Array.isArray(held) ? held : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function remember(password) {
+    var held = keyring().filter(function (k) { return k !== password; });
+    held.unshift(password);                    // most recent first
+    try {
+      sessionStorage.setItem(STORE, JSON.stringify(held.slice(0, LIMIT)));
+    } catch (e) { /* private mode: unlocking still works, just not sticky */ }
+  }
+
+  function forget(password) {
+    try {
+      sessionStorage.setItem(STORE, JSON.stringify(
+        keyring().filter(function (k) { return k !== password; })
+      ));
+    } catch (e) { /* nothing to do */ }
   }
 
   function wrappedKeys() {
@@ -74,18 +118,35 @@
     });
   }
 
-  /* Walk the wraps one at a time. Sequential on purpose: the common case is
-     the first or second key, and firing every PBKDF2 in parallel would burn a
-     phone's battery to save nothing. */
-  function unlock(password) {
+  /* One password against every wrap on this page. Sequential on purpose: the
+     common case is the first or second wrap, and firing every PBKDF2 in
+     parallel would burn a phone's battery to save nothing. */
+  function tryPassword(password) {
     var keys = wrappedKeys();
 
     function attempt(i) {
-      if (i >= keys.length) return Promise.reject(new Error('no key matched'));
+      if (i >= keys.length) return Promise.reject(new Error('no wrap matched'));
       var entry = keys[i];
       return deriveKek(password, entry.s).then(function (kek) {
         return crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(entry.n) }, kek, b64(entry.w));
       }).then(decryptBody).catch(function () {
+        return attempt(i + 1);
+      });
+    }
+
+    return attempt(0);
+  }
+
+  /* Every key we already hold, newest first. Resolves with the html AND the
+     key that worked, so a stale key can be dropped from the ring. */
+  function tryKeyring() {
+    var held = keyring();
+
+    function attempt(i) {
+      if (i >= held.length) return Promise.reject(new Error('keyring exhausted'));
+      return tryPassword(held[i]).then(function (html) {
+        return { html: html, key: held[i] };
+      }).catch(function () {
         return attempt(i + 1);
       });
     }
@@ -106,10 +167,8 @@
     button.disabled = true;
     button.textContent = 'Checking';
     var attempt = input.value;
-    unlock(attempt).then(function (html) {
-      /* Session only: closing the tab re-locks. Deliberately NOT localStorage,
-         because a shared machine in a shop or a lab is the normal case here. */
-      sessionStorage.setItem(storeKey, attempt);
+    tryPassword(attempt).then(function (html) {
+      remember(attempt);
       reveal(html);
     }).catch(function () {
       error.hidden = false;
@@ -120,11 +179,15 @@
     });
   });
 
-  /* Already unlocked this session? Skip the form. */
-  var remembered = sessionStorage.getItem(storeKey);
-  if (remembered) {
-    unlock(remembered).then(reveal).catch(function () {
-      sessionStorage.removeItem(storeKey);
+  /* Held a working key already this session? Open without asking. The form
+     stays in the DOM until a key actually decrypts, so a failed keyring is
+     indistinguishable from arriving cold -- which is correct. */
+  if (keyring().length) {
+    gate.classList.add('gate--checking');
+    tryKeyring().then(function (result) {
+      reveal(result.html);
+    }).catch(function () {
+      gate.classList.remove('gate--checking');
     });
   }
 })();
