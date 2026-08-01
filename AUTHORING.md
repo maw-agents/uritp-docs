@@ -26,7 +26,8 @@ document rewritten five times in a day is five chances to silently drop a sectio
 
 ---
 
-## Frontmatter — every key a page can carry\n
+## Frontmatter — every key a page can carry
+
 | Key | Does | Detail |
 |---|---|---|
 | `title:` | The sidebar entry and the browser tab | Below |
