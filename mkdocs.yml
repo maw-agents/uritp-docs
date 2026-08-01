@@ -1,9 +1,10 @@
 # THEME SWAP: change theme.name. Nothing in docs/*.md is affected by a swap.
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml, not here.
+# VISIBILITY: every page needs `status:` in its frontmatter or it will not build.
 #
 # ⚠️ POINTER: adding or removing a markdown_extension changes what page authors can
-#    write. Update ../AUTHORING.md in the SAME PR or it teaches syntax that no longer
-#    renders.
+#    write, and changing hooks/visibility.py changes what publishes. Update
+#    AUTHORING.md in the SAME PR or it teaches rules the build no longer follows.
 
 site_name: URITP Production Resources
 site_url: https://maw-agents.github.io/uritp-docs/
@@ -29,6 +30,9 @@ extra: {generator: false}    # hides the "Made with Material" footer line
 plugins:
   - search        # must be listed: declaring plugins replaces the defaults
   - awesome-nav   # builds the sidebar from docs/, steered by docs/.nav.yml
+
+hooks:
+  - hooks/visibility.py   # frontmatter `status:` gate, hidden by default
 
 # Each line below enables authoring syntax documented in AUTHORING.md.
 markdown_extensions:

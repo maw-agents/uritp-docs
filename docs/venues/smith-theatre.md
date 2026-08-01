@@ -1,5 +1,6 @@
 ---
 title: Smith Theatre
+status: public
 ---
 
 # Smith Theatre

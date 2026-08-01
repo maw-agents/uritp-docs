@@ -1,5 +1,6 @@
 ---
 title: Using these docs
+status: public
 ---
 
 # Using these docs

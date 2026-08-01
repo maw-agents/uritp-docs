@@ -1,8 +1,9 @@
 ---
-title: Overview 2.0
+title: Overview
+status: public
 ---
 
-# _URITP Production Resource Portal_
+# URITP Production Resources
 
 Venue information, technical standards, and production reference for designers, guest artists, and students working with the University of Rochester International Theatre Program.
 
@@ -14,7 +15,6 @@ This site is the current version. If you are reading a PDF or a slide deck someo
 |---|---|
 | Designing for a Mainstage production | [Smith Theatre](venues/smith-theatre.md) |
 | New to the program | [Using these docs](using-these-docs.md) |
-| Drafting paperwork | [Paperwork standards](production/paperwork-standards.md) |
 | Working a load-in or strike | [Safety and health](safety/index.md) |
 
 ## What is here and what is not
