@@ -1,5 +1,5 @@
 ---
-title: Page title here
+title: safety test page
 status: public
 ---
 
