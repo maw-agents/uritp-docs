@@ -51,7 +51,7 @@ VECTORS = ("color", "typography", "forms", "spacing")
 REQUIRED = {
     "color": (
         "bg surface-1 surface-2 border hairline text text-strong text-soft "
-        "accent accent-hover on-accent marker bad"
+        "accent accent-hover on-accent chrome on-chrome marker bad"
     ).split(),
     "typography": (
         "font-body font-mono fs-body fs-lead fs-sm fs-xs fs-h1-min "

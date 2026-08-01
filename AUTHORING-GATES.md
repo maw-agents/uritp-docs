@@ -1,7 +1,8 @@
 # Gates, keys and page visibility
 
 Everything about locking a page: the four publication states, the keystore, key
-groups, folder inheritance, and what the gate honestly does and does not protect.
+groups, the folder waterfall, and what the gate honestly does and does not
+protect.
 
 > **Split out of `AUTHORING.md` on 2026-08-01, and the reason is worth recording.**
 > The gate changed five times in twelve hours, and every change meant re-emitting a
@@ -17,7 +18,7 @@ groups, folder inheritance, and what the gate honestly does and does not protect
 the `env:` block of `.github/workflows/deploy.yml`
 
 🔑 **The readable copy of the passwords lives in ClickUp:**
-[URITP Docs site — gate key groups](https://app.clickup.com/t/86ajv5xnh). A GitHub
+[URITP Docs site — gate key groups](https://app.clickup.com/t/86ajukbme). A GitHub
 secret cannot be read back, so **that task is the master and the secret is the copy.**
 An agent discussing these passwords should hand Michael that link rather than asking
 him to remember what is in the box.
@@ -40,6 +41,9 @@ Plus one independent switch that composes with any of them:
 ```markdown
 listed: false      # keep out of the nav, search and sitemap
 ```
+
+⚠️ **A page's `status:` is not the last word.** A gated `index.md` in the folder
+above it wins. See [The folder waterfall](#the-folder-waterfall).
 
 ### The two questions that separate them
 
@@ -66,6 +70,7 @@ Encrypted **and** undiscoverable. `status: unlisted` is now shorthand for *publi
 |---|---|
 | Finished, safe to design from | `public` |
 | Draft circulating to named people | `gated` |
+| One page, one password, for a fortnight | `gated` + a literal `password:` |
 | One-off for one person, no password ceremony | `unlisted` |
 | Locked *and* not advertised | `gated` + `listed: false` |
 | Half-written | `hidden` |
@@ -102,6 +107,39 @@ gates: [psm, admin]          # either password works
 gate: psm                    # singular, still valid
 ```
 
+### A one-page password
+
+**Yes, a password written straight into the page works, and it is a first-class
+option rather than a leftover.**
+
+```markdown
+---
+title: Load-in call
+status: gated
+password: rehearsal26
+---
+```
+
+That locks **that one page and nothing else**. No secret to update, no group to
+invent, nothing else on the site affected — one line in, one line out. It is the
+right tool for a page that needs a lock for a fortnight and a password you are
+going to say out loud in a production meeting.
+
+| Use a literal `password:` when | Use a `gates:` group when |
+|---|---|
+| One page | Several pages share an audience |
+| The lock is temporary | The lock outlives any one page |
+| You want it obvious in the file | It must be rotatable without editing pages |
+
+⚠️ **The one real cost, and it is the entire reason the keystore exists: a literal
+password is committed to a public repository in plaintext, and git keeps it
+forever.** Deleting the line tomorrow does not remove it from history. So a literal
+password must be **disposable and must never open anything else** — never a group
+password, never anything reused elsewhere, never anything close to one.
+
+Both forms compose. A page may carry a literal password *and* name groups, and every
+one of them opens it.
+
 ### How the encryption works
 
 The body is encrypted **once** with a random content key; that content key is then
@@ -125,23 +163,63 @@ index with the PSM key and every other PSM page opens by itself.
   "I am PSM" flag anyone could set in devtools.
 - Ceiling 8 keys; each candidate costs a PBKDF2 derivation (~100-200ms on a phone).
 
-### A gated folder index locks its whole subtree
+---
+
+## The folder waterfall
+
+**Put a gated `index.md` in a folder and the whole folder is locked, at any depth.**
+The index file *is* the switch. Folders that have one are locked as a unit; folders
+that do not are ordinary folders. Nothing else needs editing and nothing needs
+registering.
 
 ```
-docs/safety/index.md          status: gated, gates: [psm]
-docs/safety/lockup.md         -> inherits
-docs/safety/keys/master.md    -> inherits, at any depth
+docs/safety/index.md          status: gated, gates: [psm]   <- the switch
+docs/safety/lockup.md         (says nothing)      -> locked
+docs/safety/test.md           status: public      -> LOCKED ANYWAY, and reported
+docs/safety/keys/master.md    (says nothing)      -> locked, two levels down
 ```
 
 The children are **genuinely encrypted**, not merely hidden from the sidebar. That is
 the whole design: hiding child entries until the index unlocks leaves every child
 readable by direct URL and in search *while looking protected*, which on a safety
-section is the worst of both. Because inheritance is real, the sidebar keeps showing
-the children honestly, and the keyring opens them as you walk the folder.
+section is the worst of both. Because the lock is real, the sidebar keeps showing the
+children honestly, and the keyring opens them as you walk the folder.
 
-**Overriding:** nearest gated ancestor wins. A page opts out by declaring its own
-`status:` — *any* value, including `public` — or `inherit: false`. **Only silence
-inherits.**
+### The parent wins
+
+> ~~A page opts out by declaring its own `status:` — *any* value, including `public`
+> — or `inherit: false`. **Only silence inherits.**~~
+>
+> **Reversed 2026-08-01, the day it shipped.** It meant one child writing
+> `status: public` quietly punched a hole in a locked safety section, and the page
+> that did it looked completely ordinary. A lock you can undo by accident, in a file
+> nobody is looking at, is not a lock.
+
+**The nearest gated `index.md` beats whatever the child declared.** Every override is
+**named in the build log and in the Actions run summary**, because an override you
+cannot see is the same class of defect as the hole it closed.
+
+**Two things the waterfall deliberately cannot do:**
+
+1. **It cannot publish a `hidden` page.** `hidden` is the author saying *this is not
+   finished*. A rule whose whole job is to raise protection must never be the reason
+   something reached a reader.
+2. **It cannot be silent.** `inherit: false` is the one escape, it is one greppable
+   line, and using it is a decision somebody made on purpose.
+
+```markdown
+---
+title: Public safety poster
+status: public
+inherit: false     # genuinely outside the folder's lock, and says so
+---
+```
+
+### Keys under the waterfall
+
+A locked child **keeps its own `password:`/`gates:` and gains the parent's.** Any one
+of them opens the page. So a local one-page password inside a gated folder still
+works, still comes out in one line, and does not disturb the folder key.
 
 ---
 
@@ -197,7 +275,7 @@ either would make a half-finished migration undetectable.
 
 **Two steps. Neither touches a file in this repository.**
 
-1. **Update the [ClickUp Accounts task](https://app.clickup.com/t/86ajv5xnh) first.**
+1. **Update the [ClickUp Accounts task](https://app.clickup.com/t/86ajukbme) first.**
    Add your `name = password` line to the block there. This is the master copy.
 2. **Paste the whole block** into `URITP_GATE_KEYS` (Settings → Secrets and variables
    → Actions).
@@ -263,6 +341,7 @@ is world-readable at `github.com/maw-agents/uritp-docs`.
 | A `hidden` page | Not there at all | **Fully readable** |
 | A `gated` page | Encrypted | **Fully readable** |
 | An `unlisted` page | Readable by URL | **Fully readable** |
+| A literal `password:` | Never rendered | **Fully readable, forever, in history** |
 
 And git never forgets: deleting a page tomorrow leaves it in history forever.
 
@@ -293,6 +372,9 @@ cache.
    forces a fresh fetch. **The single most useful trick here.**
 2. **Cross-check `/search/search_index.json`** — regenerated every build, rarely cached
    in step with the HTML. A gated page appears there as *"Restricted page … Unlock"*.
+3. **For a waterfall change, read the run summary.** Every page the folder overruled is
+   listed there by name. If a page you expected to be locked is not on that list,
+   nothing locked it.
 
 **A check that returns the same answer whether or not you are right has verified
 nothing.** A plain reload is exactly that check.
