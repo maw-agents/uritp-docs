@@ -102,11 +102,6 @@ department.
 
     Consequences for staging. What the room simply cannot do.
 
-<!-- ── LINKS ── internal links point at the .md FILE, never the live
-     URL. The build rewrites them and fails loudly on a bad target,
-     which is the protection. A full https:// link to an internal page
-     dodges that check and rots silently. -->
-
 ## Drawings and files
 
 Hosted in Box. Access follows your University of Rochester account.
@@ -125,8 +120,24 @@ Hosted in Box. Access follows your University of Rochester account.
 
 ## Related
 
-- [Smith Theatre](venues/smith-theatre.md)
-- [Safety and health](safety/index.md)
+<!-- ⚠️ INTERNAL LINKS ARE RELATIVE TO *THIS FILE*, not to docs/.
+     They are commented out on purpose: a live example link here would
+     break the moment you copy this file into a subfolder, and --strict
+     fails the whole deploy on one bad target.
+
+     Uncomment and fix the path for wherever your page ended up:
+
+       same folder      [Safety and health](index.md)
+       one level up     [Smith Theatre](../venues/smith-theatre.md)
+       to a heading     [the notes](../venues/smith-theatre.md#venue-notes)
+
+     Count the folders between your file and the target. From
+     docs/safety/yours.md to docs/venues/smith-theatre.md that is
+     ../venues/. Never use a full https:// URL for an internal page:
+     it works, which means it dodges the broken-link check and rots. -->
+
+- Related page one
+- Related page two
 
 ---
 
