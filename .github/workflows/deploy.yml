@@ -24,65 +24,8 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: requirements.txt
-
-      # -- GATE KEYS -------------------------------------------------------
-      # Adding a password group is TWO steps and NEITHER IS HERE: create the
-      # secret in Settings named URITP_GATE_<GROUP>, then use <group> in a
-      # page's `gates:`. This step finds it. There is no list of key names
-      # anywhere in this repository.
-      #
-      # WHY THIS IS A SEPARATE STEP, AND WHY IT MUST STAY ONE:
-      # `toJSON(secrets)` hands the WHOLE secrets context to whatever runs in
-      # the step, GITHUB_TOKEN included. Security scanners flag that pattern
-      # and they are right to. So the blast radius is confined to these few
-      # lines of standard-library Python: no imports beyond the stdlib, no
-      # network, no third-party code. It copies ONLY the URITP_GATE_* entries
-      # forward and drops everything else. The Build step below runs mkdocs
-      # and its plugin tree, and never sees anything but the gate keys.
-      #
-      # NEVER move `toJSON(secrets)` onto the Build step. That hands every
-      # secret to every plugin in the dependency tree, which is the whole
-      # thing this split exists to prevent.
-      - name: Collect gate keys
-        env:
-          ALL_SECRETS: ${{ toJSON(secrets) }}
-        run: |
-          python - <<'PY'
-          import json, os, secrets as rand
-
-          PREFIX = "URITP_GATE_"
-          NEWLINES = (chr(10), chr(13))
-
-          data = json.loads(os.environ["ALL_SECRETS"])
-          lines, names = [], []
-
-          for name in sorted(data):
-              if not name.startswith(PREFIX):
-                  continue
-              value = data[name]
-              if not value:
-                  continue
-              # A line break in a value would terminate the heredoc early and
-              # could inject arbitrary environment variables. Skip and say so.
-              if any(ch in value for ch in NEWLINES):
-                  print("::warning::" + name + " contains a line break and was skipped")
-                  continue
-              delim = "GATE_EOF_" + rand.token_hex(16)
-              lines.extend([name + "<<" + delim, value, delim])
-              names.append(name)
-
-          # Names are not secret: they are written in page frontmatter. Values
-          # are never printed, and GitHub masks them regardless.
-          print("gate keys discovered: " + (", ".join(names) if names else "none"))
-
-          if lines:
-              with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
-                  fh.write(chr(10).join(lines) + chr(10))
-          PY
-
       - name: Install MkDocs Material
         run: pip install -r requirements.txt
-
       - name: Build site
         run: mkdocs build --strict
         env:
@@ -92,9 +35,38 @@ jobs:
           # Empty on workflow_dispatch (no head commit); the hook falls back to
           # the short SHA.
           BUILD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-          # Gate keys arrive from the Collect step via GITHUB_ENV. Nothing to
-          # list here, ever.
 
+          # -- GATE KEYS ---------------------------------------------------
+          # One line per password group. A page writing `gates: [psm]` makes
+          # hooks/visibility.py read URITP_GATE_PSM from this list.
+          #
+          # SLOTS ARE PRE-WIRED. Every name below is already plumbed through
+          # whether or not the secret exists -- an unset secret interpolates to
+          # an empty string, and the hook ignores empty values. So standing up
+          # a new group is normally just: create the secret in Settings with
+          # the matching name, and use it in a page. No edit here.
+          #
+          # Only a group whose name is NOT on this list needs a line adding,
+          # and then it is one line, copied from its neighbour.
+          #
+          # ⚠️ 2026-08-01: this list REPLACED a `${{ toJSON(secrets) }}` scan
+          #    that discovered keys by prefix and needed no list at all. It was
+          #    the better design and it is reverted for one blunt reason: the
+          #    first run carrying it came back `action_required` with zero jobs
+          #    and never deployed. Handing a workflow the whole secrets context
+          #    trips an approval gate, and a deploy that waits on a human click
+          #    is worse than a list you edit twice a year. Do not reintroduce
+          #    toJSON(secrets) without testing it on a branch first.
+          URITP_GATE_ADMIN: ${{ secrets.URITP_GATE_ADMIN }}
+          URITP_GATE_DEV: ${{ secrets.URITP_GATE_DEV }}
+          URITP_GATE_PSM: ${{ secrets.URITP_GATE_PSM }}
+          URITP_GATE_DESIGNERS: ${{ secrets.URITP_GATE_DESIGNERS }}
+          URITP_GATE_SUPERVISORS: ${{ secrets.URITP_GATE_SUPERVISORS }}
+          URITP_GATE_FACULTY: ${{ secrets.URITP_GATE_FACULTY }}
+          URITP_GATE_STUDENTS: ${{ secrets.URITP_GATE_STUDENTS }}
+          URITP_GATE_GUESTS: ${{ secrets.URITP_GATE_GUESTS }}
+          URITP_GATE_SHOP: ${{ secrets.URITP_GATE_SHOP }}
+          URITP_GATE_FOH: ${{ secrets.URITP_GATE_FOH }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
