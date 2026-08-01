@@ -16,6 +16,15 @@
    it here. The build fails by name when a palette forgets a token; it cannot
    detect a stylesheet that stopped asking.
 
+   ⚠️ THE REMAINING LITERALS ARE PROPORTIONS, NOT STYLE, and the difference is
+   the whole reason this file still has numbers in it. A token answers "what
+   should this look like" and belongs in the grid. A literal here answers
+   "where does this sit relative to the thing next to it" -- a heading's
+   bottom margin in `em` of its own size, an icon's offset inside its box, the
+   1.3 line-height on an h2. Those track the tokens automatically because they
+   are relative, and turning them into dials would mean fifty columns nobody
+   will ever set. Two named exceptions below: BREAKPOINTS and PRINT.
+
    POINTER: adding, renaming, or dropping a custom class (.tbc, .gate) means
    updating ../../AUTHORING.md in the SAME PR. Authors write .tbc by hand and
    the visibility hook emits .gate, so a renamed class breaks silently.
@@ -47,10 +56,7 @@
      bg, which is the deliberate flat house look: the header is the same
      ground as the page, separated by a rule and not a block of colour. Give
      chrome its own value and the banner detaches -- header, tab strip and the
-     mobile drawer header all follow it, because all three read this token.
-     `primary` in mkdocs.yml stays the first-paint floor and the source of the
-     phone browser's <meta theme-color>; mirror it there if chrome moves far
-     from a dark neutral. */
+     mobile drawer header all follow it, because all three read this token. */
   --md-primary-fg-color:           var(--u-chrome);
   --md-primary-bg-color:           var(--u-on-chrome);
   --md-primary-bg-color--light:    color-mix(in oklab, var(--u-on-chrome) 62%, transparent);
@@ -138,7 +144,7 @@
   box-shadow: var(--u-shadow);
   border-bottom: var(--u-rule-w) solid var(--u-hairline);
 }
-.md-header__title { font-size: .82rem; font-weight: 500; }
+.md-header__title { font-size: var(--u-fs-lead); font-weight: 500; }
 .md-tabs { border-bottom: var(--u-rule-w) solid var(--u-hairline); }
 
 /* The GitHub repo block -- name, star count, fork count -- in the header and
@@ -153,7 +159,7 @@
 .md-header__source, .md-nav__source { display: none; }
 
 /* ══ NAV. Reads as a file tree. ══════════════════════════════════════════ */
-.md-nav { font-size: .72rem; }
+.md-nav { font-size: var(--u-fs-nav); }
 .md-nav__title {
   font-size: var(--u-fs-xs);
   font-weight: 600;
@@ -279,11 +285,12 @@
   .md-nav--primary .md-nav__list { padding: 0; }
   .md-nav--primary .md-nav__item {
     border-top: var(--u-rule-w) solid var(--u-hairline);
-    font-size: .78rem;
+    font-size: var(--u-fs-nav-mobile);
   }
-  /* Tap target from the spacing vector, not a guess. 44px is the floor. */
+  /* Row height and padding are the spacing vector's call, not a guess.
+     `touch` is the 44px accessibility floor; `pad-row` is the density. */
   .md-nav--primary .md-nav__link {
-    padding: .72rem .8rem;
+    padding: var(--u-pad-row);
     min-height: var(--u-touch);
   }
   /* Repair 3. A link nested inside a section-index wrapper. Material zeroes
@@ -299,18 +306,18 @@
   }
   /* Which row am I on. A file tree marks the branch you are standing in. */
   .md-nav--primary .md-nav__link--active {
-    box-shadow: inset 2px 0 0 var(--u-accent);
+    box-shadow: inset var(--u-bar-w) 0 0 var(--u-accent);
   }
   /* On a section-index row the active link is a child, so the bar would land
      at the wrapper's padding edge rather than the row edge. Put it on the row
      and take it off the child. */
   .md-nav--primary .md-nav__container:has(.md-nav__link--active) {
-    box-shadow: inset 2px 0 0 var(--u-accent);
+    box-shadow: inset var(--u-bar-w) 0 0 var(--u-accent);
   }
   .md-nav--primary .md-nav__container > .md-nav__link--active {
     box-shadow: none;
   }
-  .md-nav--primary .md-nav__icon:not(.md-nav__button) { opacity: .55; }
+  .md-nav--primary .md-nav__icon:not(.md-nav__button) { opacity: var(--u-icon-dim); }
 }
 
 /* ══ TABLES. The main event. Dense, borderless, aligned digits. ══════════ */
@@ -394,7 +401,7 @@
   border-bottom: var(--u-rule-w) solid var(--u-hairline);
 }
 .md-typeset .tabbed-labels > label {
-  font-size: .7rem;
+  font-size: var(--u-fs-nav);
   font-weight: 500;
   padding: .4rem .7rem;
   color: var(--u-text-soft);
@@ -432,7 +439,7 @@
 }
 .md-typeset .gate__note {
   margin: 0 0 .8rem;
-  font-size: .72rem;
+  font-size: var(--u-fs-nav);
   color: var(--u-text-soft);
 }
 .md-typeset .gate__row { display: flex; gap: .4rem; }
@@ -461,7 +468,11 @@
   cursor: pointer;
 }
 .md-typeset .gate__btn:disabled { opacity: .5; cursor: default; }
-.md-typeset .gate__error { margin: .7rem 0 0; font-size: .72rem; color: var(--u-bad); }
+.md-typeset .gate__error {
+  margin: .7rem 0 0;
+  font-size: var(--u-fs-nav);
+  color: var(--u-bad);
+}
 
 /* ══ PAGE FOOT (hooks/pagefoot.py) ═══════════════════════════════════════
    Deliberately the quietest thing on the page. It is a way back to the source
@@ -486,10 +497,15 @@
 }
 
 /* ══ FOOTER build stamp (hooks/buildstamp.py) ════════════════════════════ */
-.md-footer-meta { font-size: .68rem; }
+.md-footer-meta { font-size: var(--u-fs-micro); }
 .buildstamp { white-space: nowrap; }
 
-/* ══ MOBILE. Reclaim the margins; a phone has none to spare. ═════════════ */
+/* ══ MOBILE. Reclaim the margins; a phone has none to spare. ═════════════
+   ⚠️ NAMED EXCEPTION 1 -- BREAKPOINTS ARE NOT A THEME. The two widths in this
+   file (76.1875em for the drawer, 44.9375em here) are Material's own, matched
+   deliberately so our rules switch on the same line its rules do. A theme
+   that could move them would let a palette desynchronise our layout from the
+   component's, which is the collision class that cost two fixes today. */
 @media screen and (max-width: 44.9375em) {
   .md-typeset { font-size: calc(var(--u-fs-body) + .02rem); }
   .md-typeset h2 { margin-top: 1.7rem; padding-top: .9rem; }
@@ -520,8 +536,11 @@
 /* ══ PRINT. Paper-white regardless of the scheme on screen. ══════════════
    Overrides the TOKENS, not Material's variables, so the bridge above keeps
    doing the translating and this block stays short forever.
-   ⚠️ These literals are the one deliberate exception to the no-values rule:
-   paper is not a theme, it is a physical constraint. */
+   ⚠️ NAMED EXCEPTION 2 -- these literals are deliberate. Paper is not a theme,
+   it is a physical constraint: ink on white, at maximum contrast, whichever
+   skin was on screen. A themeable print palette would let a swap produce an
+   unreadable printout, and a venue page taken into a production meeting is
+   exactly the case that must never break. */
 @media print {
   :root, [data-md-color-scheme=slate], [data-md-color-scheme=default] {
     --u-bg: #fff;
