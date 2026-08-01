@@ -166,7 +166,7 @@
   font-weight: 600;
 }
 
-/* 🔴 THE ⓘ ON EVERY NAV ROW. It is OUR OWN FRONTMATTER, not an extension.
+/* ⓘ / 🔒 THE BADGE BESIDE A NAV TITLE. It is OUR OWN FRONTMATTER.
 
    Material's partials/nav-item.html ends with:
 
@@ -174,19 +174,32 @@
          {{ render_status(nav_item, nav_item.meta.status) }}
        {% endif %}
 
-   `status:` is a RESERVED Material key that puts a badge beside a nav title,
-   and `--md-status` defaults to `information-outline` for any value Material
-   does not recognise. Every page here carries `status:` for hooks/visibility.py,
-   so every page got an ⓘ, and a folder with no index.md got none because there
-   was no page meta to read. That is the exact pattern that was blamed on
-   `material.extensions.preview` on 2026-08-01 -- wrongly. See mkdocs.yml.
+   `status:` is a RESERVED Material key that renders a badge beside a nav
+   title. Material knows three values -- `new`, `deprecated`, `encrypted` --
+   and falls back to `--md-status` (information-outline) for anything else.
+   Every page here carries `status:` for hooks/visibility.py, so every page
+   got an ⓘ, and a folder with no index.md got none, because a bare section
+   has no page meta to read.
 
-   Hidden rather than renamed: `status:` is the right word for what it does here
-   and it is written in every page, the template and three reference files. If a
-   badge is ever wanted, delete this rule and add `extra.status.<value>` in
-   mkdocs.yml for the tooltip -- Material ships a shield-lock glyph
-   (`--md-status--encrypted`) that would suit `gated` exactly. */
-.md-nav__link .md-status { display: none; }
+   ⚠️ That is the exact pattern blamed on `material.extensions.preview` on
+   2026-08-01 -- wrongly, and it cost a working feature. Then the badge was
+   hidden here for about two hours, and Michael asked for it back the same
+   morning: "lost the info icon which i want back". It is deliberate, it is
+   wanted, and it is NOT leftover Material chrome to be tidied away.
+
+   ONLY TWO VALUES CAN EVER REACH THE SIDEBAR. `hidden` is never built and
+   `unlisted` is pruned from the nav, so the badge is a two-state legend --
+   readable page vs locked page -- rather than an icon on every row for the
+   sake of it. That is the whole argument for the rule below.
+
+   Tooltips: `extra.status` in mkdocs.yml. Hover-only, so they are a desktop
+   and screen-reader affordance; the glyph has to carry it on a phone. */
+.md-nav__link .md-status--gated::after {
+  /* Material ships a shield-lock. The fallback is deliberate: if a future
+     version drops the variable this degrades to the plain ⓘ rather than
+     rendering an empty box where an icon should be. */
+  mask-image: var(--md-status--encrypted, var(--md-status));
+}
 
 /* ⚠️ MOBILE DRAWER. Three separate repairs; do not collapse them.
 
