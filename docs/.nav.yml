@@ -1,0 +1,19 @@
+# Sidebar order. This is the ONLY navigation file.
+#
+# A folder name here becomes a sidebar section containing every page inside it,
+# sorted alphabetically by filename. Adding a page means dropping a .md file in
+# a folder: nothing to register here.
+#
+# append_unmatched puts anything not named below at the bottom of the sidebar,
+# so a brand new folder shows up on its own. Move its name into the list when
+# you want it somewhere specific.
+
+append_unmatched: true
+
+nav:
+  - index.md
+  - using-these-docs.md
+  - Venues: venues
+  - Production: production
+  - Safety: safety
+  - Reference: reference

@@ -18,11 +18,32 @@ guest artists, and students. Write markdown, commit, and the site rebuilds itsel
 Every page on the live site has an **edit pencil** in its header that drops you
 straight into the right file.
 
+## Adding a page
+
+**Drop a `.md` file in the right folder. That is the whole procedure.**
+
+The sidebar is generated from the file tree, so a new page appears in its section
+automatically, sorted alphabetically by filename. Give it frontmatter and an H1:
+
+```markdown
+---
+title: Rehearsal Studio
+---
+
+# Rehearsal Studio
+```
+
+A new **folder** becomes a new sidebar section and appears at the bottom. To place
+it somewhere specific, add its name to `docs/.nav.yml`. That file controls order
+and section titles, and it is the only navigation file in the repo.
+
 ## Repo shape
 
 ```
-mkdocs.yml                    site config + navigation (the theme swap point)
+mkdocs.yml                    site config (the theme swap point)
+docs/.nav.yml                 sidebar order and section titles
 .github/workflows/deploy.yml  build and deploy on every push to main
+requirements.txt              pinned build dependencies
 docs/
   index.md                    landing page
   using-these-docs.md         orientation for new readers
@@ -40,11 +61,11 @@ which is the entire point of keeping them as plain markdown. `docs/stylesheets/u
 carries the URITP look on top of whichever theme is active; it targets Material's
 CSS custom properties, so a swap means rewriting that one file, not the docs.
 
-## Adding a page
+## Builds
 
-Drop a new `.md` file in the right folder, then add one line to `nav:` in `mkdocs.yml`.
-The build runs `--strict`, so a nav entry pointing at a file that does not exist
-fails loudly instead of shipping a broken link.
+The build runs `mkdocs build --strict`, so a link pointing at a file that does not
+exist fails the deploy instead of shipping a dead link. A red X in Actions names
+the offending file.
 
 ## Access
 

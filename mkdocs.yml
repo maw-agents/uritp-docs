@@ -1,4 +1,5 @@
 # THEME SWAP: change theme.name. Nothing in docs/*.md is affected by a swap.
+# NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml, not here.
 
 site_name: URITP Production Resources
 site_url: https://maw-agents.github.io/uritp-docs/
@@ -21,6 +22,10 @@ theme:
 extra_css: [stylesheets/uritp.css]
 extra: {generator: false}    # hides the "Made with Material" footer line
 
+plugins:
+  - search        # must be listed: declaring plugins replaces the defaults
+  - awesome-nav   # builds the sidebar from docs/, steered by docs/.nav.yml
+
 markdown_extensions:
   - tables
   - admonition                                 # !!! warning "Title"
@@ -28,18 +33,3 @@ markdown_extensions:
   - pymdownx.superfences                       # safe nesting inside tabs
   - pymdownx.tabbed: {alternate_style: true}   # === "Lighting"
   - toc: {permalink: true}
-
-nav:
-  - Start here:
-      - Overview: index.md
-      - Using these docs: using-these-docs.md
-  - Venues:
-      - Smith Theatre: venues/smith-theatre.md
-      - SPAC Lobby: venues/spac-lobby.md
-      - Todd Union: venues/todd-union.md
-  - Production:
-      - Paperwork standards: production/paperwork-standards.md
-  - Safety:
-      - Safety and health: safety/index.md
-  - Reference:
-      - Revision history: reference/revision-history.md
