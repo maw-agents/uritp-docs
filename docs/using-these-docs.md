@@ -1,7 +1,7 @@
 ---
 title: Using these docs
 id: using-these-docs
-status: public
+status: hidden
 ---
 
 # Using these docs
