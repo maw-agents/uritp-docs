@@ -5,3 +5,27 @@
 #    under "Adding a page". Change how this works and update it in the SAME PR.
 
 title: Todd Union
+
+# ORDER. Pages sort alphabetically by filename unless this list says otherwise.
+#
+# THE PATTERN: `"*"` means "everything else, in its normal sorted place".
+# Anything named BEFORE it is pinned to the top; anything named AFTER it is
+# pinned to the bottom. So you only ever name the one or two pages whose
+# position actually matters, and new pages keep slotting in automatically
+# without anyone editing this file.
+#
+# Lock-up is last because it is the thing you do when you are done, not a
+# venue spec like the two above it. Alphabetically it lands between Lobby and
+# Theatre, which reads as though it were another room.
+#
+# ⚠️ The quotes around "*" are REQUIRED. Bare * starts a YAML alias and the
+#    build fails with a scanner error that does not mention this file.
+#
+# ⚠️ NAMING A PAGE HERE TIES ITS VISIBILITY TO THIS FILE. Set that page to
+#    `status: hidden` and this line points at something that is never built.
+#    That is what took the whole site stale on 2026-08-01. `"*"` alone is
+#    always safe; a filename is a promise to keep the two in sync.
+
+nav:
+  - "*"
+  - todd-lockup-procedure.md
