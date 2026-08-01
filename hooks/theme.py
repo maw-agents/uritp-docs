@@ -1,13 +1,14 @@
 """
-The 4-vector theme resolver.
+The 4-vector theme resolver, and the contrast gate.
 
 Reads the grids in ``theme/`` and injects the composed result into every page's
 ``<head>`` as ``--u-*`` custom properties. ``docs/stylesheets/uritp.css``
 consumes them and holds no literal colour, font, size or radius of its own.
 
-    theme/active.txt   ->  one slug
-    theme/themes.tsv   ->  that slug's row: colour x typography x forms x spacing
-    theme/*.tsv        ->  the four grids those four names point into
+    theme/active.txt    ->  one slug
+    theme/themes.tsv    ->  that slug's row: colour x typography x forms x spacing
+    theme/*.tsv         ->  the four grids those four names point into
+    theme/contrast.tsv  ->  the pairs that must stay legible
 
 WHY GRIDS AND NOT ONE YAML FILE (changed 2026-08-01, Michael)
 The values are a table and a table belongs in a table. ``theme.yml`` held all
@@ -37,48 +38,67 @@ row resolves against. ``_default`` is the join's equivalent.
 [!] An empty cell is INHERIT, never "nothing". A token that wants to be off
 says so with a real value: ``shadow`` is the word ``none``, not a blank.
 
-THE WEBFONT SEAM IS CLOSED (2026-08-01) -- this hook now writes the config
-Until today the typography grid said which family the CSS ASKED FOR while
+THE WEBFONT SEAM IS CLOSED (2026-08-01) -- this hook writes the config
+Until then the typography grid said which family the CSS ASKED FOR while
 ``mkdocs.yml -> theme.font`` said which family Material DOWNLOADED, in a
-different file, kept in agreement by hand. Point one at a family the other had
-not been told to fetch and the page silently rendered the next entry in the
-fallback stack, with no error anywhere. It was documented as "a seam that
-cannot be closed." It can: ``on_config`` runs before any template renders, so
-the grid simply SETS ``theme.font`` from its own ``webfont-text`` and
-``webfont-code`` columns. One file decides, so the two cannot disagree.
+different file, kept in agreement by hand. ``on_config`` runs before any
+template renders, so the grid simply SETS ``theme.font`` from its own
+``webfont-text`` and ``webfont-code`` columns. One file decides.
 
-    webfont-text = IBM Plex Sans      download it
-    webfont-text = none               download nothing (system fonts only)
+THE CONTRAST GATE (added 2026-08-01)
+Every check in this file until now proved a token EXISTS. None proved the
+result could be READ. That gap was not theoretical: hand-mapping one palette
+produced four pairs below the WCAG floor, and every check we had passed them
+green.
 
-These two columns are the only ones that are NOT emitted as CSS -- they
-configure Material rather than describing a style. ``NOT_CSS`` holds them.
+The PAIRS ARE DATA, in ``theme/contrast.tsv``, for the same reason the palette
+is: the threshold becomes a cell, an exemption becomes a deleted row, and
+every waiver shows up in a diff instead of hiding in a list inside this file.
+
+SCOPE: every palette in ``colors.tsv``, both modes, every build -- not just the
+active one. It is arithmetic on a few dozen pairs and costs nothing, and it
+means a parked palette is known-broken BEFORE somebody switches to it.
+
+SEVERITY, and the asymmetry is deliberate:
+
+  * the ACTIVE palette FAILS the build. It is what readers are looking at.
+  * a PARKED palette WARNS. Nobody can see it, so it is a defect in waiting
+    rather than a defect -- and a build that goes red over a palette nobody
+    uses is a build people learn to override.
+
+``URITP_CONTRAST_STRICT=1`` promotes every warning to a failure.
+``URITP_CONTRAST_OFF=1`` skips the gate; it exists so a colour experiment can
+be deployed and LOOKED AT before it is defensible, and it prints a loud line
+saying the gate was skipped.
 
 WHY A BAD NAME STILL FAILS THE BUILD
 The house rule is that failures should be local and visible, not global and
 silent -- a dead link marks one link, a missing gate key locks one page. A
 theme has no page to fail on: it is the whole site or nothing. And a theme
 that quietly fell back to something else is precisely the invisible failure
-that rule exists to prevent. So this raises, names the file, and lists what IS
-defined; the PR build check catches it on the branch before it reaches main.
+that rule exists to prevent.
 
 REQUIRED is owned HERE, not in the grids, and deliberately: the stylesheet is
 what consumes these names, so the code that pairs with the stylesheet is what
-knows which ones may not be missing. After the whole chain resolves, a token
-still absent fails BY NAME rather than rendering one element invisible.
+knows which ones may not be missing.
 
 Wired in mkdocs.yml under ``hooks:``. Documented in theme/README.md.
 """
 
 import csv
+import importlib.util
+import json
 import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+HOOKS = os.path.dirname(os.path.abspath(__file__))
 DIR = os.path.join(ROOT, "theme")
 
 ACTIVE = os.path.join(DIR, "active.txt")
 
 VECTORS = ("color", "typography", "forms", "spacing")
 JOIN = "themes.tsv"
+CONTRAST = "contrast.tsv"
 GRID = {
     "color": "colors.tsv",
     "typography": "typography.tsv",
@@ -92,13 +112,14 @@ META = {"slug", "mode", "inherits", "name", "note"}
 MAX_HOPS = 8
 
 # Required, but NOT written into the CSS: these configure Material's webfont
-# loader instead of describing a style. See THE WEBFONT SEAM above.
+# loader instead of describing a style.
 NOT_CSS = {"webfont-text", "webfont-code"}
 OFF = "none"            # `webfont-text = none` means download nothing
 
+STRICT = os.environ.get("URITP_CONTRAST_STRICT") == "1"
+SKIP = os.environ.get("URITP_CONTRAST_OFF") == "1"
+
 # Every token docs/stylesheets/uritp.css reads, plus the two webfont names.
-# Adding a var() to the stylesheet means adding its name here AND a column to
-# that vector's grid, in the SAME PR.
 REQUIRED = {
     "color": (
         "bg surface-1 surface-2 border hairline text text-strong text-soft "
@@ -127,6 +148,24 @@ MODES = {
 
 _style = ""
 _trace = []
+_report = {}
+
+
+def _load_sibling(name):
+    """Import a module living next to this file, by path.
+
+    MkDocs loads each hook by path under a synthetic module name, so a plain
+    `import color` would not find it, and a sys.path insertion would risk
+    colliding with anything else called `color`. This is explicit and local.
+    """
+    path = os.path.join(HOOKS, name + ".py")
+    spec = importlib.util.spec_from_file_location("uritp_" + name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+COLOR = _load_sibling("color")
 
 
 def _fail(where, message):
@@ -136,19 +175,28 @@ def _fail(where, message):
 def _read(filename):
     """A grid as a list of dicts. Values are stripped -- a trailing space in a
     spreadsheet cell is invisible and would otherwise become part of a colour.
-    A short row (fewer cells than headers) reads as empty, not as None."""
+    A short row (fewer cells than headers) reads as empty, not as None.
+
+    A row whose FIRST column starts with `#` is a comment. That is how these
+    files carry their own explanation without a second document to keep in
+    sync.
+    """
     path = os.path.join(DIR, filename)
     if not os.path.exists(path):
         _fail(filename, "file is missing")
     rows = []
     with open(path, encoding="utf-8", newline="") as fh:
-        for raw in csv.DictReader(fh, delimiter="\t"):
+        reader = csv.DictReader(fh, delimiter="\t")
+        first = reader.fieldnames[0] if reader.fieldnames else None
+        for raw in reader:
             row = {}
             for key, value in raw.items():
                 if key is None:
                     continue
                 row[key.strip()] = (value or "").strip()
-            if row.get("slug"):
+            if first and row.get(first, "").startswith("#"):
+                continue
+            if any(row.values()):
                 rows.append(row)
     if not rows:
         _fail(filename, "no rows")
@@ -156,7 +204,13 @@ def _read(filename):
 
 
 def _index(vector, filename):
-    """Colour rows are keyed by (slug, mode); everything else by slug."""
+    """Colour rows are keyed by (slug, mode); everything else by slug.
+
+    [!] A DUPLICATE KEY FAILS. It used to overwrite silently, last-wins, which
+    contradicted this repo's own keystore rule (first wins, and say so) and
+    would let a second `mclaren` row further down the file quietly become the
+    real one. Fixed 2026-08-01.
+    """
     table = {}
     for row in _read(filename):
         if vector == "color":
@@ -167,9 +221,19 @@ def _index(vector, filename):
                     "row `" + row["slug"] + "` has mode `" + mode
                     + "`; it must be dark or light",
                 )
-            table[(row["slug"], mode)] = row
+            key = (row["slug"], mode)
+            label = "`" + row["slug"] + "` (" + mode + ")"
         else:
-            table[row["slug"]] = row
+            key = row["slug"]
+            label = "`" + key + "`"
+        if key in table:
+            _fail(
+                filename,
+                "row " + label + " is defined twice. Delete one -- a duplicate "
+                "used to overwrite silently, which is how a palette you edited "
+                "stops being the one that renders.",
+            )
+        table[key] = row
     return table
 
 
@@ -183,7 +247,7 @@ def _slugs(table):
     return ", ".join(sorted(seen)) or "(none)"
 
 
-def _compose(vector, table, slug, mode=None):
+def _compose(vector, table, slug, mode=None, trace=True):
     """Walk the inherits chain, then fall through to _base. First value wins,
     so the row you named always beats what it inherits."""
     filename = GRID[vector]
@@ -226,10 +290,11 @@ def _compose(vector, table, slug, mode=None):
             tokens[name] = value
             filled.append(name)
 
-    label = " <- ".join(chain)
-    if filled:
-        label += " <- " + BASE + " (" + ", ".join(sorted(filled)) + ")"
-    _trace.append("  " + vector + ((":" + mode) if mode else "") + " = " + label)
+    if trace:
+        label = " <- ".join(chain)
+        if filled:
+            label += " <- " + BASE + " (" + ", ".join(sorted(filled)) + ")"
+        _trace.append("  " + vector + ((":" + mode) if mode else "") + " = " + label)
 
     missing = [k for k in REQUIRED[vector] if k not in tokens]
     if missing:
@@ -258,13 +323,13 @@ def _block(selector, body):
 
 def _apply_webfont(config, tokens):
     """Write the family names Material should DOWNLOAD, from the same grid row
-    that decided which families the CSS asks for. This is the seam-closing
-    move: one file decides, so the two cannot drift apart.
+    that decided which families the CSS asks for.
 
     Material takes `font: false` to mean "load nothing", and it is all or
     nothing -- there is no per-face switch. So `none` in one column and a real
     family in the other is a contradiction, and it is refused rather than
-    silently resolved in whichever direction happens to be first."""
+    silently resolved in whichever direction happens to be first.
+    """
     text = tokens["webfont-text"]
     code = tokens["webfont-code"]
 
@@ -284,6 +349,89 @@ def _apply_webfont(config, tokens):
     return text + " + " + code
 
 
+def _pairs():
+    """theme/contrast.tsv -> [(fg, bg, minimum, note)]."""
+    rows = []
+    for row in _read(CONTRAST):
+        fg, bg = row.get("fg", ""), row.get("bg", "")
+        if not fg or not bg:
+            _fail(CONTRAST, "a row is missing `fg` or `bg`")
+        try:
+            minimum = float(row.get("min", ""))
+        except ValueError:
+            _fail(
+                CONTRAST,
+                "`" + fg + " on " + bg + "` has min `" + row.get("min", "")
+                + "`, which is not a number",
+            )
+        for token in (fg, bg):
+            if token not in REQUIRED["color"]:
+                _fail(
+                    CONTRAST,
+                    "`" + token + "` is not a colour token. Available: "
+                    + ", ".join(REQUIRED["color"]),
+                )
+        rows.append((fg, bg, minimum, row.get("note", "")))
+    return rows
+
+
+def _check_contrast(palettes, active_palette):
+    """Measure every pair against every palette, in both modes.
+
+    Returns (failures, warnings, measurements). A failure is a shortfall in the
+    palette that is actually rendering; a warning is the same shortfall in one
+    nobody can currently see.
+    """
+    pairs = _pairs()
+    failures, warnings, measurements = [], [], []
+
+    slugs = sorted({
+        slug for slug, _mode in palettes if not slug.startswith("_")
+    })
+
+    for slug in slugs:
+        for mode in sorted(MODES):
+            tokens = _compose("color", palettes, slug, mode, trace=False)
+            for fg, bg, minimum, note in pairs:
+                try:
+                    value = COLOR.ratio(tokens[fg], tokens[bg])
+                except COLOR.ColorError as problem:
+                    _fail(
+                        GRID["color"],
+                        "`" + slug + "` " + mode + ": " + str(problem),
+                    )
+                # Rounded before comparing, so a pair that REPORTS 4.5 is not
+                # failed for being 4.4996 underneath.
+                shown = round(value, 2)
+                short = shown < minimum
+                record = {
+                    "palette": slug,
+                    "mode": mode,
+                    "pair": fg + " on " + bg,
+                    "ratio": shown,
+                    "min": minimum,
+                    "pass": not short,
+                    "active": slug == active_palette,
+                    "note": note,
+                }
+                measurements.append(record)
+                if not short:
+                    continue
+                if slug == active_palette or STRICT:
+                    failures.append(record)
+                else:
+                    warnings.append(record)
+
+    return failures, warnings, measurements
+
+
+def _line(record):
+    return (
+        record["palette"] + " " + record["mode"] + ": " + record["pair"]
+        + " = " + str(record["ratio"]) + ":1, needs " + str(record["min"])
+    )
+
+
 def _active():
     """One slug. Blank lines and `#` comments are ignored, so the file can
     explain itself without the explanation becoming the theme name."""
@@ -298,8 +446,6 @@ def _active():
     if not names:
         _fail("active.txt", "is empty; it must hold one theme slug")
     if len(names) > 1:
-        # Commenting the old name out is the intended way to park it. Two live
-        # names would make the theme depend on line order, silently.
         _fail(
             "active.txt",
             "holds " + str(len(names)) + " names (" + ", ".join(names)
@@ -311,6 +457,7 @@ def _active():
 def on_config(config):
     global _style
     del _trace[:]
+    _report.clear()
 
     active = _active()
     joins = {row["slug"]: row for row in _read(JOIN)}
@@ -345,9 +492,9 @@ def on_config(config):
         chosen[vector] = name
 
     css = []
-    palette = _index("color", GRID["color"])
+    palettes = _index("color", GRID["color"])
     for mode, selector in MODES.items():
-        tokens = _compose("color", palette, chosen["color"], mode)
+        tokens = _compose("color", palettes, chosen["color"], mode)
         css.append(_block(selector, _declare(tokens, "color")))
 
     root = ""
@@ -361,12 +508,45 @@ def on_config(config):
 
     _style = '<style id="u-theme">' + "".join(css) + "</style>"
 
-    # Printed every build so a fallback that fired is VISIBLE in the log,
-    # rather than being the quiet thing nobody notices for a month.
     print("theme: " + active + " = " + " x ".join(chosen[v] for v in VECTORS))
     for line in _trace:
         print(line)
     print("  webfont = " + webfont)
+
+    # -- the contrast gate --------------------------------------------------
+    if SKIP:
+        print("::warning::contrast: GATE SKIPPED (URITP_CONTRAST_OFF=1). "
+              "Nothing was measured.")
+        _report["skipped"] = True
+        return config
+
+    failures, warnings, measurements = _check_contrast(palettes, chosen["color"])
+    _report.update({
+        "active_palette": chosen["color"],
+        "strict": STRICT,
+        "checked": len(measurements),
+        "failures": failures,
+        "warnings": warnings,
+        "measurements": measurements,
+    })
+
+    print("contrast: " + str(len(measurements)) + " pairs measured, "
+          + str(len(failures)) + " failing, " + str(len(warnings))
+          + " warning")
+
+    for record in warnings:
+        print("::warning::contrast: " + _line(record)
+              + " (parked palette, not rendering)")
+
+    if failures:
+        detail = "; ".join(_line(record) for record in failures)
+        _fail(
+            CONTRAST,
+            str(len(failures)) + " pair(s) below the floor in the ACTIVE "
+            "palette -- " + detail + ". Fix the colour, or change the `min` "
+            "cell, or delete the row if the pair should not be checked.",
+        )
+
     return config
 
 
@@ -374,3 +554,54 @@ def on_post_page(output, page, config):
     """Last thing in <head>, so these declarations win any tie with Material's
     own scheme variables without needing a specificity trick."""
     return output.replace("</head>", _style + "</head>", 1)
+
+
+def on_post_build(config):
+    """Write every measurement to the built site.
+
+    Same move as links.py -> link-report.json, and for the same reason: a
+    number you can fetch beats a number you have to trust. The whole table is
+    written, passes included, so a pair sitting just above the floor is visible
+    before it slips under.
+    """
+    if not _report:
+        return
+    path = os.path.join(config["site_dir"], "contrast-report.json")
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(_report, fh, indent=2)
+
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary or _report.get("skipped"):
+        return
+
+    rows = _report["failures"] + _report["warnings"]
+    lines = ["### Contrast", ""]
+    if rows:
+        lines += [
+            str(len(rows)) + " pair(s) below the floor. The active palette is "
+            "**" + _report["active_palette"] + "**; a parked palette warns "
+            "rather than failing, because nobody can see it yet.",
+            "",
+            "| Palette | Mode | Pair | Ratio | Needs | |",
+            "|---|---|---|---|---|---|",
+        ]
+        for record in rows:
+            lines.append(
+                "| `" + record["palette"] + "` | " + record["mode"] + " | `"
+                + record["pair"] + "` | " + str(record["ratio"]) + ":1 | "
+                + str(record["min"]) + " | "
+                + ("**FAIL**" if record["active"] or _report["strict"]
+                   else "warn") + " |"
+            )
+    else:
+        lines.append(
+            "All " + str(_report["checked"]) + " pairs clear their floor, in "
+            "every palette, in both modes."
+        )
+    lines += [
+        "",
+        "Full table, passes included: `/contrast-report.json` on the built "
+        "site.",
+    ]
+    with open(summary, "a", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
