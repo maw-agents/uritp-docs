@@ -3,6 +3,12 @@ name: Build and deploy docs
 on:
   push:
     branches: [main]
+  # A build-only check on every PR. Added 2026-08-01 after a workflow change
+  # went straight to main, came back `action_required` with zero jobs, and
+  # stopped the site deploying. A workflow edit cannot be verified by reading
+  # it -- this is the only way to see one run before it is the live pipeline.
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -36,42 +42,36 @@ jobs:
           # the short SHA.
           BUILD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
 
-          # -- GATE KEYS ---------------------------------------------------
-          # One line per password group. A page writing `gates: [psm]` makes
-          # hooks/visibility.py read URITP_GATE_PSM from this list.
+          # ── THE KEYSTORE ────────────────────────────────────────────────
+          # ONE secret holds every stable password group, as `name = password`
+          # lines. Adding a group is adding a line to that secret's VALUE.
           #
-          # SLOTS ARE PRE-WIRED. Every name below is already plumbed through
-          # whether or not the secret exists -- an unset secret interpolates to
-          # an empty string, and the hook ignores empty values. So standing up
-          # a new group is normally just: create the secret in Settings with
-          # the matching name, and use it in a page. No edit here.
+          # 🚫 DO NOT ADD A LINE HERE FOR A NEW GROUP. That is what this
+          #    design removed. The list of ten pre-wired slot names that used
+          #    to sit here was deleted on 2026-08-01: it made an agent choose
+          #    Michael's vocabulary in advance, which was the actual objection.
           #
-          # Only a group whose name is NOT on this list needs a line adding,
-          # and then it is one line, copied from its neighbour.
+          # The readable copy of the block lives in the ClickUp Accounts task
+          # (linked from AUTHORING.md). A secret cannot be read back, so that
+          # task is the master and this is the copy.
+          URITP_GATE_KEYS: ${{ secrets.URITP_GATE_KEYS }}
+
+          # ── ROTATION HATCH (rare, deliberate) ───────────────────────────
+          # A high-churn group MAY live in its own secret so reissuing it does
+          # not mean repasting the whole block. GitHub only hands a workflow
+          # the secrets it names, so that ONE group needs a line here:
           #
-          # ⚠️ 2026-08-01: this list REPLACED a `${{ toJSON(secrets) }}` scan
-          #    that discovered keys by prefix and needed no list at all. It was
-          #    the better design and it is reverted for one blunt reason: the
-          #    first run carrying it came back `action_required` with zero jobs
-          #    and never deployed. Handing a workflow the whole secrets context
-          #    trips an approval gate, and a deploy that waits on a human click
-          #    is worse than a list you edit twice a year. Do not reintroduce
-          #    toJSON(secrets) without testing it on a branch first.
-          URITP_GATE_ADMIN: ${{ secrets.URITP_GATE_ADMIN }}
-          URITP_GATE_DEV: ${{ secrets.URITP_GATE_DEV }}
-          URITP_GATE_PSM: ${{ secrets.URITP_GATE_PSM }}
-          URITP_GATE_DESIGNERS: ${{ secrets.URITP_GATE_DESIGNERS }}
-          URITP_GATE_SUPERVISORS: ${{ secrets.URITP_GATE_SUPERVISORS }}
-          URITP_GATE_FACULTY: ${{ secrets.URITP_GATE_FACULTY }}
-          URITP_GATE_STUDENTS: ${{ secrets.URITP_GATE_STUDENTS }}
-          URITP_GATE_GUESTS: ${{ secrets.URITP_GATE_GUESTS }}
-          URITP_GATE_SHOP: ${{ secrets.URITP_GATE_SHOP }}
-          URITP_GATE_FOH: ${{ secrets.URITP_GATE_FOH }}
+          #   URITP_GATE_STUDENTS: ${{ secrets.URITP_GATE_STUDENTS }}
+          #
+          # Uncomment/copy per group, and only when the rotation cost is real.
+          # The container wins if a name appears in both, and the build warns.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
   deploy:
+    # Never deploy from a PR: the PR job is a build check only.
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     environment:
