@@ -19,11 +19,12 @@ The mainstage performance building; theatre inside = Smith Theatre.
 
 ## Venues and Spaces
 
-**Smith Theatre**
-Main blackbox performance space. Mainstage productions, flexible staging, full production infrastructure.
+**Smith Theatre**  
+Main blackbox performance space. Mainstage productions, flexible staging, full production infrastructure.  
 [View details ->](@smith-theatre)  
-**Smith Lobby**
-Patron gathering space and small event venue. Box office operations and front-of-house.
+
+**Smith Lobby**  
+Patron gathering space and small event venue. Box office operations and front-of-house.  
 [View details ->](@smith-lobby)
 
 ## Inventory
