@@ -26,6 +26,25 @@ wrapped CEK is ~100 bytes, so page weight is effectively independent of how
 many groups can open it. The wrap list is SHUFFLED and unlabelled: which desk
 can open a document is itself information.
 
+A LITERAL PER-PAGE PASSWORD IS SUPPORTED AND IS NOT A SECOND-CLASS PATH
+
+    status: gated
+    password: pmgate
+
+One page, one password, visible in the frontmatter, no keystore round trip and
+no repository secret to edit. It composes with `gates:` (both are collected and
+any one opens the page), it inherits down a folder exactly like a group key
+does, and gate.js remembers it on the session keyring like any other. The
+literal is stripped from `page.meta` before render, so it never reaches the
+HTML.
+
+What it costs, stated plainly rather than discouraged: the password is in the
+repository and in git history forever, so rotating it is a rewrite rather than
+a secret edit, and it cannot be shared across pages without repeating it. That
+is the correct trade for a fast local lock during beta and the wrong one for a
+key that outlives the page. Use a group in the keystore the moment two pages
+want the same password.
+
 =======================================================================
 WHERE A GROUP NAME FINDS ITS PASSWORD -- two tiers, and the name never
 changes shape
@@ -68,12 +87,48 @@ rule, and the URITP_GATE_STRICT collision that rule existed to prevent. The
 derivation survives ONLY inside the hatch, where a real environment variable
 name is unavoidable.
 
-FOLDER INHERITANCE
-**A gated `index.md` locks its whole subtree.** Every page beneath it inherits
-the same keys and is genuinely encrypted -- not merely hidden from the sidebar,
-which would leave every child readable by direct URL while looking protected.
-The nearest gated ancestor wins; a page overrides by declaring its own
-`status:` (any value) or `inherit: false`. Only silence inherits.
+FOLDER INHERITANCE -- THE LOCK WINS
+**A gated `index.md` locks its whole subtree, and the lock BEATS the page.**
+Every page beneath it is genuinely encrypted -- not merely hidden from the
+sidebar, which would leave every child readable by direct URL while looking
+protected. The nearest gated ancestor wins at ANY depth, so this composes
+through nested folders. Only a folder that HAS an index.md gates anything; a
+folder without one is transparent and the walk continues straight past it,
+which is what makes the index file itself the switch.
+
+⚠️ PRECEDENCE FLIPPED 2026-08-01, Michael. It used to be the opposite: a page
+that declared anything at all, even `public`, opted itself out, and "only
+silence inherits" was the rule. The result was `docs/safety/safety-test-1.md`
+serving plaintext by direct link while the Safety section looked locked. A lock
+whose opt-out is spelled the same as an ordinary setting is not a lock. The
+folder is now the unit of protection.
+
+Three pass-throughs, and they are the only three:
+
+    status: hidden      still wins. `hidden` means NOT BUILT, and a lock must
+                        never PUBLISH a page whose author suppressed it.
+                        Escalating somebody's half-written draft into a live
+                        encrypted page is a worse failure than the one this
+                        flip fixes.
+
+    status: gated       keeps its OWN keys. The page is already locked, so the
+                        folder lock has nothing to add -- and merging the two
+                        keyrings would hand the folder's group a page that was
+                        deliberately locked to a different one. Widening access
+                        is not inheritance.
+
+    inherit: false      the explicit, greppable escape hatch. One string to
+                        search for when you want to know what is loose inside a
+                        locked tree.
+
+An overridden page KEEPS ITS OWN UNLISTED-NESS. A page that chose `unlisted`,
+or set `listed: false`, stays out of the nav, the search index and the sitemap
+after the lock takes it -- otherwise locking a folder would quietly promote its
+most invisible page into the sidebar, which is an escalation dressed as a
+security fix.
+
+Every override is REPORTED BY NAME at the end of the build. A silent override
+would just relocate the invisible failure this flip exists to remove.
 
 A MISSING KEY LOCKS THE PAGE, IT DOES NOT FREEZE THE SITE
 A gated page naming a group with no password behind it publishes as an
@@ -126,6 +181,11 @@ ITERATIONS = 250000
 CONTAINER = "URITP_GATE_KEYS"
 ENV_PREFIX = "URITP_GATE_"      # tier 2 only: the rotation hatch
 
+# A page that declares one of these is NOT taken over by a parent folder lock.
+# See FOLDER INHERITANCE at the top of this file -- each one is a pass-through
+# for a different reason, and neither of them leaves a page readable.
+LOCK_EXEMPT = {"hidden", "gated"}
+
 # NOT URITP_GATE_STRICT -- that name would read as a hatch group called
 # "strict" whose password is "1". Flags are plural, keys are singular.
 STRICT = os.environ.get("URITP_GATES_STRICT") == "1"
@@ -141,6 +201,7 @@ _store_notes = []   # parse warnings, safe to print (names only)
 _status = {}
 _keys = {}
 _unconfigured = {}
+_overridden = {}    # src_uri -> (status it declared, the index that took it)
 _nolist = set()
 _inherited = set()
 _noindex_paths = set()
@@ -281,6 +342,8 @@ def _resolve_keys(meta, src_uri):
     found = []
     missing = []
 
+    # The per-page literal. Deliberately first and deliberately equal: a page
+    # may carry a literal AND groups, and any one of them opens it.
     literal = meta.get("password")
     if literal:
         found.append(str(literal))
@@ -393,7 +456,7 @@ def on_files(files, config):
     """
     _load_keystore()
 
-    for store in (_status, _keys, _unconfigured):
+    for store in (_status, _keys, _unconfigured, _overridden):
         store.clear()
     _nolist.clear()
     _inherited.clear()
@@ -418,15 +481,28 @@ def on_files(files, config):
             kept.append(f)
 
     for f, meta in pages:
-        status = _declared_status(meta)
+        declared = _declared_status(meta)
+
+        # Captured BEFORE any override. A page the lock takes over keeps the
+        # discoverability it chose for itself; locking a folder must not
+        # promote its quietest page into the sidebar.
+        unlisted = _is_unlisted(meta, declared)
+
+        status = declared
         source_meta, source_uri = meta, f.src_uri
 
-        # Inherit only when the page said nothing about its own status. A page
-        # that declares anything -- even `public` -- has made a decision.
-        if status is None and not _opted_out(meta):
+        # THE LOCK BEATS THE PAGE. Only LOCK_EXEMPT statuses and an explicit
+        # `inherit: false` walk past a gated ancestor -- see FOLDER
+        # INHERITANCE at the top of this file for why each one is safe.
+        if declared not in LOCK_EXEMPT and not _opted_out(meta):
             for folder in _ancestors(f.src_uri):
                 if folder in folder_gate and folder_gate[folder][1] != f.src_uri:
                     source_meta, source_uri = folder_gate[folder]
+                    if declared is not None:
+                        # It said something and the lock overruled it. That is
+                        # the whole class of change this flip introduced, so it
+                        # never happens quietly.
+                        _overridden[f.src_uri] = (declared, source_uri)
                     status = "gated"
                     _inherited.add(f.src_uri)
                     break
@@ -446,7 +522,7 @@ def on_files(files, config):
             else:
                 _keys[f.src_uri] = passwords
 
-        if _is_unlisted(meta, status):
+        if unlisted:
             _nolist.add(f.src_uri)
             f.inclusion = InclusionLevel.NOT_IN_NAV
 
@@ -565,6 +641,52 @@ def on_post_page(output, page, config):
     return output.replace("<head>", "<head>" + NOINDEX, 1)
 
 
+def _write_summary(lines):
+    """Append a block to the Actions run summary, if we are in one."""
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary:
+        return
+    with open(summary, "a", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+
+
+def _report_overrides():
+    """Pages whose own `status:` was overruled by a parent folder lock.
+
+    NOT a warning and NOT a problem -- it is the feature working. But the flip
+    that introduced it traded one invisible behaviour for another, and the only
+    thing that makes the trade honest is saying out loud which pages changed
+    meaning.
+    """
+    if not _overridden:
+        return
+
+    print(
+        "gate: " + str(len(_overridden))
+        + " page(s) OVERRIDDEN by a parent index lock:"
+    )
+    for src, (declared, source) in sorted(_overridden.items()):
+        print(
+            "  " + src + " -- declared '" + declared + "', locked by " + source
+        )
+
+    lines = [
+        "### \U0001f512 Locked by a parent index",
+        "",
+        "These pages declared their own `status:` and a gated folder index "
+        "overruled it. This is the folder lock doing its job. To let one out, "
+        "add `inherit: false` to its frontmatter.",
+        "",
+        "| Page | It declared | Locked by |",
+        "|---|---|---|",
+    ]
+    for src, (declared, source) in sorted(_overridden.items()):
+        lines.append(
+            "| `" + src + "` | `" + declared + "` | `" + source + "` |"
+        )
+    _write_summary(lines)
+
+
 def _report():
     """Loud, because the whole point of not failing the build is that the
     problem must not become invisible instead.
@@ -581,6 +703,8 @@ def _report():
     if _inherited:
         print("gate: " + str(len(_inherited)) + " page(s) locked by a parent index")
 
+    _report_overrides()
+
     if not _unconfigured:
         return
 
@@ -590,10 +714,6 @@ def _report():
     )
     for src, problems in sorted(_unconfigured.items()):
         print("  " + src + " -- " + "; ".join(problems))
-
-    summary = os.environ.get("GITHUB_STEP_SUMMARY")
-    if not summary:
-        return
 
     # Distinguish "no keystore at all" from "keystore present but this group
     # is not in it" -- identical symptoms, completely different fixes.
@@ -632,8 +752,7 @@ def _report():
         "Accounts task -- update it there first, then paste. "
         "See AUTHORING.md -> Adding a key group.",
     ]
-    with open(summary, "a", encoding="utf-8") as fh:
-        fh.write("\n".join(lines) + "\n")
+    _write_summary(lines)
 
 
 def on_post_build(config):
