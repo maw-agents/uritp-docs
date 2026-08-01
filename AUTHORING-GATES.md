@@ -26,7 +26,8 @@ him to remember what is in the box.
 
 ## Publication status
 
-**Every page needs a `status:` line, or it inherits one, or it is hidden.**
+**Every page needs a `status:` line, or it is inside a locked folder, or it is
+hidden.**
 
 | Status | Sidebar? | Direct link? | Search? | In the served HTML |
 |---|---|---|---|---|
@@ -102,6 +103,44 @@ gates: [psm, admin]          # either password works
 gate: psm                    # singular, still valid
 ```
 
+### The one-page password
+
+A page can carry its own password directly, with no keystore and no repository
+secret involved:
+
+```markdown
+---
+title: Todd Lock-up
+status: gated
+password: pmgate
+---
+```
+
+**This is a first-class path, not a fallback.** It behaves exactly like a group key
+everywhere it matters:
+
+- It encrypts the same way, with the same cipher and the same iteration count.
+- It **composes** with `gates:`. A page may carry both, and any one of them opens it.
+- It **inherits** down a folder. A gated `index.md` with a literal password locks its
+  whole subtree with that password.
+- The session **keyring** remembers it like any other key, so it opens every other
+  page using the same literal without asking again.
+- The literal is stripped from the page metadata before render. It never reaches the
+  served HTML.
+
+**What it costs, stated rather than discouraged:** the password sits in the
+repository, and git remembers it forever, so rotating it is a history problem rather
+than a secret edit. And it cannot be shared between pages without being retyped in
+each one, which is a divergence waiting to happen.
+
+| Reach for | When |
+|---|---|
+| `password:` | One page. A quick lock you want to see and change in the file you are already editing. Beta, drafts, a single procedure. |
+| `gates:` | Two or more pages want the same password, or the password must be rotatable, or it must not be in the repo. |
+
+**The moment a second page wants the same password, move it to a group.** That is the
+line, and it is the only one.
+
 ### How the encryption works
 
 The body is encrypted **once** with a random content key; that content key is then
@@ -125,12 +164,20 @@ index with the PSM key and every other PSM page opens by itself.
   "I am PSM" flag anyone could set in devtools.
 - Ceiling 8 keys; each candidate costs a PBKDF2 derivation (~100-200ms on a phone).
 
-### A gated folder index locks its whole subtree
+---
+
+## 🔒 A gated folder index locks its whole subtree, and the lock WINS
+
+**The `index.md` is the switch.** A folder that has one, gated, is a locked folder. A
+folder without one is transparent and inheritance walks straight past it. That is why
+not every folder needs an index file, and why the ones that have it can still be
+opened and read as pages in their own right.
 
 ```
-docs/safety/index.md          status: gated, gates: [psm]
-docs/safety/lockup.md         -> inherits
-docs/safety/keys/master.md    -> inherits, at any depth
+docs/safety/index.md            status: gated, gates: [psm]
+docs/safety/lockup.md           -> locked
+docs/safety/safety-test-1.md    status: public   -> locked ANYWAY
+docs/safety/keys/master.md      -> locked, at any depth
 ```
 
 The children are **genuinely encrypted**, not merely hidden from the sidebar. That is
@@ -139,9 +186,37 @@ readable by direct URL and in search *while looking protected*, which on a safet
 section is the worst of both. Because inheritance is real, the sidebar keeps showing
 the children honestly, and the keyring opens them as you walk the folder.
 
-**Overriding:** nearest gated ancestor wins. A page opts out by declaring its own
-`status:` — *any* value, including `public` — or `inherit: false`. **Only silence
-inherits.**
+**Nesting composes.** The nearest gated ancestor wins, at any depth, so a locked
+folder inside a locked folder behaves the way it reads.
+
+### ⚠️ Precedence flipped 2026-08-01
+
+~~A page opts out by declaring its own `status:` — *any* value, including `public` —
+or `inherit: false`. **Only silence inherits.**~~
+
+**Changed the same day, by Michael.** Under the old rule `docs/safety/safety-test-1.md`
+declared `status: public`, was therefore treated as having opted out, and served
+plaintext by direct link while the Safety section looked locked. **A lock whose opt-out
+is spelled the same as an ordinary setting is not a lock.** The folder is now the unit
+of protection.
+
+**Three pass-throughs, and they are the only three:**
+
+| Frontmatter | What happens | Why |
+|---|---|---|
+| `status: hidden` | Still hidden. Not built, not published. | `hidden` means *not built*. A lock must never **publish** a page its author suppressed — escalating a half-written draft into a live encrypted page is worse than the leak this flip fixed. |
+| `status: gated` | Keeps its **own** keys. Not merged with the folder's. | The page is already locked, so the folder lock has nothing to add. Merging keyrings would hand the folder's group a page deliberately locked to a different one. **Widening access is not inheritance.** |
+| `inherit: false` | Published as declared, loose inside the locked tree. | The explicit escape hatch. One greppable string, so "what is loose in here?" is a search, not a reading exercise. |
+
+**An overridden page keeps its own unlisted-ness.** A page that chose `unlisted`, or
+set `listed: false`, stays out of the nav, search and sitemap after the lock takes it.
+Otherwise locking a folder would quietly promote its quietest page into the sidebar,
+which is an escalation dressed up as a security fix.
+
+**Every override is named in the build output** and in the Actions run summary: the
+page, the status it declared, and the index that overruled it. The flip traded one
+invisible behaviour for another, and printing the list is what makes that trade
+honest.
 
 ---
 
@@ -263,6 +338,7 @@ is world-readable at `github.com/maw-agents/uritp-docs`.
 | A `hidden` page | Not there at all | **Fully readable** |
 | A `gated` page | Encrypted | **Fully readable** |
 | An `unlisted` page | Readable by URL | **Fully readable** |
+| A `password:` literal | Never in the HTML | **Fully readable, and in history forever** |
 
 And git never forgets: deleting a page tomorrow leaves it in history forever.
 
@@ -279,6 +355,9 @@ must not be read, it does not belong in this repo.
 
 **If that changes:** make the repo private (Pages from a private repo needs GitHub Pro,
 ~$4/month). The keystore plumbing is already in place; that is the only remaining step.
+**That is also the step that turns the weak beta passwords into a real question** — as
+long as the source is public, key strength changes nothing, so it is not worth
+spending on until the repo turns private.
 
 ---
 
