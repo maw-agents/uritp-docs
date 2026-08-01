@@ -8,11 +8,11 @@
 #   write, and changing hooks/visibility.py changes what publishes. Update
 #   AUTHORING.md in the SAME PR or it teaches rules the build no longer follows.
 
-site_name: URITP Production Resources
+site_name: URITP PRP
 site_url: https://maw-agents.github.io/uritp-docs/
 repo_url: https://github.com/maw-agents/uritp-docs
 edit_uri: edit/main/docs/
-copyright: University of Rochester International Theatre Program
+copyright: URITP | MAW
 
 theme:
   name: material
@@ -30,13 +30,13 @@ theme:
   palette:
     - scheme: slate
       primary: black
-      accent: yellow
+      accent: dark yellow
       toggle:
         icon: material/circle-half-full
         name: Light
     - scheme: default
       primary: black
-      accent: blue
+      accent: yellow
       toggle:
         icon: material/circle-outline
         name: Dark
