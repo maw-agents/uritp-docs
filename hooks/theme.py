@@ -62,7 +62,10 @@ REQUIRED = {
     "spacing": "touch pad-cell pad-block gap-xs gap-md gap-lg measure".split(),
 }
 
-MODES = {"dark": "[data-md-color-scheme=slate]", "light": "[data-md-color-scheme=default]"}
+MODES = {
+    "dark": "[data-md-color-scheme=slate]",
+    "light": "[data-md-color-scheme=default]",
+}
 
 _style = ""
 
@@ -77,9 +80,9 @@ def _row(data, vector, name):
         _fail("no `" + vector + ":` section")
     row = table.get(name)
     if not isinstance(row, dict):
+        defined = ", ".join(sorted(table)) if table else "(none)"
         _fail(
-            vector + " `" + str(name) + "` does not exist. Defined: "
-            + ", ".join(sorted(table)) or "(none)"
+            vector + " `" + str(name) + "` does not exist. Defined: " + defined
         )
     return row
 
@@ -145,10 +148,7 @@ def on_config(config):
 
     _style = '<style id="u-theme">' + "".join(css) + "</style>"
 
-    print(
-        "theme: " + active + " = "
-        + " x ".join(chosen[v][0] for v in VECTORS)
-    )
+    print("theme: " + active + " = " + " x ".join(chosen[v][0] for v in VECTORS))
     return config
 
 
