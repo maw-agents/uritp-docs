@@ -32,8 +32,46 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Install MkDocs Material
         run: pip install -r requirements.txt
+
+      # 🔴 NO `--strict` HERE, AND DO NOT PUT IT BACK. READ THIS FIRST.
+      #
+      # `--strict` turns ANY warning, from ANY plugin, into a failed build. A
+      # failed build does not show an error to a reader: the deploy job is
+      # SKIPPED and GitHub Pages keeps serving the last successful commit, for
+      # the WHOLE SITE, with no signal anywhere a page author would look. It
+      # presents as a caching problem. It is not one, and no amount of hard
+      # reloading touches it.
+      #
+      # It cost the site three times on 2026-08-01:
+      #   * a page move stale-ing relative .md links (twice, inside 40 minutes)
+      #   * `status: public` -> `status: hidden` on one page that docs/.nav.yml
+      #     names by filename. One word of frontmatter, in the web editor, by
+      #     the only person who edits this site. 24 minutes stale, and the only
+      #     signal was a grey X on a commit list.
+      #
+      # Both of this repo's own hooks were BUILT to route around it and say so
+      # in their docstrings -- hooks/links.py ("this hook deliberately takes
+      # the opposite stance to --strict... one typo must never again freeze an
+      # entire reference site") and hooks/visibility.py ("the same trade
+      # --strict used to make over a single dead link, rejected for the same
+      # reason"). The reasoning shipped and this line did not, so the pipeline
+      # kept overruling the design. Removed 2026-08-01, Michael: "I NEED this
+      # whole tree and build to be a LOT more robust."
+      #
+      # WHAT REPLACED IT, because this is not "stop checking":
+      #   * hooks/links.py     reports dead links, fragile anchors and legacy
+      #                        paths by name, and renders a visible marker
+      #   * hooks/visibility.py reports an unrecognised `status:` value, pages
+      #                        hidden only by default, and every hide that
+      #                        orphaned an inbound link
+      #   * hooks/contrast.py  fails the build on the ACTIVE palette only
+      # Every one of those is local and by name. The failure a build should
+      # refuse is a failure in OUR data, not a warning from someone's plugin.
+      #
+      # To reproduce the old behaviour for one run without editing this file:
+      # run the workflow manually and set URITP_LINKS_STRICT / URITP_GATES_STRICT.
       - name: Build site
-        run: mkdocs build --strict
+        run: mkdocs build
         env:
           # Read by hooks/buildstamp.py to render the footer stamp. Passed as an
           # environment variable rather than interpolated into `run:`, so a
