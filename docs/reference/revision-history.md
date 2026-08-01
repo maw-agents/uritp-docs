@@ -13,7 +13,7 @@ This page is a summary for readers. **The authoritative history is the repositor
 
 | Date | Change |
 |---|---|
-| July 2026 | Site stood up. Smith Theatre migrated from the standalone SPAC resource page. Placeholder pages held back from publication pending real content. |
+| July 2026 | Site stood up. Smith Theatre migrated from the standalone SPAC resource page. Publication states introduced so unfinished pages stay off the site. |
 | June 2026 | Smith Theatre venue notes compiled (previous format: single HTML resource page). |
 
 ## How versioning works here
@@ -26,6 +26,8 @@ If you need a frozen snapshot for an archive or a contract, print the page to PD
 
 ## Pages in progress
 
-Some pages exist but are not listed in the sidebar because they do not yet hold enough to be useful: SPAC Lobby, Todd Union, and paperwork standards. They are being written. Ask production management if you need what is in one of them now.
+Not everything is published. Venue pages for the SPAC Lobby and Todd Union are being written and are not yet listed. Paperwork standards is circulating in draft behind a password while it is agreed.
+
+Ask production management if you need what is in one of them before it lands here.
 
 [Smith Theatre](../venues/smith-theatre.md) is current, with three specifications still unconfirmed.
