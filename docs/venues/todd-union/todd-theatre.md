@@ -1,14 +1,14 @@
 ---
-title: Todd Union
+title: Todd Theatre
 status: public
 ---
 
-# Todd Union
+# Todd Theatre {#todd-theatre}
 
-URITP's second production venue.
+The performance space inside Todd Union.
 
 !!! note "Not yet documented"
-    This page is a placeholder and is not listed in the sidebar. Todd has its own constraints and they are genuinely different from Smith. Do not assume anything on the Smith Theatre page applies here.
+    This page is a placeholder. Todd has its own constraints and they are genuinely different from Smith. Do not assume anything on the Smith Theatre page applies here.
 
 ## What we need to capture
 
@@ -21,5 +21,5 @@ URITP's second production venue.
 
 ## Related
 
-- [Smith Theatre](../smith-theatre.md)
-- [Safety and health](../../safety/index.md)
+- [Smith Theatre][smith-theatre]
+- [Safety and health][safety]

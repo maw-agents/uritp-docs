@@ -13,9 +13,9 @@ This site is the current version. If you are reading a PDF or a slide deck someo
 
 | If you are | Start with |
 |---|---|
-| Designing for a Mainstage production | [Smith Theatre](venues/smith-theatre.md) |
-| New to the program | [Using these docs](using-these-docs.md) |
-| Working a load-in or strike | [Safety and health](safety/index.md) |
+| Designing for a Mainstage production | [Smith Theatre][smith-theatre] |
+| New to the program | [Using these docs][using-these-docs] |
+| Working a load-in or strike | [Safety and health][safety] |
 
 ## What is here and what is not
 

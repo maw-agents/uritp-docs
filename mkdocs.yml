@@ -1,11 +1,13 @@
 # THEME SWAP: change theme.name. Nothing in docs/*.md is affected by a swap.
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml, not here.
+#   A folder may also carry its OWN .nav.yml to set its section title.
 # VISIBILITY: every page needs `status:` in its frontmatter or it will not build.
 # COLOR: chrome color is theme.palette below, NOT uritp.css. See the note there.
 #
-# POINTER: adding or removing a markdown_extension changes what page authors can
-#   write, and changing hooks/visibility.py changes what publishes. Update
-#   AUTHORING.md in the SAME PR or it teaches rules the build no longer follows.
+# POINTER: adding or removing a markdown_extension, a plugin, or a navigation
+#   feature changes what page authors can write or how the sidebar behaves, and
+#   changing hooks/visibility.py changes what publishes. Update AUTHORING.md in
+#   the SAME PR or it teaches rules the build no longer follows.
 
 site_name: URITP Production Resources
 site_url: https://maw-agents.github.io/uritp-docs/
@@ -43,11 +45,15 @@ theme:
   features:
     - navigation.sections    # sidebar groups instead of one flat list
     - navigation.expand      # no drilling: whole tree open on desktop
+    - navigation.indexes     # a folder's index.md becomes its landing page
     - navigation.top         # back-to-top button
     - toc.follow             # right rail tracks the scroll position
     - search.suggest         # autocomplete in the search box
     - content.action.edit    # pencil icon on every page
     - content.tabs.link      # picking "Lighting" holds across the whole page
+
+# ⚠️ navigation.indexes is incompatible with toc.integrate ONLY (a section
+#    cannot host the outline). It composes fine with sections + expand above.
 
 extra_css: [stylesheets/uritp.css]
 extra_javascript: [javascripts/gate.js]   # client half of `status: gated`
@@ -55,17 +61,18 @@ extra: {generator: false}                 # hides the "Made with Material" foote
 
 plugins:
   - search        # must be listed: declaring plugins replaces the defaults
+  - autorefs      # [text][anchor] resolves by heading id, not by file path
   - awesome-nav   # builds the sidebar from docs/, steered by docs/.nav.yml
 
 hooks:
   - hooks/visibility.py   # frontmatter `status:` gate, hidden by default
-  - hooks/buildstamp.py   # deploy time + commit SHA in the footer
+  - hooks/buildstamp.py   # PR number (or short SHA) in the footer
 
 # Each line below enables authoring syntax documented in AUTHORING.md.
 markdown_extensions:
   - tables
   - admonition                                 # !!! warning "Title"
-  - attr_list                                  # [To be confirmed]{.tbc}
+  - attr_list                                  # [To be confirmed]{.tbc} + {#anchor}
   - pymdownx.superfences                       # safe nesting inside tabs
   - pymdownx.tabbed: {alternate_style: true}   # === "Lighting"
   - toc: {permalink: true}

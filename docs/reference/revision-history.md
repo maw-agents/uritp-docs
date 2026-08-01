@@ -26,8 +26,8 @@ If you need a frozen snapshot for an archive or a contract, print the page to PD
 
 ## Pages in progress
 
-Not everything is published. Venue pages for the SPAC Lobby and Todd Union are being written and are not yet listed. Paperwork standards is circulating in draft behind a password while it is agreed.
+Not everything is published. Venue pages for the SPAC Lobby and Todd Union are placeholders waiting to be written. Paperwork standards is circulating in draft behind a password while it is agreed.
 
 Ask production management if you need what is in one of them before it lands here.
 
-[Smith Theatre](../venues/smith-theatre.md) is current, with three specifications still unconfirmed.
+[Smith Theatre][smith-theatre] is current, with three specifications still unconfirmed.

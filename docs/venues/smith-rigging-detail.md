@@ -3,7 +3,7 @@ title: Smith Theatre — rigging detail
 status: unlisted
 ---
 
-# Smith Theatre — rigging detail
+# Smith Theatre — rigging detail {#smith-rigging-detail}
 
 Position-by-position rigging reference for Smith Theatre. Linked from the venue page rather than listed in the sidebar, because it is depth for people already working the space.
 
@@ -31,5 +31,5 @@ All catwalk fixtures are yoked at 45 degrees. That is a physical constraint of r
 
 ## Related
 
-- [Smith Theatre](smith-theatre.md)
-- [Safety and health](../safety/index.md)
+- [Smith Theatre][smith-theatre]
+- [Safety and health][safety]

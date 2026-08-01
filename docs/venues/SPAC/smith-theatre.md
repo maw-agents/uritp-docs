@@ -3,7 +3,7 @@ title: Smith Theatre
 status: public
 ---
 
-# Smith Theatre
+# Smith Theatre {#smith-theatre}
 
 Primary performance space in the Sloan Performing Arts Center. URITP produces Mainstage productions here. Read the venue notes before you finalize a design.
 
@@ -25,7 +25,7 @@ Confirmed values only. Anything marked to be confirmed has not been re-measured 
 | Seating capacity | [To be confirmed]{.tbc} |
 | Stage floor finish | [To be confirmed]{.tbc} |
 
-Position-by-position detail lives in the [rigging detail sheet](smith-rigging-detail.md).
+Position-by-position detail lives in the [rigging detail sheet][smith-rigging-detail].
 
 ## Venue notes
 

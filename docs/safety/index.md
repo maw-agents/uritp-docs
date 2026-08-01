@@ -3,7 +3,7 @@ title: Safety and health
 status: public
 ---
 
-# Safety and health
+# Safety and health {#safety}
 
 Safety policy for URITP production spaces.
 
@@ -12,7 +12,7 @@ Safety policy for URITP production spaces.
 
 ## What applies right now
 
-**Exit signs stay illuminated.** In every space, at all times. This is a life-safety requirement with no waiver, and it is the reason a complete blackout is not achievable in [Smith Theatre](../venues/smith-theatre.md).
+**Exit signs stay illuminated.** In every space, at all times. This is a life-safety requirement with no waiver, and it is the reason a complete blackout is not achievable in [Smith Theatre][smith-theatre].
 
 **Anything rigged, hung, or flown goes through production management** before it is drafted, ordered, or installed. No exceptions, no matter how light the object is.
 
@@ -30,4 +30,4 @@ Safety policy for URITP production spaces.
 
 ## Related
 
-- [Smith Theatre](../venues/smith-theatre.md)
+- [Smith Theatre][smith-theatre]

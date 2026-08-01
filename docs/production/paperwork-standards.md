@@ -25,5 +25,5 @@ What production paperwork needs to contain, what format it arrives in, and when 
 
 ## Related
 
-- [Smith Theatre](../venues/smith-theatre.md)
-- [Using these docs](../using-these-docs.md)
+- [Smith Theatre][smith-theatre]
+- [Using these docs][using-these-docs]
