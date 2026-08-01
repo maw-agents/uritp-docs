@@ -14,33 +14,42 @@ And one independent switch, because the four statuses conflated two questions:
     listed: false       keep this page out of the nav, search and sitemap,
                         WHATEVER its status is
 
-That is what makes `status: gated` + `listed: false` possible -- a page that is
-encrypted AND undiscoverable, which the single-value `status:` could not express
-(you had to pick one). `status: unlisted` is now simply shorthand for
-"public + listed: false" and is kept because it reads better.
+That is what makes `status: gated` + `listed: false` possible -- encrypted AND
+undiscoverable, which the single-value `status:` could not express.
+`status: unlisted` is now shorthand for "public + listed: false".
 
-MULTIPLE KEYS (added 2026-08-01)
+MULTIPLE KEYS (2026-08-01)
 A gated page may name several groups, and ANY ONE of their passwords opens it:
 
     status: gated
     gates: [psm, admin]
 
-This is ENVELOPE encryption, not N copies of the page:
-
-  1. a random content key (CEK) is generated per page
-  2. the finished HTML is encrypted ONCE with the CEK
-  3. for each group, a key-encrypting key is derived from that group's secret
-     and used to encrypt *the CEK*
-  4. the page ships one ciphertext body plus a small list of wrapped CEKs
-
-A wrapped CEK is ~100 bytes, so page weight is effectively independent of how
-many groups can open it, and rotating one group's key rewraps 100 bytes without
-touching the body or any other group. Encrypting the whole page once per group
-would instead cost content-size x group-count and make every rotation a full
-re-encrypt.
+ENVELOPE encryption, not N copies: a random content key (CEK) encrypts the
+finished HTML ONCE, then the CEK is separately encrypted for each group. A
+wrapped CEK is ~100 bytes, so page weight is effectively independent of how
+many groups can open it, and rotating one group's key rewraps 100 bytes
+without touching the body or any other group.
 
 The wrap list is SHUFFLED and carries no labels. Which desk can open a document
 is itself information, and an ordered list would hand it over.
+
+FOLDER INHERITANCE (2026-08-01)
+**A gated `index.md` locks its whole subtree.** Every page beneath it inherits
+the same `gates:` and is genuinely encrypted -- not merely hidden from the
+sidebar.
+
+    docs/safety/index.md          status: gated, gates: [psm]
+    docs/safety/lockup.md         -> inherits: gated, gates: [psm]
+    docs/safety/keys/master.md    -> inherits too, at any depth
+
+WHY REAL ENCRYPTION AND NOT A HIDDEN SIDEBAR: hiding child entries until the
+index unlocks leaves every child fully readable by direct URL and in search,
+while *looking* protected. On a safety section that is the worst combination --
+the appearance of a lock with none of it. Inheritance means the sidebar can
+keep showing the children honestly, because they are actually locked.
+
+The nearest gated ancestor wins. A page opts out or overrides by declaring its
+own `status:` (any value, including `public`), or with `inherit: false`.
 
 NONE of these are access control while the repository is public. The markdown
 source of every page, INCLUDING a gated page's plaintext, is readable at
@@ -57,6 +66,7 @@ fails to unlock with no error anyone can read.
 import base64
 import gzip
 import os
+import posixpath
 import random
 import re
 import secrets
@@ -81,16 +91,17 @@ _FRONTMATTER = re.compile(rb"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
 #
 # Python-Markdown's attr_list does NOT reliably produce a span from the bare
 # bracket form, so the documented marker rendered as literal text on the live
-# site. Doing the substitution here is deterministic and independent of what
-# attr_list decides to support. The `\]\{` with no gap is what keeps ordinary
-# markdown links `[text](url)` out of the match.
+# site. Doing the substitution here is deterministic. The `\]\{` with no gap is
+# what keeps ordinary markdown links `[text](url)` out of the match.
 _SPAN = re.compile(r"\[([^\[\]\n]+)\]\{\s*\.([A-Za-z][\w-]*)\s*\}")
 
 # Fenced code blocks, so a page documenting the marker still shows it literally.
 _FENCE = re.compile(r"(^```.*?^```)", re.DOTALL | re.MULTILINE)
 
-_status = {}
+_status = {}      # src_uri -> resolved status
+_keys = {}        # src_uri -> resolved list of passwords (gated pages only)
 _nolist = set()
+_inherited = set()  # src_uri -> gated by an ancestor rather than by itself
 _noindex_paths = set()
 
 
@@ -110,11 +121,13 @@ def _read_meta(abs_path):
     return meta if isinstance(meta, dict) else {}
 
 
-def _read_status(meta):
-    """Anything unrecognised falls back to the default, which is the safe
-    direction: a malformed page stays off the site rather than leaking onto
-    it."""
-    status = str(meta.get("status", DEFAULT)).strip().lower()
+def _declared_status(meta):
+    """The page's OWN status, or None if it did not declare one. Distinguishing
+    'said nothing' from 'said hidden' is what makes inheritance possible."""
+    raw = meta.get("status")
+    if raw is None:
+        return None
+    status = str(raw).strip().lower()
     return status if status in ALLOWED else DEFAULT
 
 
@@ -169,10 +182,11 @@ def _secrets_for(meta, src_uri):
         raise ValueError(
             src_uri + ": status is 'gated' and names the gate(s) "
             + ", ".join(missing)
-            + ", but the environment carries no "
+            + ", but the build environment carries no "
             + ", ".join(_env_key(n) for n in missing)
-            + ". Add the secret in GitHub -> Settings -> Secrets and variables "
-            "-> Actions, and pass it through in .github/workflows/deploy.yml. "
+            + ". Add it in Settings -> Secrets and variables -> Actions, AND "
+            "name it in the env: block of .github/workflows/deploy.yml -- a "
+            "secret that exists but is not passed through is invisible here. "
             "Refusing to build rather than publish this page unencrypted."
         )
 
@@ -192,6 +206,22 @@ def _secrets_for(meta, src_uri):
             seen.add(value)
             unique.append(value)
     return unique
+
+
+def _ancestors(src_uri):
+    """Folder paths above this page, nearest first."""
+    parts = posixpath.dirname(src_uri).split("/") if posixpath.dirname(src_uri) else []
+    out = []
+    while parts:
+        out.append("/".join(parts))
+        parts = parts[:-1]
+    out.append("")
+    return out
+
+
+def _opted_out(meta):
+    value = meta.get("inherit")
+    return value is False or str(value).strip().lower() == "false"
 
 
 def _expand_spans(markdown):
@@ -225,9 +255,7 @@ def _encrypt(plaintext, passwords):
         salt = secrets.token_bytes(16)
         wrap_nonce = secrets.token_bytes(12)
         wrapped = AESGCM(_derive(password, salt)).encrypt(wrap_nonce, cek, None)
-        wraps.append(
-            {"s": _b64(salt), "n": _b64(wrap_nonce), "w": _b64(wrapped)}
-        )
+        wraps.append({"s": _b64(salt), "n": _b64(wrap_nonce), "w": _b64(wrapped)})
 
     # Position must not identify the group. Frontmatter order would otherwise
     # say "the first key is psm" to anyone reading the built HTML.
@@ -247,34 +275,74 @@ def _keys_attr(wraps):
 
 
 def on_files(files, config):
-    """Drop hidden pages before anything can link to or index them, and fail
-    the build NOW if a gated page names a gate with no secret behind it --
-    before a single page renders, rather than part-way through."""
-    _status.clear()
+    """Resolve status for every page, THEN drop what must not be built.
+
+    Two passes, because inheritance cannot be decided while still walking: a
+    folder's index.md may be read after one of its children.
+    """
+    for store in (_status, _keys):
+        store.clear()
     _nolist.clear()
+    _inherited.clear()
     _noindex_paths.clear()
+
+    pages = []
+    folder_gate = {}   # folder path -> (meta, src_uri of its index)
+
+    for f in files:
+        if not f.is_documentation_page():
+            continue
+        meta = _read_meta(f.abs_src_path)
+        pages.append((f, meta))
+
+        if posixpath.basename(f.src_uri) == "index.md":
+            if _declared_status(meta) == "gated":
+                folder_gate[posixpath.dirname(f.src_uri)] = (meta, f.src_uri)
+
     kept = []
+    page_uris = {f.src_uri for f, _ in pages}
 
     for f in files:
         if not f.is_documentation_page():
             kept.append(f)
-            continue
 
-        meta = _read_meta(f.abs_src_path)
-        status = _read_status(meta)
+    for f, meta in pages:
+        status = _declared_status(meta)
+        source_meta = meta
+        source_uri = f.src_uri
+
+        # Inherit only when the page said nothing about its own status. A page
+        # that declares anything -- even `public` -- has made a decision, and
+        # silently overriding it would be worse than not inheriting at all.
+        if status is None and not _opted_out(meta):
+            for folder in _ancestors(f.src_uri):
+                if folder in folder_gate and folder_gate[folder][1] != f.src_uri:
+                    source_meta, source_uri = folder_gate[folder]
+                    status = "gated"
+                    _inherited.add(f.src_uri)
+                    break
+
+        if status is None:
+            status = DEFAULT
+
         _status[f.src_uri] = status
 
         if status == "hidden":
             continue
 
         if status == "gated":
-            _secrets_for(meta, f.src_uri)   # raises if a key is missing
+            # Raises here, before a single page renders, if a key is missing.
+            _keys[f.src_uri] = _secrets_for(source_meta, source_uri)
 
         if _is_unlisted(meta, status):
             _nolist.add(f.src_uri)
             f.inclusion = InclusionLevel.NOT_IN_NAV
 
         kept.append(f)
+
+    # Preserve the original file order; `kept` was built in two chunks.
+    order = {f.src_uri: i for i, f in enumerate(files)}
+    kept.sort(key=lambda f: order.get(f.src_uri, 0))
 
     return Files(kept)
 
@@ -284,7 +352,11 @@ def on_nav(nav, config, files):
 
     Belt and braces: awesome-nav builds navigation from scratch rather than
     filtering what MkDocs generates, so it may not honour InclusionLevel.
-    Pruning here works regardless of who built the tree.
+
+    NOTE: inherited-gated children are deliberately LEFT in the sidebar. They
+    are genuinely encrypted, so showing them is honest -- a reader sees the
+    section exists and is asked for a password, which is the whole point of
+    `gated` over `unlisted`.
     """
 
     def prune(items):
@@ -330,7 +402,7 @@ def on_page_content(html, page, config, files):
     if _status.get(page.file.src_uri) != "gated":
         return html
 
-    passwords = _secrets_for(page.meta, page.file.src_uri)
+    passwords = _keys[page.file.src_uri]
     nonce, ciphertext, wraps = _encrypt(html, passwords)
 
     # Never let a secret reach a template.
@@ -360,14 +432,7 @@ def on_page_content(html, page, config, files):
 
 
 def on_post_page(output, page, config):
-    """Tell crawlers to skip undiscoverable pages.
-
-    Site search and the sidebar were already handled, but MkDocs writes EVERY
-    built page into sitemap.xml, which hands them straight to Google.
-    `noindex` asks them not to list it; on_post_build below stops us pointing
-    at it in the first place. Honest limits: this is a request, not a barrier,
-    and it does nothing about anyone who already has the URL.
-    """
+    """Tell crawlers to skip undiscoverable pages."""
     if page.file.src_uri not in _nolist:
         return output
 
@@ -377,6 +442,10 @@ def on_post_page(output, page, config):
 
 def on_post_build(config):
     """Strip undiscoverable pages out of the generated sitemap (and its .gz)."""
+    inherited = len(_inherited)
+    if inherited:
+        print("gate: " + str(inherited) + " page(s) locked by a parent index")
+
     if not _noindex_paths:
         return
 
@@ -391,8 +460,6 @@ def on_post_build(config):
     def drop(match):
         block = match.group(0)
         for path in _noindex_paths:
-            # dest_uri is like venues/rigging/index.html; the sitemap carries
-            # the pretty URL, so compare on the directory part.
             pretty = path[: -len("index.html")] if path.endswith("index.html") else path
             if pretty and pretty in block:
                 return ""
