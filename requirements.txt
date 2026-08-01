@@ -2,10 +2,15 @@
 # Also the file actions/setup-python hashes for its pip cache.
 
 # 9.7 (Nov 2025) released every former Insiders feature to everyone and put the
-# project into maintenance mode. `material.extensions.preview` (instant
-# previews, mkdocs.yml) DOES NOT EXIST below 9.7, and an unknown markdown
-# extension is a hard build failure, so this floor is load-bearing rather than
-# housekeeping. Do not lower it without removing that extension first.
+# project into maintenance mode.
+#
+# ~~`material.extensions.preview` (instant previews, mkdocs.yml) DOES NOT EXIST
+# below 9.7, and an unknown markdown extension is a hard build failure, so this
+# floor is load-bearing rather than housekeeping.~~ The extension was REMOVED
+# 2026-08-01 (it iconised every nav row for a feature phones cannot use), so
+# the floor is no longer load-bearing. Struck rather than deleted: the next
+# person reaching for a former-Insiders feature needs to know why 9.7 is the
+# number. Keep the floor -- below it is missing features for no gain.
 mkdocs-material>=9.7,<10
 mkdocs-awesome-nav>=3.3,<4
 cryptography>=42                 # AES-GCM for hooks/visibility.py (status: gated)
