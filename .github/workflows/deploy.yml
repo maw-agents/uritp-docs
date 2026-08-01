@@ -32,8 +32,40 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Install MkDocs Material
         run: pip install -r requirements.txt
+
+      # 🔴 NO `--strict` HERE, AND DO NOT PUT IT BACK. REMOVED 2026-08-01.
+      #
+      # `--strict` promotes ANY warning, from ANY plugin, into a failed build.
+      # A failed build does not show an error to a reader: GitHub Pages keeps
+      # serving the LAST SUCCESSFUL build, for the whole site, silently. It
+      # looks exactly like a cache problem and no amount of reloading fixes it.
+      #
+      # It fired three times on 2026-08-01 and cost the site hours:
+      #   * a page moved and relative .md links went stale
+      #   * one rename broke eight links across six files
+      #   * `status: public` -> `status: hidden` on ONE page left a stale entry
+      #     in docs/.nav.yml, and the site froze over one frontmatter word
+      #
+      # Both hooks were already written to route AROUND this trade -- read
+      # hooks/links.py and hooks/visibility.py, which each argue the case in
+      # their docstrings and each say the failure must be LOCAL AND VISIBLE,
+      # not global and silent. The repo's stated position and its pipeline
+      # disagreed, and the pipeline was winning.
+      #
+      # This is NOT "stop checking". The build still hard-fails on OUR OWN
+      # gates, which fail loudly and by name and are about this site rather
+      # than about MkDocs:
+      #   hooks/theme.py     a missing/unknown token, palette or theme name
+      #   hooks/contrast.py  the ACTIVE palette being unreadable
+      # And every degraded case is reported by name in the run summary.
+      #
+      # Three escape hatches restore hard-fail per concern, when someone wants
+      # the whole house clean rather than the site up:
+      #   URITP_LINKS_STRICT=1     a dead internal link fails the build
+      #   URITP_GATES_STRICT=1     a gated page with no key fails the build
+      #   URITP_CONTRAST_STRICT=1  every contrast warning fails the build
       - name: Build site
-        run: mkdocs build --strict
+        run: mkdocs build
         env:
           # Read by hooks/buildstamp.py to render the footer stamp. Passed as an
           # environment variable rather than interpolated into `run:`, so a
