@@ -8,9 +8,9 @@ as a reader-facing page: it documents the machine, not the theatre.
 > describes carries a pointer back here, so a standards change and a doc change
 > land in one PR or the pointer has failed.
 
-**Describes:** `mkdocs.yml` · `docs/.nav.yml` · `docs/stylesheets/uritp.css` ·
-`docs/stylesheets/links.css` · `hooks/visibility.py` · `hooks/links.py` ·
-`docs/javascripts/gate.js`
+**Describes:** `mkdocs.yml` · `docs/.nav.yml` and per-folder `.nav.yml` ·
+`docs/stylesheets/uritp.css` · `docs/stylesheets/links.css` · `hooks/visibility.py` ·
+`hooks/links.py` · `hooks/buildstamp.py` · `docs/javascripts/gate.js`
 
 ---
 
@@ -57,8 +57,8 @@ without a signpost*. An unlisted URL forwarded in one email is public from then 
 Marking a page `gated` does nothing until a build succeeds. On 2026-08-01 a page was
 switched to `gated` two minutes after the last passing build, and then served in full
 plaintext for the next half hour while six consecutive builds failed on an unrelated
-broken link. **Check the footer build stamp after changing a status.** If the SHA is
-not your commit, your change is not live, whatever the source says.
+broken link. **Check the footer build stamp after changing a status.** If it is not
+your PR or push, your change is not live, whatever the source says.
 
 ---
 
@@ -176,9 +176,24 @@ One line on what this space is and who uses it.
     This page is a placeholder.
 ```
 
-A new **folder** becomes a new sidebar section and lands at the bottom. To place it
-somewhere specific, add its name to `docs/.nav.yml`. That is the only reason to open
-that file. A folder's `index.md` becomes its section landing page.
+### Adding a folder
+
+A new folder becomes a new sidebar section and lands at the bottom. Two optional files
+shape it, and **neither is needed to make the pages appear**:
+
+| To do this | Add |
+|---|---|
+| Place the section somewhere specific | its folder name in `docs/.nav.yml` |
+| Set the section's displayed title | a `.nav.yml` **inside the folder**, holding `title: Todd Union` |
+| Give the section a landing page | an `index.md` in the folder |
+
+Without a folder `.nav.yml` the sidebar title-cases the folder name, which produces
+`Spac` for an acronym and `Todd union` with a lowercase U. That is the only reason to
+add one.
+
+A folder's `index.md` becomes the page you land on when you click the section name
+(`navigation.indexes`), instead of the name doing nothing. Give it an `id:` like any
+other page.
 
 ---
 
@@ -392,6 +407,22 @@ lists, headings, tables). That one rule prevents most formatting surprises.
 
 ---
 
+## The footer build stamp
+
+Every page's footer carries the PR (or short SHA) the live site was built from, plus
+the deploy time:
+
+```
+University of Rochester International Theatre Program · PR #19 · 1 Aug 2026, 12:19 AM ET
+```
+
+**This is the only signal that a build failed.** When one does, GitHub Pages keeps
+serving the previous commit: no banner, no error page, the site simply stops changing.
+A footer showing a time well before your edit means your change is not live and the
+Actions log is where to look.
+
+---
+
 ## What breaks the build
 
 The site builds with `--strict`. The list of things that can take the whole deploy down
@@ -419,7 +450,7 @@ No git, no terminal, nothing installed. Works from a phone.
 1. Open the page on the live site, click the **pencil icon** in the header.
 2. Edit the markdown. Commit.
 3. Wait about ninety seconds. Actions rebuilds and the page updates.
-4. **Check the footer stamp.** If the SHA is not yours, the build failed.
+4. **Check the footer stamp.** If it is not your edit, the build failed.
 
 ---
 
@@ -431,11 +462,13 @@ Each carries a pointer comment at the top saying so.
 | File | Holds | Update here when |
 |---|---|---|
 | `mkdocs.yml` | Theme, features, markdown extensions, hook order | An extension, plugin, or hook is added or removed |
-| `docs/.nav.yml` | Sidebar order and section titles | The add-a-page procedure changes |
+| `docs/.nav.yml` | Top-level sidebar order | The add-a-page procedure changes |
+| `docs/<folder>/.nav.yml` | That section's displayed title | The per-folder title mechanism changes |
 | `docs/stylesheets/uritp.css` | Palette, headings, `.tbc`, `.gate`, print rules | A custom class is added, renamed, or dropped |
 | `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
 | `hooks/visibility.py` | The `status:` gate and the encryption | A status value is added or renamed, or its behaviour changes |
 | `hooks/links.py` | `@id` resolution, aliases, the link report | The link syntax, a report kind, or the fail-vs-report stance changes |
+| `hooks/buildstamp.py` | The footer stamp | What the stamp shows changes |
 | `docs/javascripts/gate.js` | Browser-side unlock | The crypto parameters or the unlock flow change |
 
 A syntax rule described here that no longer has an extension behind it is worse than
