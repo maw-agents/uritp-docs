@@ -1,5 +1,6 @@
 ---
 title: Todd Union
+status: unlisted
 ---
 
 # Todd Union
@@ -7,7 +8,7 @@ title: Todd Union
 URITP's second production venue.
 
 !!! note "Not yet documented"
-    This page is a placeholder. Todd has its own constraints and they are genuinely different from Smith. Do not assume anything on the Smith Theatre page applies here.
+    This page is a placeholder and is not listed in the sidebar. Todd has its own constraints and they are genuinely different from Smith. Do not assume anything on the Smith Theatre page applies here.
 
 ## What we need to capture
 

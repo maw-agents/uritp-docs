@@ -1,5 +1,6 @@
 ---
 title: Safety and health
+status: public
 ---
 
 # Safety and health
@@ -30,4 +31,3 @@ Safety policy for URITP production spaces.
 ## Related
 
 - [Smith Theatre](../venues/smith-theatre.md)
-- [Todd Union](../venues/todd-union.md)
