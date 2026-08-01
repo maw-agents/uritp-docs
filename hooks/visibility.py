@@ -14,6 +14,19 @@ And one independent switch, because the four statuses conflated two questions:
     listed: false       keep this page out of the nav, search and sitemap,
                         WHATEVER its status is
 
+⚠️ `hidden` IS NOT ACCESS CONTROL AND NEITHER IS ANYTHING ELSE HERE. `hidden`
+means NOT PUBLISHED, not "no access". While this repository is public the
+markdown source of every page is readable at github.com by anyone, including
+the plaintext of a gated page. See the note further down, and AUTHORING-GATES.
+
+🔴 AN UNRECOGNISED VALUE FALLS THROUGH TO `hidden`, AND UNTIL 2026-08-01 IT DID
+SO IN TOTAL SILENCE. `status: publi`, a stray capital, `status: new` -- the
+page simply stopped existing, with a green build and no report anywhere. That
+was the cheapest way to delete a page from this site and nothing announced it.
+It is now a build warning naming the page and the value it declared. The value
+is still treated as `hidden`, because guessing which of the four an author
+meant is how a typo publishes something private.
+
 MULTIPLE KEYS
 A gated page may name several groups, and ANY ONE of their passwords opens it:
 
@@ -126,7 +139,15 @@ deploys. Failing the whole build here took the entire site stale over one
 page's missing config on 2026-08-01 -- the same trade `--strict` used to make
 over a single dead link, rejected for the same reason. The failure must be
 local and visible, not global and silent. URITP_GATES_STRICT=1 restores
-hard-fail.
+hard-fail. (`--strict` itself was removed from deploy.yml on 2026-08-01, for
+the third time it did this. The argument was written here first.)
+
+WHAT THIS HOOK OWES THE HOOKS AFTER IT
+`hidden_pages()` publishes what was removed and why it is not merely absent.
+hooks/links.py uses it to tell a link at a DELIBERATELY hidden page apart from
+a link at a typo: the first renders as plain text, the second as a dead-link
+marker. Without that seam the two are indistinguishable downstream, because a
+hidden page is simply gone from the file list.
 
 🔒 NEVER PRINT A PASSWORD, ONLY A GROUP NAME. Names are already public in page
 frontmatter. Values are not, and GitHub's log masking is a literal string
@@ -146,6 +167,12 @@ Wired in mkdocs.yml under `hooks:`. Documented in AUTHORING-GATES.md. Its
 browser half is docs/javascripts/gate.js: the two share the cipher, the KDF and
 the iteration count, so they change in the SAME PR or every gated page fails to
 unlock with no error anyone can read.
+
+⚠️ SIZE: this file is close to the ~30KB ceiling above which it can no longer
+be read back whole, and a file that cannot be read whole cannot be safely
+edited. The next substantial addition should SPLIT the crypto (_derive,
+_encrypt, _keys_attr, the two HTML emitters) into hooks/gatecrypto.py rather
+than grow this further.
 """
 
 import base64
@@ -188,6 +215,19 @@ _overridden = {}    # src_uri -> (status it declared, the index that overruled)
 _nolist = set()
 _inherited = set()
 _noindex_paths = set()
+_bad_status = {}    # src_uri -> the unrecognised value it declared
+_undeclared = []    # src_uri: no `status:` at all, hidden by the default
+_hidden = {}        # src_uri -> its frontmatter `id:` (or None), for links.py
+
+
+def hidden_pages():
+    """What this hook removed from the build, for the hooks that run after it.
+
+    A hidden page is simply ABSENT from the file list downstream, which makes
+    it indistinguishable from a page that never existed. links.py needs the
+    difference: a link at a deliberately hidden page is not a broken link.
+    """
+    return dict(_hidden)
 
 
 def _load_keystore():
@@ -255,15 +295,27 @@ def _read_meta(abs_path):
     return meta if isinstance(meta, dict) else {}
 
 
-def _declared_status(meta):
+def _declared_status(meta, src_uri=None):
     """The page's OWN status, or None if it did not declare one. Distinguishing
     'said nothing' from 'said hidden' is what makes the waterfall safe: silence
-    inherits, `hidden` is never overruled."""
+    inherits, `hidden` is never overruled.
+
+    An unrecognised value becomes DEFAULT -- never a guess at what was meant,
+    because guessing is how a typo publishes something private. Pass `src_uri`
+    to have that recorded and reported; the waterfall's first pass deliberately
+    does not, or every index.md would be counted twice.
+    """
     raw = meta.get("status")
     if raw is None:
+        if src_uri is not None:
+            _undeclared.append(src_uri)
         return None
     status = str(raw).strip().lower()
-    return status if status in ALLOWED else DEFAULT
+    if status in ALLOWED:
+        return status
+    if src_uri is not None:
+        _bad_status[src_uri] = str(raw)
+    return DEFAULT
 
 
 def _is_unlisted(meta, status):
@@ -450,8 +502,9 @@ def on_files(files, config):
     """
     _load_keystore()
 
-    for store in (_status, _keys, _unconfigured, _overridden):
+    for store in (_status, _keys, _unconfigured, _overridden, _bad_status, _hidden):
         store.clear()
+    del _undeclared[:]
     _nolist.clear()
     _inherited.clear()
     _noindex_paths.clear()
@@ -475,7 +528,7 @@ def on_files(files, config):
             kept.append(f)
 
     for f, meta in pages:
-        declared = _declared_status(meta)
+        declared = _declared_status(meta, f.src_uri)
         status = declared
         source_uri = f.src_uri
 
@@ -505,6 +558,9 @@ def on_files(files, config):
         _status[f.src_uri] = status
 
         if status == "hidden":
+            # Recorded rather than merely dropped, so links.py can tell a link
+            # at a deliberate hide apart from a link at a typo.
+            _hidden[f.src_uri] = meta.get("id")
             continue
 
         if status == "gated":
@@ -643,6 +699,39 @@ def _summary(lines):
         fh.write("\n".join(lines) + "\n")
 
 
+def _report_status_typos():
+    """The loudest thing this hook says, because it is the quietest failure it
+    has. A page that declared a status outside the four was DELETED from the
+    site and, before 2026-08-01, nothing anywhere said so."""
+    if not _bad_status:
+        return
+    allowed = ", ".join(sorted(ALLOWED))
+    for src, raw in sorted(_bad_status.items()):
+        print(
+            "::warning::visibility: " + src + " declared status '" + raw
+            + "', which is not one of " + allowed + " -- treated as '"
+            + DEFAULT + "', so this page did NOT publish"
+        )
+    _summary(
+        [
+            "### \u26a0\ufe0f Unrecognised `status:` -- these pages did not publish",
+            "",
+            "A `status:` outside the four values falls through to `" + DEFAULT
+            + "`, which means never built. The value is NOT guessed at: "
+            "guessing which one an author meant is how a typo publishes "
+            "something private.",
+            "",
+            "| Page | It declared | Allowed |",
+            "|---|---|---|",
+        ]
+        + [
+            "| `" + src + "` | `" + raw + "` | " + allowed + " |"
+            for src, raw in sorted(_bad_status.items())
+        ]
+        + [""]
+    )
+
+
 def _report():
     """Loud, because the whole point of not failing the build is that the
     problem must not become invisible instead.
@@ -655,6 +744,23 @@ def _report():
 
     for note in _store_notes:
         print("::warning::gate keystore: " + note)
+
+    _report_status_typos()
+
+    if _hidden:
+        print("visibility: " + str(len(_hidden)) + " page(s) not built (hidden):")
+        for src in sorted(_hidden):
+            print("  " + src)
+
+    # Not a warning: hidden-by-default is the documented default and the safe
+    # direction. But a forgotten frontmatter block looks identical to a
+    # deliberate hide, so the count is said out loud once per build.
+    if _undeclared:
+        print(
+            "visibility: " + str(len(_undeclared))
+            + " of those declared no `status:` at all: "
+            + ", ".join(sorted(_undeclared))
+        )
 
     if _inherited:
         print("gate: " + str(len(_inherited)) + " page(s) locked by a parent index")
