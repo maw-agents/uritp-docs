@@ -1,9 +1,9 @@
 /* URITP Production Resources — the site stylesheet.
 
    ⚠️ THIS FILE CONTAINS NO COLOUR, NO FONT NAME, NO SIZE AND NO RADIUS.
-   Every value below is a --u-* token composed from ../../theme.yml by
-   hooks/theme.py. To change how the site LOOKS, change the one `active:` line
-   in theme.yml. To change how the site is WIRED, change this file.
+   Every value below is a --u-* token composed from the grids in ../../theme/
+   by hooks/theme.py. To change how the site LOOKS, edit a cell in one of
+   those TSV files. To change how the site is WIRED, change this file.
 
    That split is the whole design. A "theme" that means "a second stylesheet"
    produces two files that drift the moment one of them gains a rule; a theme
@@ -11,9 +11,10 @@
    set of rules.
 
    ⚠️ A LITERAL VALUE COMMITTED HERE SILENTLY OPTS THAT ELEMENT OUT OF EVERY
-   FUTURE SWAP. If a token is missing, add it to theme.yml and to REQUIRED in
-   hooks/theme.py -- do not hard-code it here. The build fails by name when a
-   palette forgets a token; it cannot detect a stylesheet that stopped asking.
+   FUTURE SWAP. If a token is missing, add a column to the right grid in
+   ../../theme/ AND its name to REQUIRED in hooks/theme.py -- do not hard-code
+   it here. The build fails by name when a palette forgets a token; it cannot
+   detect a stylesheet that stopped asking.
 
    POINTER: adding, renaming, or dropping a custom class (.tbc, .gate) means
    updating ../../AUTHORING.md in the SAME PR. Authors write .tbc by hand and
@@ -41,12 +42,12 @@
   --md-code-bg-color:              var(--u-surface-1);
 
   /* ⭐ THE HEADER BANNER. `chrome` is its own colour token, so "change the
-     top bar everywhere" is ONE line in theme.yml instead of a hunt through
-     Material's variable names. Every palette we ship sets chrome = bg, which
-     is the deliberate flat house look: the header is the same ground as the
-     page, separated by a rule and not a block of colour. Give chrome its own
-     value and the banner detaches -- header, tab strip and the mobile drawer
-     header all follow it, because all three read this token.
+     top bar everywhere" is ONE CELL in theme/colors.tsv instead of a hunt
+     through Material's variable names. Every palette we ship sets chrome =
+     bg, which is the deliberate flat house look: the header is the same
+     ground as the page, separated by a rule and not a block of colour. Give
+     chrome its own value and the banner detaches -- header, tab strip and the
+     mobile drawer header all follow it, because all three read this token.
      `primary` in mkdocs.yml stays the first-paint floor and the source of the
      phone browser's <meta theme-color>; mirror it there if chrome moves far
      from a dark neutral. */
@@ -518,7 +519,9 @@
 
 /* ══ PRINT. Paper-white regardless of the scheme on screen. ══════════════
    Overrides the TOKENS, not Material's variables, so the bridge above keeps
-   doing the translating and this block stays short forever. */
+   doing the translating and this block stays short forever.
+   ⚠️ These literals are the one deliberate exception to the no-values rule:
+   paper is not a theme, it is a physical constraint. */
 @media print {
   :root, [data-md-color-scheme=slate], [data-md-color-scheme=default] {
     --u-bg: #fff;
