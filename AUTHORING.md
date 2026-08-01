@@ -162,8 +162,7 @@ index with the PSM key and every other PSM page opens by itself.
 - The lock box is hidden while the keyring runs, so a page you can already open does
   not flash a password prompt at you.
 - Ceiling: 8 remembered keys. Each candidate costs a PBKDF2 derivation (~100-200ms on
-  a phone) per wrap until one succeeds, so a handful is imperceptible and dozens would
-  not be.
+  a phone) per wrap until one succeeds.
 
 ### A gated folder index locks its whole subtree
 
@@ -180,19 +179,43 @@ distinction is the whole design: hiding child entries until the index unlocks le
 every child fully readable by direct URL and in search *while looking protected*. On a
 safety section that is the worst of both — the appearance of a lock with none of it.
 
-Because inheritance is real, the sidebar keeps showing the children honestly. A reader
-sees the section exists and is asked for a password, which is what `gated` is for. And
-with the keyring, unlocking the index opens the rest of the folder as you walk it.
+Because inheritance is real, the sidebar keeps showing the children honestly, and with
+the keyring, unlocking the index opens the rest of the folder as you walk it.
 
 **Overriding.** The nearest gated ancestor wins. A page opts out by declaring its own
-`status:` — *any* value, including `public` — or with `inherit: false`. A page that
-said something about itself is never silently overridden; only silence inherits.
+`status:` — *any* value, including `public` — or with `inherit: false`. Only silence
+inherits.
 
-~~⚠️ **Gating a folder's `index.md` does NOT gate the pages inside it.** Each page
-carries its own `status:`, and a locked section landing page sits above a sidebar full
-of unlocked children.~~ **Reversed 2026-08-01, hours after it was written.** That was
-true of the build at the time and is exactly the trap described above, so the
-behaviour changed rather than the warning being restated.
+~~⚠️ **Gating a folder's `index.md` does NOT gate the pages inside it.**~~ **Reversed
+2026-08-01, hours after it was written.** True of the build at the time and exactly
+the trap described above, so the behaviour changed rather than the warning being
+restated.
+
+### If a page says its key is not configured
+
+A gated page naming a group with no secret behind it publishes as an **unopenable
+notice**: its content is dropped rather than encrypted, nobody can read it, and the
+rest of the site deploys normally. The build log and the Actions run summary both
+list every affected page.
+
+~~A named gate with no secret FAILS THE BUILD.~~ **Changed 2026-08-01, within the
+hour, after it froze the whole site over one page.** The intent was right — never
+publish a page everyone believes is locked — but taking the entire site stale for one
+page's missing config is the same trade `--strict` used to make over a single dead
+link, and we rejected that earlier the same night. The failure should be *local and
+visible*, not *global and silent*.
+
+The replacement is strictly safer, not a relaxation: the protected content is dropped
+instead of shipped, and a frozen site pressures whoever is debugging it into reverting
+the gate to get the deploy back — which is exactly how a locked page ends up public.
+`URITP_GATE_STRICT=1` restores hard-fail for anyone who wants it in CI.
+
+To fix it, in this order:
+
+1. Does the secret exist in **Settings → Secrets and variables → Actions**?
+2. Is it listed in the `env:` block of `deploy.yml`? (Step 2 of *Adding a key group*.)
+3. Do the two names match **exactly**? An unset secret interpolates to an empty string
+   rather than erroring, so a typo in the workflow looks exactly like a missing secret.
 
 ### Keeping the password out of the repo
 
@@ -230,7 +253,9 @@ status: gated
 gates: [psm]
 ```
 
-Push. About ninety seconds later the page asks for that password.
+Push. About ninety seconds later the page asks for that password. A page flipped to
+`gates:` **before** its secret exists is not a disaster: it shows the unavailable
+notice until the secret lands, and nothing else on the site is affected.
 
 ### Secrets or variables?
 
@@ -247,29 +272,18 @@ would put a variable's value in a public log permanently. A secret shows as `***
 The readability problem is real and has a better answer than downgrading: **keep the
 password list somewhere you can actually read it** — the ClickUp Accounts list is
 already the house home for credentials. GitHub holds the copy the build uses; you hold
-the copy you can look up. Reaching for variables solves a filing problem by removing a
-safety net.
+the copy you can look up.
 
-⚠️ Masking is a literal string match, not magic. A password that gets transformed
-before printing (base64, URL-encoded, split) will not be masked even as a secret.
+⚠️ Masking is a literal string match, not magic. A password transformed before
+printing (base64, URL-encoded, split) will not be masked even as a secret.
 
 ### Rotating a password
 
 Update the secret's value in Settings, then push anything (or re-run the workflow from
 the Actions tab). Every page carrying that group rewraps on the next build. **No page
-needs editing** and no other group is affected. Anyone mid-session keeps their access
-until they close the tab; the keyring holds the old password and it stops working on
-the next page load after the rebuild.
-
-### If the build fails with "the environment carries no URITP_GATE_…"
-
-That error is deliberate: a gated page named a group whose secret the build cannot
-see, and refusing to deploy beats publishing a page everyone believes is locked.
-
-1. Does the secret exist in **Settings → Secrets and variables → Actions**?
-2. Is it listed in the `env:` block of `deploy.yml`? (Step 2 above.)
-3. Do the two names match **exactly**? An unset secret interpolates to an empty string
-   rather than erroring, so a typo in the workflow looks exactly like a missing secret.
+needs editing** and no other group is affected. Anyone mid-session keeps access until
+they close the tab; the keyring holds the old password and it stops working on the
+next page load after the rebuild.
 
 ---
 
@@ -304,8 +318,7 @@ If it must not be read, it does not belong in this repo.
 
 The gate becomes genuine protection the moment the markdown stops being public: **make
 the repo private** (Pages from a private repo needs GitHub Pro, ~$4/month). The
-`gates:` plumbing is already in place, so that is the only remaining step. Until then
-the group keys are organisational, not protective, and that is a deliberate choice.
+`gates:` plumbing is already in place, so that is the only remaining step.
 
 ### Linking to a hidden page
 
@@ -352,7 +365,7 @@ for an acronym and `Todd union` with a lowercase U. That is the only reason to a
 
 A folder's `index.md` becomes the page you land on when you click the section name
 (`navigation.indexes`). Give it an `id:` like any other page — **and note that gating
-it locks the whole folder** (see *A gated folder index locks its whole subtree*).
+it locks the whole folder**.
 
 ---
 
@@ -390,7 +403,7 @@ inconsistent without either being wrong:
 
 So `title: safety test page` with `# Safety test page` gives a lowercase sidebar entry
 and a capitalised page heading. **Keep them the same unless you mean it.** The
-exception is a **gated** page, which has no H1 to show (see *The gate*).
+exception is a **gated** page, which has no H1 to show.
 
 ---
 
@@ -422,8 +435,7 @@ stands in, and a folder's `index.md` takes the folder's name.
 
 **House style: lowercase kebab-case**, matching the filename (`todd-lockup-procedure`,
 not `Todd-Lock-up`). Capitals resolve fine, so this is convention rather than rule,
-but an id is typed by hand in every link pointing at it and a mixed-case one gets
-mistyped.
+but an id is typed by hand in every link pointing at it.
 
 ### Linking to a heading
 
@@ -521,8 +533,7 @@ problem: it dodges every check above and rots silently.
 **Resist inventing more.** Four callout colors on one page means none read as urgent.
 
 ⚠️ **The GitHub web editor sometimes collapses that four-space indent to one** when you
-edit a line next to it. The body then falls silently out of the box. If a callout
-looks wrong after a phone edit, check the indent first.
+edit a line next to it. The body then falls silently out of the box.
 
 ---
 
@@ -578,16 +589,24 @@ And the stamp itself can be cached — see the cache-buster note above.
 
 ## What breaks the build
 
+The list is deliberately short, and it keeps getting shorter. **Neither a broken link
+nor a missing gate key is on it any more**: both used to take the whole site stale
+over one page, and both now fail locally and loudly instead.
+
 | # | Failure | Fails the deploy? | Why |
 |---|---|---|---|
 | 1 | Callout or tab body not indented four spaces | No, renders wrong | Content falls out of the box. |
 | 2 | Link to a missing, moved, or `hidden` page | **No, as of 2026-08-01** | Dead-link marker + link report. |
-| 3 | `status: gated` with no password at all | **Yes** | Refuses rather than shipping the page wide open. |
-| 4 | `gates:` naming a group whose secret is not in the build env | **Yes** | Same reason, and the likelier one. |
+| 3 | `status: gated` with no password at all | **No, as of 2026-08-01** | Content is dropped; the page shows an unavailable notice. |
+| 4 | `gates:` naming a group whose secret is not in the build env | **No, as of 2026-08-01** | Same. Reported in the run summary. |
 | 5 | No blank line before a table or list | No | Renders as one mashed paragraph. |
 | 6 | Two H1s on a page | No, renders wrong | Breaks the outline and the page title. |
 | 7 | Missing `status:` with no gated ancestor | No | The page silently will not build. |
 | 8 | Lowering `mkdocs-material` below 9.7 | **Yes** | `material.extensions.preview` does not exist there. |
+
+~~Rows 3 and 4 used to read **Yes**.~~ Changed 2026-08-01 after a page was flipped to
+`gates:` before its secrets existed and froze every page on the site. Row 8 is the
+only hard failure left, and it is a dependency error rather than a content one.
 
 ---
 
@@ -632,5 +651,4 @@ quietly disappears.
 one without the other and every gated page fails to unlock with no readable error.
 
 **Hook order in `mkdocs.yml` is load-bearing.** `visibility.py` resolves status and
-drops `hidden` pages before `links.py` builds its id registry. Swap them and a link to
-a hidden page would resolve to a URL that 404s instead of being caught.
+drops `hidden` pages before `links.py` builds its id registry.

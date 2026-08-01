@@ -14,11 +14,7 @@ And one independent switch, because the four statuses conflated two questions:
     listed: false       keep this page out of the nav, search and sitemap,
                         WHATEVER its status is
 
-That is what makes `status: gated` + `listed: false` possible -- encrypted AND
-undiscoverable, which the single-value `status:` could not express.
-`status: unlisted` is now shorthand for "public + listed: false".
-
-MULTIPLE KEYS (2026-08-01)
+MULTIPLE KEYS
 A gated page may name several groups, and ANY ONE of their passwords opens it:
 
     status: gated
@@ -28,39 +24,44 @@ ENVELOPE encryption, not N copies: a random content key (CEK) encrypts the
 finished HTML ONCE, then the CEK is separately encrypted for each group. A
 wrapped CEK is ~100 bytes, so page weight is effectively independent of how
 many groups can open it, and rotating one group's key rewraps 100 bytes
-without touching the body or any other group.
+without touching the body or any other group. The wrap list is SHUFFLED and
+unlabelled: which desk can open a document is itself information.
 
-The wrap list is SHUFFLED and carries no labels. Which desk can open a document
-is itself information, and an ordered list would hand it over.
-
-FOLDER INHERITANCE (2026-08-01)
+FOLDER INHERITANCE
 **A gated `index.md` locks its whole subtree.** Every page beneath it inherits
-the same `gates:` and is genuinely encrypted -- not merely hidden from the
-sidebar.
+the same keys and is genuinely encrypted -- not merely hidden from the sidebar,
+which would leave every child readable by direct URL while looking protected.
+The nearest gated ancestor wins; a page overrides by declaring its own
+`status:` (any value) or `inherit: false`. Only silence inherits.
 
-    docs/safety/index.md          status: gated, gates: [psm]
-    docs/safety/lockup.md         -> inherits: gated, gates: [psm]
-    docs/safety/keys/master.md    -> inherits too, at any depth
+A MISSING KEY LOCKS THE PAGE, IT DOES NOT FREEZE THE SITE (2026-08-01)
+If a page names `gates: [psm]` and the build environment has no
+URITP_GATE_PSM, this hook used to raise and kill the deploy. It did that for a
+good reason -- publishing a page everyone believes is locked, in plaintext, is
+the worst outcome available -- but it bought that safety at the price of the
+ENTIRE SITE going stale over one page's missing config.
 
-WHY REAL ENCRYPTION AND NOT A HIDDEN SIDEBAR: hiding child entries until the
-index unlocks leaves every child fully readable by direct URL and in search,
-while *looking* protected. On a safety section that is the worst combination --
-the appearance of a lock with none of it. Inheritance means the sidebar can
-keep showing the children honestly, because they are actually locked.
+That trade was already rejected once tonight. `--strict` used to kill the
+deploy over a single dead link; hooks/links.py now renders a marker on the one
+affected page and lets the build continue. This is the same principle applied
+to the same class of failure:
 
-The nearest gated ancestor wins. A page opts out or overrides by declaring its
-own `status:` (any value, including `public`), or with `inherit: false`.
+    the page's content is NEVER published, the page says plainly that its key
+    is not configured, the build reports it loudly, and everything else ships.
+
+Strictly safer than the old behaviour, in fact: a frozen site tempts whoever is
+debugging it into reverting the gate to get the deploy back, which is how a
+locked page ends up public. Set URITP_GATE_STRICT=1 to restore hard-fail.
 
 NONE of these are access control while the repository is public. The markdown
 source of every page, INCLUDING a gated page's plaintext, is readable at
 github.com by anyone. Secrets keep the PASSWORD out of the repo; they do not
-keep the CONTENT out. `gated` is a deterrent and a signal, not a lock.
-See AUTHORING.md -> "What the gate actually does".
+keep the CONTENT out. See AUTHORING.md -> "What the gate actually does".
 
-Wired in mkdocs.yml under `hooks:`. Documented in AUTHORING.md.
-Its browser half is docs/javascripts/gate.js: the two share the cipher, the KDF
-and the iteration count, so they change in the SAME PR or every gated page
-fails to unlock with no error anyone can read.
+Wired in mkdocs.yml under `hooks:`. Documented in AUTHORING.md. Its browser
+half is docs/javascripts/gate.js: the two share the cipher, the KDF and the
+iteration count, so they change in the SAME PR or every gated page fails to
+unlock with no error anyone can read.
 """
 
 import base64
@@ -82,26 +83,19 @@ ALLOWED = {"public", "gated", "unlisted", "hidden"}
 ITERATIONS = 250000
 
 ENV_PREFIX = "URITP_GATE_"
+STRICT = os.environ.get("URITP_GATE_STRICT") == "1"
 
 NOINDEX = '<meta name="robots" content="noindex, nofollow">'
 
 _FRONTMATTER = re.compile(rb"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
-
-# [To be confirmed]{.tbc} -> <span class="tbc">To be confirmed</span>
-#
-# Python-Markdown's attr_list does NOT reliably produce a span from the bare
-# bracket form, so the documented marker rendered as literal text on the live
-# site. Doing the substitution here is deterministic. The `\]\{` with no gap is
-# what keeps ordinary markdown links `[text](url)` out of the match.
 _SPAN = re.compile(r"\[([^\[\]\n]+)\]\{\s*\.([A-Za-z][\w-]*)\s*\}")
-
-# Fenced code blocks, so a page documenting the marker still shows it literally.
 _FENCE = re.compile(r"(^```.*?^```)", re.DOTALL | re.MULTILINE)
 
-_status = {}      # src_uri -> resolved status
-_keys = {}        # src_uri -> resolved list of passwords (gated pages only)
+_status = {}        # src_uri -> resolved status
+_keys = {}          # src_uri -> passwords that open it
+_unconfigured = {}  # src_uri -> gate names with no secret behind them
 _nolist = set()
-_inherited = set()  # src_uri -> gated by an ancestor rather than by itself
+_inherited = set()
 _noindex_paths = set()
 
 
@@ -132,8 +126,6 @@ def _declared_status(meta):
 
 
 def _is_unlisted(meta, status):
-    """Two ways to be undiscoverable, and they compose: the `unlisted` status,
-    or `listed: false` on top of any other status."""
     if status == "unlisted":
         return True
     listed = meta.get("listed")
@@ -141,8 +133,7 @@ def _is_unlisted(meta, status):
 
 
 def _gate_names(meta):
-    """`gates: [psm, admin]`, or the singular `gate: psm` kept for the pages
-    already written against it."""
+    """`gates: [psm, admin]`, or the singular `gate: psm`."""
     names = meta.get("gates")
     if names is None:
         names = meta.get("gate")
@@ -157,60 +148,52 @@ def _env_key(name):
     return ENV_PREFIX + name.upper().replace("-", "_")
 
 
-def _secrets_for(meta, src_uri):
-    """Every secret that may open this page, in no meaningful order.
+def _resolve_keys(meta, src_uri):
+    """Return (passwords, problems). Never raises unless URITP_GATE_STRICT=1.
 
-    A NAMED gate whose environment variable is absent is a hard build failure.
-    Not a warning: the failure mode it prevents is a page everyone believes is
-    locked shipping in full plaintext, silently, which is worse than no deploy.
+    `problems` non-empty means this page cannot be published at all: it is
+    rendered as an unopenable notice rather than encrypted, and reported.
     """
     found = []
+    problems = []
 
     literal = meta.get("password")
     if literal:
         found.append(str(literal))
 
-    missing = []
     for name in _gate_names(meta):
         secret = os.environ.get(_env_key(name))
         if secret:
             found.append(secret)
         else:
-            missing.append(name)
+            problems.append(
+                "gate '" + name + "' has no " + _env_key(name)
+                + " in the build environment"
+            )
 
-    if missing:
-        raise ValueError(
-            src_uri + ": status is 'gated' and names the gate(s) "
-            + ", ".join(missing)
-            + ", but the build environment carries no "
-            + ", ".join(_env_key(n) for n in missing)
-            + ". Add it in Settings -> Secrets and variables -> Actions, AND "
-            "name it in the env: block of .github/workflows/deploy.yml -- a "
-            "secret that exists but is not passed through is invisible here. "
-            "Refusing to build rather than publish this page unencrypted."
+    if not found and not problems:
+        problems.append(
+            "status is 'gated' but no `gates:` and no `password:` was given"
         )
 
-    if not found:
-        raise ValueError(
-            src_uri + ": status is 'gated' but no password was found. Add "
-            "`gates: [name]` plus a " + ENV_PREFIX + "NAME secret, or "
-            "`password:` in the frontmatter for a throwaway draft."
-        )
+    if problems and STRICT:
+        raise ValueError(src_uri + ": " + "; ".join(problems))
 
-    # Two groups sharing one password would otherwise ship two wraps that both
-    # open, which leaks that they are the same secret.
+    # Two groups sharing one password would ship two wraps that both open,
+    # which leaks that they are the same secret.
     seen = set()
     unique = []
     for value in found:
         if value not in seen:
             seen.add(value)
             unique.append(value)
-    return unique
+    return unique, problems
 
 
 def _ancestors(src_uri):
     """Folder paths above this page, nearest first."""
-    parts = posixpath.dirname(src_uri).split("/") if posixpath.dirname(src_uri) else []
+    parent = posixpath.dirname(src_uri)
+    parts = parent.split("/") if parent else []
     out = []
     while parts:
         out.append("/".join(parts))
@@ -225,7 +208,6 @@ def _opted_out(meta):
 
 
 def _expand_spans(markdown):
-    """Rewrite [text]{.class} outside fenced code blocks."""
     parts = _FENCE.split(markdown)
     for i, part in enumerate(parts):
         if part.startswith("```"):
@@ -257,16 +239,11 @@ def _encrypt(plaintext, passwords):
         wrapped = AESGCM(_derive(password, salt)).encrypt(wrap_nonce, cek, None)
         wraps.append({"s": _b64(salt), "n": _b64(wrap_nonce), "w": _b64(wrapped)})
 
-    # Position must not identify the group. Frontmatter order would otherwise
-    # say "the first key is psm" to anyone reading the built HTML.
     random.SystemRandom().shuffle(wraps)
-
     return _b64(nonce), _b64(body), wraps
 
 
 def _keys_attr(wraps):
-    """Base64 of a compact JSON array, so no quoting can break the attribute
-    and the group count is the only thing legible at a glance."""
     parts = [
         '{"s":"' + w["s"] + '","n":"' + w["n"] + '","w":"' + w["w"] + '"}'
         for w in wraps
@@ -280,27 +257,25 @@ def on_files(files, config):
     Two passes, because inheritance cannot be decided while still walking: a
     folder's index.md may be read after one of its children.
     """
-    for store in (_status, _keys):
+    for store in (_status, _keys, _unconfigured):
         store.clear()
     _nolist.clear()
     _inherited.clear()
     _noindex_paths.clear()
 
     pages = []
-    folder_gate = {}   # folder path -> (meta, src_uri of its index)
+    folder_gate = {}
 
     for f in files:
         if not f.is_documentation_page():
             continue
         meta = _read_meta(f.abs_src_path)
         pages.append((f, meta))
-
         if posixpath.basename(f.src_uri) == "index.md":
             if _declared_status(meta) == "gated":
                 folder_gate[posixpath.dirname(f.src_uri)] = (meta, f.src_uri)
 
     kept = []
-    page_uris = {f.src_uri for f, _ in pages}
 
     for f in files:
         if not f.is_documentation_page():
@@ -308,12 +283,10 @@ def on_files(files, config):
 
     for f, meta in pages:
         status = _declared_status(meta)
-        source_meta = meta
-        source_uri = f.src_uri
+        source_meta, source_uri = meta, f.src_uri
 
         # Inherit only when the page said nothing about its own status. A page
-        # that declares anything -- even `public` -- has made a decision, and
-        # silently overriding it would be worse than not inheriting at all.
+        # that declares anything -- even `public` -- has made a decision.
         if status is None and not _opted_out(meta):
             for folder in _ancestors(f.src_uri):
                 if folder in folder_gate and folder_gate[folder][1] != f.src_uri:
@@ -331,8 +304,11 @@ def on_files(files, config):
             continue
 
         if status == "gated":
-            # Raises here, before a single page renders, if a key is missing.
-            _keys[f.src_uri] = _secrets_for(source_meta, source_uri)
+            passwords, problems = _resolve_keys(source_meta, source_uri)
+            if problems:
+                _unconfigured[f.src_uri] = problems
+            else:
+                _keys[f.src_uri] = passwords
 
         if _is_unlisted(meta, status):
             _nolist.add(f.src_uri)
@@ -340,7 +316,6 @@ def on_files(files, config):
 
         kept.append(f)
 
-    # Preserve the original file order; `kept` was built in two chunks.
     order = {f.src_uri: i for i, f in enumerate(files)}
     kept.sort(key=lambda f: order.get(f.src_uri, 0))
 
@@ -353,10 +328,8 @@ def on_nav(nav, config, files):
     Belt and braces: awesome-nav builds navigation from scratch rather than
     filtering what MkDocs generates, so it may not honour InclusionLevel.
 
-    NOTE: inherited-gated children are deliberately LEFT in the sidebar. They
-    are genuinely encrypted, so showing them is honest -- a reader sees the
-    section exists and is asked for a password, which is the whole point of
-    `gated` over `unlisted`.
+    Inherited-gated children are deliberately LEFT in the sidebar: they are
+    genuinely encrypted, so showing them is honest.
     """
 
     def prune(items):
@@ -384,12 +357,26 @@ def on_page_markdown(markdown, page, config, files):
         page.meta["search"] = search
 
     if _status.get(page.file.src_uri) == "gated":
-        # The right-hand outline is built from the markdown headings, so it
-        # would happily list the section titles of a locked page. Hide it.
         hide = page.meta.get("hide") or []
         page.meta["hide"] = sorted(set(list(hide) + ["toc"]))
 
     return _expand_spans(markdown)
+
+
+def _notice(problems):
+    """A page whose key is not configured. The content is DROPPED, not
+    encrypted and not published: there is no key to open it with, so shipping
+    ciphertext nobody can decrypt would only be confusing."""
+    return (
+        '<div class="gate">'
+        '<p class="gate__label">Unavailable</p>'
+        '<p class="gate__note">This page is restricted and its key has not been '
+        'set up yet, so it cannot be opened by anyone. Nothing is missing from '
+        'the page itself. Ask production management, or see AUTHORING.md '
+        '&rarr; Adding a key group.</p>'
+        '<p class="gate__error">' + "; ".join(problems) + '</p>'
+        '</div>'
+    )
 
 
 def on_page_content(html, page, config, files):
@@ -399,13 +386,16 @@ def on_page_content(html, page, config, files):
     Material builds its search index from this same content, which means the
     index picks up the unlock form and never the real text.
     """
-    if _status.get(page.file.src_uri) != "gated":
+    src = page.file.src_uri
+
+    if src in _unconfigured:
+        page.meta.pop("password", None)
+        return _notice(_unconfigured[src])
+
+    if _status.get(src) != "gated":
         return html
 
-    passwords = _keys[page.file.src_uri]
-    nonce, ciphertext, wraps = _encrypt(html, passwords)
-
-    # Never let a secret reach a template.
+    nonce, ciphertext, wraps = _encrypt(html, _keys[src])
     page.meta.pop("password", None)
 
     note = (
@@ -435,16 +425,52 @@ def on_post_page(output, page, config):
     """Tell crawlers to skip undiscoverable pages."""
     if page.file.src_uri not in _nolist:
         return output
-
     _noindex_paths.add(page.file.dest_uri.replace("\\", "/"))
     return output.replace("<head>", "<head>" + NOINDEX, 1)
 
 
+def _report():
+    """Loud, because the whole point of not failing the build is that the
+    problem must not become invisible instead."""
+    if _inherited:
+        print("gate: " + str(len(_inherited)) + " page(s) locked by a parent index")
+
+    if not _unconfigured:
+        return
+
+    print("gate: " + str(len(_unconfigured)) + " page(s) UNAVAILABLE, key not configured:")
+    for src, problems in sorted(_unconfigured.items()):
+        print("  " + src + " -- " + "; ".join(problems))
+
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary:
+        return
+
+    lines = [
+        "### \u26a0\ufe0f Gate keys not configured",
+        "",
+        "These pages published as an unopenable notice. Their content was NOT "
+        "shipped, and the rest of the site deployed normally.",
+        "",
+        "| Page | Problem |",
+        "|---|---|",
+    ]
+    for src, problems in sorted(_unconfigured.items()):
+        lines.append("| `" + src + "` | " + "; ".join(problems) + " |")
+    lines += [
+        "",
+        "Add the secret in **Settings -> Secrets and variables -> Actions**, "
+        "then name it in the `env:` block of `.github/workflows/deploy.yml`. "
+        "A secret that exists but is not passed through is invisible to the "
+        "build. See AUTHORING.md -> Adding a key group.",
+    ]
+    with open(summary, "a", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+
+
 def on_post_build(config):
-    """Strip undiscoverable pages out of the generated sitemap (and its .gz)."""
-    inherited = len(_inherited)
-    if inherited:
-        print("gate: " + str(inherited) + " page(s) locked by a parent index")
+    """Report, then strip undiscoverable pages out of the sitemap."""
+    _report()
 
     if not _noindex_paths:
         return
