@@ -19,8 +19,8 @@
    updating ../../AUTHORING.md in the SAME PR. Authors write .tbc by hand and
    the visibility hook emits .gate, so a renamed class breaks silently.
 
-   Layout of this file:  BRIDGE -> TYPE -> CHROME -> NAV -> TABLES -> MARKERS
-                         -> CALLOUTS -> TABS -> LINKS -> GATE -> MOBILE -> PRINT */
+   Layout:  BRIDGE -> A11Y -> TYPE -> CHROME -> NAV -> TABLES -> MARKERS
+            -> CALLOUTS -> TABS -> LINKS -> GATE -> PAGE FOOT -> MOBILE -> PRINT */
 
 /* ══ BRIDGE ═══════════════════════════════════════════════════════════════
    Our vector tokens -> Material's variables. The one place the two systems
@@ -55,6 +55,20 @@
 
   --md-text-font-family:           var(--u-font-body);
   --md-code-font-family:           var(--u-font-mono);
+}
+
+/* ══ A11Y BASELINE ════════════════════════════════════════════════════════
+   One visible focus ring for the whole site, in the accent, at a thickness
+   the forms vector owns. :focus-visible rather than :focus, so it appears for
+   keyboard and assistive navigation and never for a mouse click.
+
+   ⚠️ Never replace this with `outline: none` on a specific control. The gate
+   password input used to do exactly that and signalled focus with a border
+   colour alone -- invisible to anyone who cannot distinguish the two greys,
+   and gone entirely in forced-colours mode. */
+:focus-visible {
+  outline: var(--u-focus-w) solid var(--u-accent);
+  outline-offset: 2px;
 }
 
 /* Light text on dark reads heavier than it measures. Ease the weight AND open
@@ -116,6 +130,17 @@
 .md-header__title { font-size: .82rem; font-weight: 500; }
 .md-tabs { border-bottom: var(--u-rule-w) solid var(--u-hairline); }
 
+/* The GitHub repo block -- name, star count, fork count -- in the header and
+   at the top of the mobile drawer. Removed 2026-08-01, Michael: "the git icons
+   doing nothing in the main menu". They were not doing nothing, they were
+   reporting 0 stars and 0 forks on a private-audience venue reference, which
+   is worse. The link back to source is now one worded line at the foot of
+   each page (hooks/pagefoot.py).
+
+   ⚠️ `repo_url` in mkdocs.yml STAYS. MkDocs builds page.edit_url from it. This
+   hides the display, not the config. */
+.md-header__source, .md-nav__source { display: none; }
+
 /* ══ NAV. Reads as a file tree. ══════════════════════════════════════════ */
 .md-nav { font-size: .72rem; }
 .md-nav__title {
@@ -131,9 +156,22 @@
   font-weight: 600;
 }
 
-/* ⚠️ MOBILE DRAWER FIX. Material's slide-in drawer panels do not inherit the
-   slate scheme and render white-on-white in dark mode: the submenu is unusable.
-   Force every drawer surface onto the page background. */
+/* ⚠️ MOBILE DRAWER. Two separate repairs; do not collapse them.
+
+   1. SCHEME. Material's slide-in drawer panels do not inherit the slate
+      scheme and render white-on-white in dark mode: the submenu is unusable.
+      Force every drawer surface onto the page background.
+
+   2. THE BLOCKED CHEVRON (fixed 2026-08-01). Material positions the drawer's
+      back arrow ABSOLUTELY, at top .4rem / left .4rem, because its own title
+      is a tall block with the text pushed to the bottom. Repair 1 flattened
+      that title to a single line and moved the text up -- straight underneath
+      the arrow, which then sat on top of the first letter ("VENUES" with a
+      chevron through the V). One fix quietly broke the other.
+
+      The repair is to stop fighting the absolute position and lay the title
+      out honestly: a flex row, arrow first, text second, real space between
+      them. Now the two cannot overlap no matter what the title height becomes. */
 @media screen and (max-width: 76.1875em) {
   .md-nav--primary,
   .md-nav--primary .md-nav {
@@ -141,22 +179,47 @@
     color: var(--u-text);
   }
   .md-nav--primary .md-nav__title {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-height: var(--u-touch);
+    line-height: 1.25;
+    height: auto;
+    padding: 0 .8rem;
     background-color: var(--u-surface-2);
     color: var(--u-text-strong);
     box-shadow: none;
     border-bottom: var(--u-rule-w) solid var(--u-hairline);
-    line-height: 2.8rem;
-    height: auto;
-    padding: 0 .8rem;
   }
+  /* Out of the absolute corner and into the row. */
+  .md-nav--primary .md-nav__title .md-nav__icon {
+    position: static;
+    top: auto;
+    left: auto;
+    flex: 0 0 auto;
+    width: 1.1rem;
+    height: 1.1rem;
+    margin: 0;
+  }
+  /* The site logo/button in the ROOT drawer title only. Hidden, and because
+     the row is a flex container a display:none child contributes no gap. */
   .md-nav--primary .md-nav__title .md-nav__button { display: none; }
+
   .md-nav--primary .md-nav__list { padding: 0; }
   .md-nav--primary .md-nav__item {
     border-top: var(--u-rule-w) solid var(--u-hairline);
     font-size: .78rem;
   }
-  .md-nav--primary .md-nav__link { padding: .72rem .8rem; }
-  .md-nav--primary .md-nav__icon:not(.md-nav__button) { opacity: .45; }
+  /* Tap target from the spacing vector, not a guess. 44px is the floor. */
+  .md-nav--primary .md-nav__link {
+    padding: .72rem .8rem;
+    min-height: var(--u-touch);
+  }
+  /* Which row am I on. A file tree marks the branch you are standing in. */
+  .md-nav--primary .md-nav__link--active {
+    box-shadow: inset 2px 0 0 var(--u-accent);
+  }
+  .md-nav--primary .md-nav__icon:not(.md-nav__button) { opacity: .55; }
 }
 
 /* ══ TABLES. The main event. Dense, borderless, aligned digits. ══════════ */
@@ -285,6 +348,7 @@
 .md-typeset .gate__input {
   flex: 1;
   min-width: 0;
+  min-height: var(--u-touch);
   padding: .45rem .6rem;
   border: var(--u-border-w) solid var(--u-border);
   border-radius: var(--u-radius);
@@ -294,6 +358,7 @@
   font-size: var(--u-fs-sm);
 }
 .md-typeset .gate__btn {
+  min-height: var(--u-touch);
   padding: .45rem 1rem;
   border: 0;
   border-radius: var(--u-radius);
@@ -306,6 +371,28 @@
 }
 .md-typeset .gate__btn:disabled { opacity: .5; cursor: default; }
 .md-typeset .gate__error { margin: .7rem 0 0; font-size: .72rem; color: var(--u-bad); }
+
+/* ══ PAGE FOOT (hooks/pagefoot.py) ═══════════════════════════════════════
+   Deliberately the quietest thing on the page. It is a way back to the source
+   for the one person who edits this, not a call to action for the fifty who
+   read it. Underlined only on hover or focus, so it is still obviously a link
+   the moment anyone goes looking for one. */
+.md-typeset .pagefoot__rule {
+  margin: var(--u-gap-lg) 0 .7rem;
+  border: 0;
+  border-top: var(--u-rule-w) solid var(--u-hairline);
+}
+.md-typeset .pagefoot { margin: 0; font-size: var(--u-fs-xs); }
+.md-typeset .pagefoot__edit {
+  color: var(--u-text-soft);
+  text-decoration: none;
+  letter-spacing: .04em;
+}
+.md-typeset .pagefoot__edit:hover,
+.md-typeset .pagefoot__edit:focus-visible {
+  color: var(--u-accent);
+  text-decoration: underline;
+}
 
 /* ══ FOOTER build stamp (hooks/buildstamp.py) ════════════════════════════ */
 .md-footer-meta { font-size: .68rem; }
@@ -341,7 +428,7 @@
 
 /* ══ PRINT. Paper-white regardless of the scheme on screen. ══════════════
    Overrides the TOKENS, not Material's variables, so the bridge above keeps
-   doing the translating and this block stays four lines long forever. */
+   doing the translating and this block stays short forever. */
 @media print {
   :root, [data-md-color-scheme=slate], [data-md-color-scheme=default] {
     --u-bg: #fff;
@@ -357,8 +444,9 @@
     --u-shadow: none;
   }
   [data-md-color-scheme=slate] .md-typeset { letter-spacing: normal; }
-  .md-header, .md-sidebar, .md-footer, .md-content__button,
-  .md-typeset .tabbed-labels { display: none !important; }
+  .md-header, .md-sidebar, .md-footer,
+  .md-typeset .tabbed-labels,
+  .md-typeset .pagefoot, .md-typeset .pagefoot__rule { display: none !important; }
   .md-main__inner, .md-content { margin: 0 !important; }
   .md-typeset .tabbed-content { display: block !important; }
   .md-typeset h2, .md-typeset .admonition, .md-typeset table { break-inside: avoid; }
