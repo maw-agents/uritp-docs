@@ -35,6 +35,29 @@ jobs:
           # Empty on workflow_dispatch (no head commit); the hook falls back to
           # the short SHA.
           BUILD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+
+          # ── GATE KEYS ──────────────────────────────────────────────────
+          # One line per password group. `gates: [psm]` in a page's frontmatter
+          # makes hooks/visibility.py read URITP_GATE_PSM from here.
+          #
+          # ⚠️ A secret is NOT automatically visible to the build. Adding it in
+          #    Settings -> Secrets and variables -> Actions is only half the
+          #    job: it must also be named on this list, or the build fails with
+          #    "the environment carries no URITP_GATE_<NAME>". That failure is
+          #    deliberate — the alternative is publishing a page everyone
+          #    believes is locked, in full plaintext, silently.
+          #
+          # ⚠️ An UNSET secret interpolates to an empty string, not an error, so
+          #    a typo in the secret's name here looks exactly like a missing
+          #    secret. The hook's build failure names the variable it wanted;
+          #    compare it against this list character by character.
+          #
+          # Adding a group: add the secret in Settings, add a line here, then
+          # put its name in a page's `gates:`. Documented in AUTHORING.md ->
+          # "Adding a key group".
+          URITP_GATE_ADMIN: ${{ secrets.URITP_GATE_ADMIN }}
+          URITP_GATE_DEV: ${{ secrets.URITP_GATE_DEV }}
+          URITP_GATE_PSM: ${{ secrets.URITP_GATE_PSM }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
