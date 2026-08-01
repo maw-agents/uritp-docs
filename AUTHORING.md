@@ -14,14 +14,38 @@ as a reader-facing page: it documents the machine, not the theatre.
 🔒 **Gates, keys and page visibility live in [AUTHORING-GATES.md](AUTHORING-GATES.md)**
 (`hooks/visibility.py` + `docs/javascripts/gate.js`).
 
-🎨 **Theme, colour, type, chrome and search behaviour live in
-[AUTHORING-LOOK.md](AUTHORING-LOOK.md)** (`theme.yml` + `hooks/theme.py` +
-`hooks/pagefoot.py` + `docs/stylesheets/`).
+🎨 **Colour, type, edges and density live in [`theme/README.md`](theme/README.md)** —
+the four vectors are TSV grids in [`theme/`](theme/). **Chrome and search behaviour**
+live in [AUTHORING-LOOK.md](AUTHORING-LOOK.md).
 
 Both were split out 2026-08-01 for the same reason: there is no partial-edit path
 through this toolchain, so every change re-emits the whole file, and a 29KB canonical
 document rewritten five times in a day is five chances to silently drop a section.
 **Highest churn, smallest file.**
+
+---
+
+## Frontmatter — every key a page can carry
+
+```markdown
+---
+title: Smith Theatre
+id: smith-theatre
+status: public
+---
+```
+
+| Key | Required | Does |
+|---|---|---|
+| `title:` | Effectively | The sidebar entry and the browser tab |
+| `id:` | No | The permanent name links point at. **Set once, never change.** |
+| `status:` | **Yes** | What publishes. Without it, or a gated ancestor, the page does not build. |
+| `gates:` / `password:` | Only if gated | Which key opens it → **AUTHORING-GATES** |
+| `listed:` | No | `false` keeps it out of nav, search and sitemap at any status |
+| `inherit:` | No | `false` stands a page outside its folder's lock |
+| `aliases:` | No | Retired URLs that should redirect here |
+| `theme:` | No | Wear a different skin → below |
+| `search:` | No | `boost:` to rank it, `exclude: true` to hide it → AUTHORING-LOOK |
 
 ---
 
@@ -36,21 +60,54 @@ document rewritten five times in a day is five chances to silently drop a sectio
 | `unlisted` | No | **Works** | No | The real text |
 | `hidden` | No | **404** | No | Nothing. Never built. |
 
-```markdown
----
-title: Smith Theatre
-id: smith-theatre
-status: public
----
-```
-
 ⚠️ **`hidden` is *not published*. `unlisted` is *published without a signpost*** — an
 unlisted URL forwarded in one email is public from then on.
+
+⚠️ **`status:` is also a reserved Material key**, which is why every page carries a
+small mark in the sidebar: ⓘ for `public`, 🔒 for `gated`. That is deliberate and it
+is explained to readers in `docs/using-these-docs.md`. **Never write `status: new` or
+`status: deprecated`** to chase a different icon — the hook treats an unrecognised
+value as `hidden` and the page vanishes. Full story in AUTHORING-LOOK → *The chrome*.
 
 **Everything else about gating** — the keystore, key groups, folder inheritance, the
 session keyring, what the gate honestly protects, and how to verify a change actually
 deployed — is in **[AUTHORING-GATES.md](AUTHORING-GATES.md)**. Read it before locking
 anything.
+
+---
+
+## `theme:` — one page, or one folder, wearing another skin
+
+```markdown
+---
+title: Electrics
+theme: utility
+---
+```
+
+The value is a `slug` from `theme/themes.tsv`. **On an `index.md` it skins the whole
+folder**, every page beneath it, at any depth. Write **`theme: default`** to stay on
+the site theme inside a themed folder.
+
+⚠️ **This waterfall runs the OPPOSITE WAY to the gate's.** A gated `index.md` beats
+what a child page declares, because a lock you can undo by accident is not a lock. A
+themed `index.md` **loses** to a child's own `theme:`, because a skin is a preference
+with nothing at risk. **Precedence follows consequence, not symmetry** — and the two
+must never be unified into one "inheritance" rule, however alike they look.
+
+**A name that does not resolve falls back to the site theme and is reported** in the
+run summary. It does not fail the build: unlike `theme/active.txt`, a page theme has
+exactly one page to fail on, so it fails there and says so.
+
+Two things it cannot do, both worth knowing before you reach for it:
+
+- **It reskins the whole window**, not the content area — sidebar, header and drawer
+  share the page's tokens.
+- **It cannot change the downloaded webfont.** Material's font loader is global, so a
+  page whose theme names a different family renders in the fallback face. The build
+  warns by name when that happens.
+
+Full reference, including how to add a theme: **[`theme/README.md`](theme/README.md)**.
 
 ---
 
@@ -73,6 +130,8 @@ status: hidden
 One line on what this space is and who uses it.
 ```
 
+`docs/_TEMPLATE.md` is that file with every option annotated. Copy it.
+
 ### Adding a folder
 
 A new folder becomes a new sidebar section and lands at the bottom. Two optional files
@@ -88,8 +147,10 @@ Without a folder `.nav.yml` the sidebar title-cases the folder name, producing `
 for an acronym and `Todd union` with a lowercase U. That is the only reason to add one.
 
 A folder's `index.md` becomes the page you land on when you click the section name
-(`navigation.indexes`). Give it an `id:` like any other page — **and note that gating
-it locks the whole folder** (see AUTHORING-GATES).
+(`navigation.indexes`). Give it an `id:` like any other page — and note that it is the
+switch for **two** folder-wide behaviours: **gating it locks the whole folder** (see
+AUTHORING-GATES) and **theming it skins the whole folder** (above). Those two run in
+opposite directions on purpose.
 
 ---
 
@@ -140,7 +201,7 @@ target moves. `@smith-theatre` resolves at build time to wherever that page live
 
 On 2026-08-01 Smith Theatre moved from `docs/venues/` into `docs/venues/SPAC/`. That
 single rename broke **eight links across six files**, in both directions. Because the
-build runs `--strict`, the deploy died and the live site silently froze on an older
+build ran `--strict`, the deploy died and the live site silently froze on an older
 commit for over half an hour. Two rounds of hand-patching still missed three. Paths
 encode where a page sits today, the one fact most likely to change.
 
@@ -200,10 +261,11 @@ Link Safety → Smith Theatre once, and Smith Theatre gains a link back on its o
 - Kill switch: `URITP_BACKLINKS=0` in the build environment.
 
 ⚠️ ~~Instant previews (`material.extensions.preview`) show a hover card of the target
-page on desktop.~~ **Removed 2026-08-01.** It attached to every internal link
-including the navigation and marked each one with an icon, on a site read mostly from
-a phone, where hover does not exist and the preview can never fire. `Linked from` is
-the mechanism that works everywhere. Reasoning in AUTHORING-LOOK → *The chrome*.
+page on desktop.~~ **Removed 2026-08-01.** Previews need hover and this site is read
+mostly from a phone. ⚠️ A second reason was given at the time — that the extension
+put an icon on every nav row — and **it was wrong**; those icons are Material's
+`status:` badge reading our own frontmatter, and they outlived the removal. `Linked
+from` is the mechanism that works everywhere. Full story in AUTHORING-LOOK.
 
 ### What a broken link looks like
 
@@ -313,6 +375,10 @@ The list is deliberately short and keeps getting shorter. **Neither a broken lin
 missing gate key is on it**: both used to take the whole site stale over one page, and
 both now fail locally and loudly instead.
 
+The pattern is worth naming, because it decides every future entry: **a failure that
+has one page to land on fails there. A failure that has nowhere local to land stops
+the build.**
+
 | # | Failure | Fails the deploy? | Why |
 |---|---|---|---|
 | 1 | Callout or tab body not indented four spaces | No, renders wrong | Content falls out of the box. |
@@ -322,10 +388,12 @@ both now fail locally and loudly instead.
 | 5 | No blank line before a table or list | No | Renders as one mashed paragraph. |
 | 6 | Two H1s on a page | No, renders wrong | Breaks the outline and the page title. |
 | 7 | Missing `status:` with no gated ancestor | No | The page silently will not build. |
-| 8 | Lowering `mkdocs-material` below 9.7 | No, **as of 2026-08-01** | It was a hard failure while `material.extensions.preview` was enabled; that extension is gone. The floor stays because below it is missing features for no gain. |
+| 8 | Lowering `mkdocs-material` below 9.7 | No | The floor stays because below it is missing features for no gain — **and because `partials/nav-item.html` is behaviour we now depend on** for the sidebar badge. |
 | 9 | A workflow change that trips an approval gate | **Worse than Yes** | Reports `action_required` with zero jobs and never deploys. **Every PR now runs a build check** so this is caught on a branch. |
-| 10 | An `active:` theme, a vector row, or a token that does not resolve in `theme.yml` | **Yes, deliberately** | A theme has no single page to fail on, and a silent fallback to the wrong design is the invisible failure this repo's other rules exist to prevent. Caught on the branch. See AUTHORING-LOOK. |
-| 11 | A colon-plus-space inside an unquoted `note:` in `theme.yml` | **Yes** | YAML reads it as a nested mapping and the whole parse dies, pointing at the wrong line. Quote it. |
+| 10 | A `theme:` on a page naming a theme that does not exist | No | Falls back to the site theme and is named in the run summary. |
+| 11 | The name in `theme/active.txt` not resolving, or a token missing after the whole fallback chain | **Yes, deliberately** | The site theme has no single page to fail on, and a silent fallback to the wrong design is the invisible failure this repo's other rules exist to prevent. Caught on the branch. |
+| 12 | The **active** palette failing a `fail`-level row in `theme/contrast.tsv` | **Yes, deliberately** | Unreadable text is not a cosmetic defect. A *parked* palette only warns. → `theme/README.md` |
+| 13 | `webfont-text` and `webfont-code` disagreeing about `none` | **Yes** | Material's font loader is all-or-nothing; there is no correct way to resolve the contradiction. |
 
 ---
 
@@ -354,22 +422,34 @@ If you change any file this document describes, **update this file in the same P
 | `.github/workflows/deploy.yml` | The keystore wiring + the PR build check | The keystore mechanism changes → **AUTHORING-GATES too** |
 | `docs/.nav.yml` | Top-level sidebar order | The add-a-page procedure changes |
 | `docs/<folder>/.nav.yml` | That section's displayed title | The per-folder title mechanism changes |
+| `docs/_TEMPLATE.md` | Every frontmatter option, annotated | **A frontmatter key is added or changed — and the table at the top of this file** |
 | `hooks/links.py` | `@id` resolution, backlinks, aliases, link report | Link syntax, a report kind, or backlink rules change |
 | `hooks/buildstamp.py` | The footer stamp | What the stamp shows changes |
-| **`theme.yml`** | The four theme vectors | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
-| **`hooks/theme.py`** | Token composition + validation | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
+| **`theme/*.tsv`** | Every colour, font, size, radius and gap | → **[`theme/README.md`](theme/README.md)**, not here |
+| **`hooks/theme.py`** | Token composition, the fallback chain, page themes | → **[`theme/README.md`](theme/README.md)**, not here |
+| **`hooks/contrast.py`** | The contrast gate | → **[`theme/README.md`](theme/README.md)**, not here |
 | **`hooks/pagefoot.py`** | The page-foot edit link | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
 | **`docs/stylesheets/*`** | Every rule on the site | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)** — **except** a renamed author-typed class like `.tbc`, which belongs in both |
 | **`hooks/visibility.py`** | Status, the keystore, encryption | → **[AUTHORING-GATES.md](AUTHORING-GATES.md)**, not here |
 | **`docs/javascripts/gate.js`** | Browser-side unlock, the keyring | → **[AUTHORING-GATES.md](AUTHORING-GATES.md)**, not here. DOM-only changes go to AUTHORING-LOOK. |
+
+🪦 **`theme.yml` is a retired stub as of 2026-08-01** and is read by nothing. The four
+vectors are TSV grids in `theme/`.
 
 A syntax rule described here with no extension behind it is worse than no
 documentation: it teaches something that silently renders as literal text. A status
 value the hook does not recognise is worse still: the page falls back to `hidden` and
 quietly disappears.
 
-**Hook order in `mkdocs.yml` is load-bearing for three of the five.** `visibility.py`
-resolves status and drops `hidden` pages before `links.py` builds its id registry, and
-`pagefoot.py` appends after `links.py` so the edit link lands below `Linked from`.
-`theme.py` and `buildstamp.py` touch neither the file list nor the page body, so their
-position does not matter.
+### ⚠️ Hook order in `mkdocs.yml` is load-bearing in two places
+
+**`theme.py` must run FIRST.** It writes `theme.font` into the config, which Material
+reads when it renders, and `contrast.py` imports it to reuse the grid reader and the
+fallback chain — so the contrast gate measures what a page actually gets rather than a
+second interpretation of the same files. ~~`theme.py`'s position does not matter.~~
+Corrected 2026-08-01; it did not matter until it wrote config and gained a dependent.
+
+**`visibility.py` → `links.py` → `pagefoot.py`** is the other. `visibility.py` drops
+`hidden` pages before `links.py` builds its id registry, so a link to a hidden page
+resolves as dead rather than shipping a 404; `pagefoot.py` appends after `links.py` so
+the edit link lands below `Linked from`. Only `buildstamp.py` is order-independent.
