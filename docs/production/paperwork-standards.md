@@ -1,14 +1,15 @@
 ---
 title: Paperwork standards
-status: unlisted
+status: gated
+password: theatre2026
 ---
 
 # Paperwork standards
 
 What production paperwork needs to contain, what format it arrives in, and when it is due.
 
-!!! note "Not yet documented"
-    This page is a placeholder and is not listed in the sidebar. Standards exist in practice but have not been written down, which is exactly why every semester produces a round of avoidable corrections.
+!!! note "Draft, circulating for comment"
+    This page is gated while the standards are being agreed. If you were given the password, you are being asked to read it and push back before it becomes binding.
 
 ## What we need to capture
 
