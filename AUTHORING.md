@@ -8,7 +8,56 @@ as a reader-facing page: it documents the machine, not the theatre.
 > describes carries a pointer back here, so a standards change and a doc change
 > land in one PR or the pointer has failed.
 
-**Describes:** `mkdocs.yml` · `docs/.nav.yml` · `docs/stylesheets/uritp.css`
+**Describes:** `mkdocs.yml` · `docs/.nav.yml` · `docs/stylesheets/uritp.css` ·
+`hooks/visibility.py`
+
+---
+
+## Publication status (read this first)
+
+**Every page needs a `status:` line. A page without one is never built.**
+
+| Status | Sidebar | Direct link | Search | Use for |
+|---|---|---|---|---|
+| `public` | Listed | Works | Indexed | Finished, gatekept, ready to be relied on |
+| `unlisted` | Not listed | Works | Not indexed | A draft you want to hand to one person |
+| `hidden` | Not listed | 404 | No | Not ready. **This is the default.** |
+
+```markdown
+---
+title: Rehearsal Studio
+status: hidden
+---
+```
+
+Default-hidden means a half-written page cannot reach a student by accident. You
+promote it deliberately: `hidden` while you draft, `unlisted` when you want a
+specific person to review it, `public` when you stand behind it.
+
+### ⚠️ What `hidden` does NOT mean
+
+**`hidden` means "not published to the site." It does not mean secret.**
+
+This repository is public. The markdown for a hidden page is readable by anyone at
+`github.com/maw-agents/uritp-docs`, and it stays in the commit history forever even
+after you delete it. `unlisted` is weaker still: it is a live public URL that simply
+is not linked, and a URL shared once is a URL that exists.
+
+So:
+
+- **Not ready yet** → `hidden` is exactly the right tool.
+- **Must not be read by outsiders** → it does not belong in this repo at all. Real
+  read control means a private repo plus Cloudflare Access in front of the site, or
+  keeping the document somewhere else entirely.
+
+Never put student data, personal contact details, credentials, or anything
+contractual in a page and rely on `hidden` to protect it.
+
+### Linking to a hidden page fails the build
+
+A hidden page is not built, so a link pointing at it cannot resolve, and `--strict`
+kills the deploy. This is deliberate: you cannot publish a dead end. Either promote
+the target to `unlisted` or remove the link.
 
 ---
 
@@ -16,12 +65,13 @@ as a reader-facing page: it documents the machine, not the theatre.
 
 **Drop a `.md` file in the right folder under `docs/`. That is the entire procedure.**
 
-The sidebar is generated from the file tree, so the page appears in its section
-automatically, sorted alphabetically by filename. Nothing to register.
+The sidebar is generated from the file tree, so a `public` page appears in its
+section automatically, sorted alphabetically by filename. Nothing to register.
 
 ```markdown
 ---
 title: Rehearsal Studio
+status: hidden
 ---
 
 # Rehearsal Studio
@@ -45,6 +95,7 @@ Every page opens the same way: frontmatter, one H1, one lede paragraph.
 ```markdown
 ---
 title: Smith Theatre
+status: public
 ---
 
 # Smith Theatre
@@ -132,7 +183,7 @@ here." An unconfirmed row reads as "measure this before you draft it," which is 
 ## Links
 
 Internal links point at the **`.md` file**, not the live URL. The build rewrites them
-and fails loudly if the target does not exist.
+and fails loudly if the target does not exist or is `hidden`.
 
 ```markdown
 Same folder:       [SPAC Lobby](spac-lobby.md)
@@ -177,9 +228,10 @@ the file.
 | # | Failure | Why |
 |---|---|---|
 | 1 | Callout or tab body not indented four spaces | Content falls out of the box. Four spaces, not a tab, not two. |
-| 2 | Link pointing at a file that does not exist | Typo, or you linked a page before creating it. |
+| 2 | Link pointing at a missing or `hidden` page | Typo, or you linked something not published yet. |
 | 3 | No blank line before a table or list | Renders as one mashed paragraph. **Does not fail the build**, which makes it worse. |
 | 4 | Two H1s on a page | Breaks the outline and the page title. |
+| 5 | Missing or misspelled `status:` | The page silently will not build. Nothing errors: it just is not there. |
 
 ---
 
@@ -195,14 +247,17 @@ No git, no terminal, nothing installed. Works from a phone.
 
 ## Changing the standards themselves
 
-If you change any of the three files this document describes, **update this file in
-the same PR**. Each carries a pointer comment at the top saying so.
+If you change any file this document describes, **update this file in the same PR**.
+Each carries a pointer comment at the top saying so.
 
 | File | Holds | Update here when |
 |---|---|---|
 | `mkdocs.yml` | Theme, features, markdown extensions | An extension is added or removed (changes what syntax works) |
 | `docs/.nav.yml` | Sidebar order and section titles | The add-a-page procedure changes |
 | `docs/stylesheets/uritp.css` | Palette, headings, `.tbc`, print rules | A custom class is added, renamed, or dropped |
+| `hooks/visibility.py` | The `status:` gate | A status value is added, renamed, or its behaviour changes |
 
 A syntax rule described here that no longer has an extension behind it is worse than
-no documentation: it teaches something that silently renders as literal text.
+no documentation: it teaches something that silently renders as literal text. A status
+value described here that the hook does not recognise is worse still: the page falls
+back to `hidden` and quietly disappears.
