@@ -34,6 +34,7 @@ plugins:
 
 hooks:
   - hooks/visibility.py   # frontmatter `status:` gate, hidden by default
+  - hooks/buildstamp.py   # deploy time + commit SHA in the footer
 
 # Each line below enables authoring syntax documented in AUTHORING.md.
 markdown_extensions:
