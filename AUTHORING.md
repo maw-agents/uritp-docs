@@ -127,18 +127,14 @@ gates: [psm, admin]          # either password works
 gate: psm                    # singular, still valid, same as [psm]
 ```
 
-**There is no list of group names anywhere in this repository, and no mapping table.**
-A group name becomes a secret name by derivation: uppercase it, turn hyphens into
-underscores, prefix `URITP_GATE_`.
+**There is no mapping table.** A group name becomes a secret name by derivation:
+uppercase it, turn hyphens into underscores, prefix `URITP_GATE_`.
 
 | In a page | The secret it needs |
 |---|---|
 | `gates: [psm]` | `URITP_GATE_PSM` |
 | `gates: [admin]` | `URITP_GATE_ADMIN` |
 | `gates: [front-of-house]` | `URITP_GATE_FRONT_OF_HOUSE` |
-
-The build discovers keys **by that prefix**, so creating the secret and using its name
-is the whole procedure. Nothing to register, nothing to keep in sync.
 
 ⚠️ **The prefix is load-bearing, not decoration.** It is what separates "this env var
 is a gate password" from "this env var is `PATH`". Without it the hook would have to
@@ -238,7 +234,7 @@ the form to use for anything you would repeat out loud in a meeting.
 
 ## Adding a key group
 
-**Two steps. Neither one touches a file in this repository.**
+**Usually two steps, and neither one touches a file in this repository.**
 
 **1. Create the secret.** GitHub → **Settings → Secrets and variables → Actions →
 New repository secret**. Name it `URITP_GATE_` plus the group in capitals, so a group
@@ -256,16 +252,26 @@ gates: [psm]
 
 Push. About ninety seconds later the page asks for that password.
 
-That is the entire procedure. The build finds every `URITP_GATE_*` secret by prefix,
-so a new group needs no workflow edit, no code change and no entry in a list.
+### The pre-wired slots, and the one case that needs a third step
 
-~~**3. Pass it through to the build.** Secrets are not automatically visible to a
-workflow; add a line to the `env:` block of `deploy.yml`.~~ **Removed 2026-08-01,
-same day it was written** (Michael: *"the gate invocation should be directly related
-to the key lookup so that i can add more keys and use the same identifier to unlock
-without adding in another mapping"*). He was right: a hand-maintained list of key
-names is a second place to keep in sync, and the step everybody forgets is the step
-that should not exist. The workflow now discovers keys by prefix.
+`deploy.yml` plumbs a set of group names through to the build **whether or not the
+secret exists** — an unset secret is an empty string and the hook ignores it. Anything
+on this list is ready to go the moment you create its secret:
+
+`admin` · `dev` · `psm` · `designers` · `supervisors` · `faculty` · `students` ·
+`guests` · `shop` · `foh`
+
+A group whose name is **not** on that list needs one line added to the `env:` block of
+`.github/workflows/deploy.yml`, copied from its neighbour. Either add the line, or
+pick a name from the list.
+
+⚠️ **This is the second design for this, and the first one was better.** The build
+briefly discovered keys by prefix with `${{ toJSON(secrets) }}`, needing no list at
+all — exactly what was asked for. **It is reverted because the first run carrying it
+came back `action_required` with zero jobs and never deployed**: handing a workflow
+the entire secrets context trips an approval gate, and a deploy waiting on a human
+click is worse than a list edited twice a year. Pre-wiring the slots recovers most of
+the benefit. Do not reintroduce `toJSON(secrets)` without proving it on a branch.
 
 ### Repository secret or environment secret?
 
@@ -304,17 +310,6 @@ the Actions tab). Every page carrying that group rewraps on the next build. **No
 needs editing** and no other group is affected. Anyone mid-session keeps access until
 they close the tab; the keyring holds the old password and it stops working on the
 next page load after the rebuild.
-
-### ⚠️ One thing in the workflow that must not be tidied
-
-`deploy.yml` has a small **Collect gate keys** step that exists to keep
-`${{ toJSON(secrets) }}` away from the build. That expression hands the *entire*
-secrets context — `GITHUB_TOKEN` included — to whatever runs in the step, which
-security scanners flag and rightly so. Confining it to a few lines of standard-library
-Python means the only code that can see every secret is code we wrote, and the mkdocs
-build with its third-party plugin tree only ever receives the gate keys.
-
-**Never move `toJSON(secrets)` onto the Build step to save a few lines.**
 
 ---
 
@@ -634,10 +629,10 @@ over one page, and both now fail locally and loudly instead.
 | 6 | Two H1s on a page | No, renders wrong | Breaks the outline and the page title. |
 | 7 | Missing `status:` with no gated ancestor | No | The page silently will not build. |
 | 8 | Lowering `mkdocs-material` below 9.7 | **Yes** | `material.extensions.preview` does not exist there. |
+| 9 | A workflow change that trips an approval gate | **Worse than Yes** | The run reports `action_required` with zero jobs and simply never deploys. Test workflow edits on a branch. |
 
 ~~Rows 3 and 4 used to read **Yes**.~~ Changed 2026-08-01 after a page was flipped to
-`gates:` before its secrets existed and froze every page on the site. Row 8 is the
-only hard failure left, and it is a dependency error rather than a content one.
+`gates:` before its secrets existed and froze every page on the site.
 
 ---
 
@@ -662,7 +657,7 @@ If you change any file this document describes, **update this file in the same P
 |---|---|---|
 | `mkdocs.yml` | Theme, features, extensions, hook order | An extension, plugin, or hook is added or removed |
 | `requirements.txt` | Build dependency floors | A floor moves, or a pinned feature changes |
-| `.github/workflows/deploy.yml` | How gate keys are discovered | The discovery mechanism changes. **Adding a key group does NOT touch this file.** |
+| `.github/workflows/deploy.yml` | The pre-wired gate key slots | A group name outside the pre-wired list is needed |
 | `docs/.nav.yml` | Top-level sidebar order | The add-a-page procedure changes |
 | `docs/<folder>/.nav.yml` | That section's displayed title | The per-folder title mechanism changes |
 | `docs/stylesheets/uritp.css` | Palette, headings, `.tbc`, `.gate`, print | A custom class is added, renamed, or dropped |
