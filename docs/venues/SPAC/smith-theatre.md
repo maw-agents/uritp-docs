@@ -8,7 +8,7 @@ aliases:
 
 # Smith Theatre
 
-Primary performance space in the Sloan Performing Arts Center. URITP produces Mainstage productions here. Read the venue notes before you finalize a design.
+Primary performance space in the Sloan Performing Arts Center. URITP produces Mainstage productions here.
 
 !!! warning "Before you design"
     Smith is a blackbox with real constraints that will bite a design late if you learn them late. The non-dimmable relays and the absent west crossover are the two that most often force a redesign in week three.
