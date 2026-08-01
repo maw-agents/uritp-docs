@@ -37,32 +37,11 @@ sidebar section at the bottom; add its name to `docs/.nav.yml` to place it.
 2. Edit the markdown. Commit.
 3. Wait about 90 seconds. Actions rebuilds and redeploys.
 
-## Theme Lab
+## Changing the look
 
-Add **`?lab`** to any page URL to open a floating dock that retunes the live site in
-real time: brand color, neutral tint, page warmth, text and rule contrast, corner
-radius, rule weight, heading typeface, vertical rhythm, and the badge color. Copyable
-hex chips for each.
-
-```
-https://maw-agents.github.io/uritp-docs/?lab
-```
-
-It stays on while you browse and survives a reload. Turn it off with the dock's own
-button or `?lab=off`.
-
-**It changes your browser only.** Settings live in `localStorage`; there is no write
-path from a browser to a static site. That is why it needs no password: someone who
-finds `?lab` can restyle their own screen and nothing else. Do not confuse it with
-editing the site.
-
-**To make a change real:** press **Copy CSS**, paste over the top of
-`docs/stylesheets/uritp.css`, commit. **Edit file** opens exactly that file in GitHub's
-editor. Keep the `@import` on line 1: CSS silently drops an `@import` that follows any
-other rule.
-
-The dock's own chrome (`docs/stylesheets/theme-lab.css`) is deliberately fixed dark and
-not themed by your tokens, so it stays readable while you drag the site somewhere ugly.
+Everything visual lives in `docs/stylesheets/uritp.css`. The palette is six OKLCH
+values at the top; change those and the whole site follows. Keep the `@import` on
+line 1: CSS silently drops an `@import` that follows any other rule.
 
 ## Repo shape
 
@@ -74,9 +53,7 @@ hooks/visibility.py           the `status:` gate + page encryption
 .github/workflows/deploy.yml  build and deploy on every push to main
 docs/.nav.yml                 sidebar order and section titles
 docs/stylesheets/uritp.css    the URITP theme layer
-docs/stylesheets/theme-lab.css  dock chrome (not themed)
 docs/javascripts/gate.js      browser-side unlock for gated pages
-docs/javascripts/theme-lab.js the ?lab dock
 docs/
   index.md                    landing page
   using-these-docs.md         orientation for readers
@@ -96,12 +73,8 @@ each carry a **pointer comment** at the top: change one, update `AUTHORING.md` i
 same PR. A syntax rule with no extension behind it teaches something that renders as
 literal text.
 
-Two pairs must move together or they fail silently:
-
-- `hooks/visibility.py` and `docs/javascripts/gate.js` share the cipher and iteration
-  count. Change one alone and gated pages stop unlocking with no readable error.
-- `docs/javascripts/theme-lab.js` and `docs/stylesheets/uritp.css` share token names.
-  Rename a token in one and the matching knob quietly does nothing.
+`hooks/visibility.py` and `docs/javascripts/gate.js` share the cipher and iteration
+count. Change one alone and gated pages stop unlocking with no readable error.
 
 ## Swapping the theme
 
