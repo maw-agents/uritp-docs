@@ -2,9 +2,9 @@
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml, not here.
 # VISIBILITY: every page needs `status:` in its frontmatter or it will not build.
 #
-# ⚠️ POINTER: adding or removing a markdown_extension changes what page authors can
-#    write, and changing hooks/visibility.py changes what publishes. Update
-#    AUTHORING.md in the SAME PR or it teaches rules the build no longer follows.
+# POINTER: adding or removing a markdown_extension changes what page authors can
+#   write, and changing hooks/visibility.py changes what publishes. Update
+#   AUTHORING.md in the SAME PR or it teaches rules the build no longer follows.
 
 site_name: URITP Production Resources
 site_url: https://maw-agents.github.io/uritp-docs/
@@ -25,7 +25,8 @@ theme:
     - content.tabs.link      # picking "Lighting" holds across the whole page
 
 extra_css: [stylesheets/uritp.css]
-extra: {generator: false}    # hides the "Made with Material" footer line
+extra_javascript: [javascripts/gate.js]   # client half of `status: gated`
+extra: {generator: false}                 # hides the "Made with Material" footer line
 
 plugins:
   - search        # must be listed: declaring plugins replaces the defaults

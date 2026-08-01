@@ -2,3 +2,4 @@
 # Also the file actions/setup-python hashes for its pip cache.
 mkdocs-material>=9.5,<10
 mkdocs-awesome-nav>=3.3,<4
+cryptography>=42                 # AES-GCM for hooks/visibility.py (status: gated)
