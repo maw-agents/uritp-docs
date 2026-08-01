@@ -10,349 +10,41 @@ as a reader-facing page: it documents the machine, not the theatre.
 
 **Describes:** `mkdocs.yml` · `requirements.txt` · `.github/workflows/deploy.yml` ·
 `docs/.nav.yml` and per-folder `.nav.yml` · `docs/stylesheets/uritp.css` ·
-`docs/stylesheets/links.css` · `hooks/visibility.py` · `hooks/links.py` ·
-`hooks/buildstamp.py` · `docs/javascripts/gate.js`
+`docs/stylesheets/links.css` · `hooks/links.py` · `hooks/buildstamp.py`
+
+🔒 **Gates, keys and page visibility live in [AUTHORING-GATES.md](AUTHORING-GATES.md)**
+(`hooks/visibility.py` + `docs/javascripts/gate.js`). Split out 2026-08-01: the gate
+changed five times in twelve hours and re-emitting a 29KB file for each change is how a
+section gets silently dropped. **Highest churn, smallest file.**
 
 ---
 
-## Publication status (read this first)
+## Publication status — the short version
 
 **Every page needs a `status:` line, or it inherits one, or it is hidden.**
 
-| Status | In the sidebar? | Direct link? | In search? | What is in the served HTML |
+| Status | Sidebar? | Direct link? | Search? | In the served HTML |
 |---|---|---|---|---|
 | `public` | **Yes** | Works | **Yes** | The real text |
-| `gated` | **Yes** | Works, shows a password box | Title only | Ciphertext |
+| `gated` | **Yes** | Password box | Title only | Ciphertext |
 | `unlisted` | No | **Works** | No | The real text |
-| `hidden` | No | **404** | No | Nothing. Page is never built. |
-
-Plus one independent switch that composes with any of them:
-
-```markdown
-listed: false      # keep this page out of the nav, search and sitemap
-```
-
-### The two questions that separate them
-
-**1. Can someone reach it by typing or pasting the URL?**
-
-- `hidden` → **no.** The file is dropped before the build. The URL 404s.
-- `unlisted` → **yes.** Fully built and fully readable, just not linked and not in
-  search. Anyone holding the URL reads it instantly.
-
-`hidden` is *not published*. `unlisted` is *published without a signpost*. An unlisted
-URL forwarded in one email is public from then on.
-
-**2. Do you want people to know the page exists?**
-
-- `gated` → **yes.** It sits in the sidebar where everyone sees it and asks for a
-  password. Use it when the existence of the page is not the secret.
-- `unlisted` → **no.** Nobody discovers it; you hand out the link.
-
-### Gated AND unlisted, together
-
-```markdown
-status: gated
-listed: false
-gates: [psm]
-```
-
-Encrypted **and** undiscoverable: no sidebar entry, no search result, no sitemap, and
-the body is ciphertext even for someone holding the URL. `status: unlisted` is now
-just shorthand for *public + `listed: false`*, kept because it reads better.
-
-### Choosing
-
-| Situation | Use |
-|---|---|
-| Finished, gatekept, safe to design from | `public` |
-| Draft you are circulating to named people for comment | `gated` |
-| One-off for a single person, no password ceremony | `unlisted` |
-| Locked *and* not advertised | `gated` + `listed: false` |
-| Half-written, not for anyone yet | `hidden` |
-
-### A status change only exists once it deploys
-
-Marking a page `gated` does nothing until a build succeeds. On 2026-08-01 a page was
-switched to `gated` two minutes after the last passing build, then served in full
-plaintext for the next half hour while six consecutive builds failed on an unrelated
-broken link. **Check the footer build stamp after changing a status.**
-
-### ⚠️ And a green build is still not proof: check with a cache-buster
-
-Even after a passing deploy, **the old page can keep being served from cache** — the
-Pages CDN, a phone browser, or anything between. On 2026-08-01 `docs/safety/index.md`
-was reported as "gated but serving plaintext" across what looked like two green
-builds. **The gate had been working the whole time.** Every check had read a cache.
-
-1. Load the page with a junk query string: `…/safety/?x=1`. A query the CDN has never
-   seen forces a fresh fetch. **The single most useful trick on this page.**
-2. Cross-check `/search/search_index.json`. Regenerated every build, rarely cached in
-   step with the HTML. A gated page appears there as *"Restricted page … Unlock"*.
-
-**A check that returns the same answer whether or not you are right has verified
-nothing.** A plain reload is exactly that check.
-
----
-
-## The gate
+| `hidden` | No | **404** | No | Nothing. Never built. |
 
 ```markdown
 ---
-title: Todd Lock-up
-id: todd-lockup-procedure
-status: gated
-gates: [psm, admin]
+title: Smith Theatre
+id: smith-theatre
+status: public
 ---
 ```
 
-The page renders, then the build **encrypts the finished HTML** (PBKDF2-SHA256, 250k
-iterations, AES-256-GCM) and replaces the body with an unlock form plus ciphertext.
-The browser decrypts with Web Crypto when a password is entered.
+⚠️ **`hidden` is *not published*. `unlisted` is *published without a signpost*** — an
+unlisted URL forwarded in one email is public from then on.
 
-- A wrong password **fails to decrypt**. Not a JavaScript comparison you can step
-  around in devtools; there is no plaintext in the page to find.
-- The right-hand outline is suppressed, or it would list the headings of a locked page.
-- Gated pages **never print**. The lock box is hidden, so nobody prints an empty page.
-- A gated page's visible H1 comes from `title:`, not the `# Heading` in the body — the
-  gate replaces the body, so no H1 survives and Material substitutes the title.
-
-### Key groups
-
-**`gates:` is a list, and ANY ONE of the named groups' passwords opens the page.**
-
-```markdown
-gates: [psm]                 # one group
-gates: [psm, admin]          # either password works
-gate: psm                    # singular, still valid, same as [psm]
-```
-
-**There is no mapping table.** A group name becomes a secret name by derivation:
-uppercase it, turn hyphens into underscores, prefix `URITP_GATE_`.
-
-| In a page | The secret it needs |
-|---|---|
-| `gates: [psm]` | `URITP_GATE_PSM` |
-| `gates: [admin]` | `URITP_GATE_ADMIN` |
-| `gates: [front-of-house]` | `URITP_GATE_FRONT_OF_HOUSE` |
-
-⚠️ **The prefix is load-bearing, not decoration.** It is what separates "this env var
-is a gate password" from "this env var is `PATH`". Without it the hook would have to
-treat every environment variable as a candidate password.
-
-⚠️ **`URITP_GATE_` is a reserved namespace: only put passwords in it.** Control flags
-live on `URITP_GATES_` (plural) for exactly this reason — `URITP_GATES_STRICT`, not
-`URITP_GATE_STRICT`, which would otherwise register a group called *strict* whose
-password is `1`.
-
-**How the encryption works, because the shape matters if you ever debug it.** The body
-is encrypted **once** with a random content key. That content key is then encrypted
-separately for each group. A wrapped key is ~100 bytes, so:
-
-- Page weight barely moves as you add groups. It is not N copies of the page.
-- Rotating one group's key rewraps ~100 bytes. Body and other groups untouched.
-- Revoking a group from a page is deleting one word from `gates:`.
-
-The wrapped keys ship shuffled and unlabelled. **Which desk can open a document is
-itself information**, and an ordered, named list would hand it to anyone reading the
-built HTML.
-
-### Unlock once per session, not once per page
-
-A password that opens anything is remembered for the browser session, and every gated
-page afterwards tries the whole **keyring** before showing its form. Unlock the Safety
-index with the PSM key and every other PSM page opens by itself.
-
-- **Closing the tab re-locks everything.** sessionStorage, not localStorage, because a
-  shared machine in a shop or a lab is the normal case here.
-- The browser never learns which *group* a key belongs to. It re-runs the same trial
-  decryption it would have run anyway, so **access is proven by decryption every time**
-  — never by a remembered "I am PSM" flag somebody could set in devtools.
-- The lock box is hidden while the keyring runs, so a page you can already open does
-  not flash a password prompt at you.
-- Ceiling: 8 remembered keys. Each candidate costs a PBKDF2 derivation (~100-200ms on
-  a phone) per wrap until one succeeds.
-
-### A gated folder index locks its whole subtree
-
-**Gating a folder's `index.md` gates every page inside it, at any depth.**
-
-```
-docs/safety/index.md          status: gated, gates: [psm]
-docs/safety/lockup.md         -> inherits: gated, gates: [psm]
-docs/safety/keys/master.md    -> inherits too
-```
-
-The children are **genuinely encrypted**, not merely hidden from the sidebar. That
-distinction is the whole design: hiding child entries until the index unlocks leaves
-every child fully readable by direct URL and in search *while looking protected*. On a
-safety section that is the worst of both — the appearance of a lock with none of it.
-
-Because inheritance is real, the sidebar keeps showing the children honestly, and with
-the keyring, unlocking the index opens the rest of the folder as you walk it.
-
-**Overriding.** The nearest gated ancestor wins. A page opts out by declaring its own
-`status:` — *any* value, including `public` — or with `inherit: false`. Only silence
-inherits.
-
-~~⚠️ **Gating a folder's `index.md` does NOT gate the pages inside it.**~~ **Reversed
-2026-08-01, hours after it was written.** True of the build at the time and exactly
-the trap described above, so the behaviour changed rather than the warning being
-restated.
-
-### If a page says its key is not configured
-
-A gated page naming a group with no secret behind it publishes as an **unopenable
-notice**: its content is dropped rather than encrypted, nobody can read it, and the
-rest of the site deploys normally. The build log and the Actions run summary both
-list every affected page **and every group name the build could actually satisfy**,
-which is usually enough to spot a typo without opening anything else.
-
-~~A named gate with no secret FAILS THE BUILD.~~ **Changed 2026-08-01, within the
-hour, after it froze the whole site over one page.** The intent was right — never
-publish a page everyone believes is locked — but taking the entire site stale for one
-page's missing config is the same trade `--strict` used to make over a single dead
-link, and we rejected that earlier the same night. The failure should be *local and
-visible*, not *global and silent*.
-
-The replacement is strictly safer, not a relaxation: the protected content is dropped
-instead of shipped, and a frozen site pressures whoever is debugging it into reverting
-the gate to get the deploy back — which is exactly how a locked page ends up public.
-`URITP_GATES_STRICT=1` restores hard-fail for anyone who wants it in CI.
-
-To fix it: check the group name in `gates:` against the list of available groups the
-build printed, then confirm the secret exists in **Settings → Secrets and variables →
-Actions** with the exact name `URITP_GATE_<GROUP>`.
-
-### Keeping the password out of the repo
-
-`password: theatre2026` in frontmatter still works and is fine for a throwaway draft.
-It also **publishes the password**, since the markdown is world-readable. `gates:` is
-the form to use for anything you would repeat out loud in a meeting.
-
----
-
-## Adding a key group
-
-**Usually two steps, and neither one touches a file in this repository.**
-
-**1. Create the secret.** GitHub → **Settings → Secrets and variables → Actions →
-New repository secret**. Name it `URITP_GATE_` plus the group in capitals, so a group
-called `psm` is the secret `URITP_GATE_PSM`. Paste the password as the value.
-
-GitHub will never show you that value again. **Write it down wherever you keep
-passwords before you click Add.**
-
-**2. Use it.**
-
-```markdown
-status: gated
-gates: [psm]
-```
-
-Push. About ninety seconds later the page asks for that password.
-
-### The pre-wired slots, and the one case that needs a third step
-
-`deploy.yml` plumbs a set of group names through to the build **whether or not the
-secret exists** — an unset secret is an empty string and the hook ignores it. Anything
-on this list is ready to go the moment you create its secret:
-
-`admin` · `dev` · `psm` · `designers` · `supervisors` · `faculty` · `students` ·
-`guests` · `shop` · `foh`
-
-A group whose name is **not** on that list needs one line added to the `env:` block of
-`.github/workflows/deploy.yml`, copied from its neighbour. Either add the line, or
-pick a name from the list.
-
-⚠️ **This is the second design for this, and the first one was better.** The build
-briefly discovered keys by prefix with `${{ toJSON(secrets) }}`, needing no list at
-all — exactly what was asked for. **It is reverted because the first run carrying it
-came back `action_required` with zero jobs and never deployed**: handing a workflow
-the entire secrets context trips an approval gate, and a deploy waiting on a human
-click is worse than a list edited twice a year. Pre-wiring the slots recovers most of
-the benefit. Do not reintroduce `toJSON(secrets)` without proving it on a branch.
-
-### Repository secret or environment secret?
-
-**Repository secret. An environment secret will silently not work here.**
-
-Environment secrets are only visible to a job that declares `environment:`. In
-`deploy.yml` the **build** job has no `environment:` — only the **deploy** job does,
-and deploy runs no build. A key stored on the `github-pages` environment would
-therefore never reach the encryption step, and the symptom is the *unavailable*
-notice with nothing obviously wrong.
-
-### Secrets or variables?
-
-Both work. `${{ vars.URITP_GATE_PSM }}` would reach the build identically and the hook
-cannot tell the difference. The temptation is real, because **a variable can be read
-back later and a secret cannot**.
-
-**Use secrets anyway.** One difference decides it: **Actions logs on a public
-repository are world-readable, and secrets are masked in them while variables are
-not.** Nothing in this workflow echoes the environment today, but a future debugging
-step, a crashing hook printing its context, or an action that dumps `env` on failure
-would put a variable's value in a public log permanently. A secret shows as `***`.
-
-The readability problem is real and has a better answer than downgrading: **keep the
-password list somewhere you can actually read it** — the ClickUp Accounts list is
-already the house home for credentials. GitHub holds the copy the build uses; you hold
-the copy you can look up.
-
-⚠️ Masking is a literal string match, not magic. A password transformed before
-printing (base64, URL-encoded, split) will not be masked even as a secret.
-
-### Rotating a password
-
-Update the secret's value in Settings, then push anything (or re-run the workflow from
-the Actions tab). Every page carrying that group rewraps on the next build. **No page
-needs editing** and no other group is affected. Anyone mid-session keeps access until
-they close the tab; the keyring holds the old password and it stops working on the
-next page load after the rebuild.
-
----
-
-## ⚠️ What the gate actually does (and does not)
-
-**While this repository is public, none of this is access control.**
-
-Secrets fix the **password** leak. They do nothing about the **content** leak. The
-site is one copy of the content; the other is the markdown, world-readable at
-`github.com/maw-agents/uritp-docs`:
-
-| | On the site | In the public repo |
-|---|---|---|
-| A `hidden` page | Not there at all | **Fully readable** |
-| A `gated` page | Encrypted | **Fully readable** |
-| An `unlisted` page | Readable by URL | **Fully readable** |
-
-And git never forgets: deleting a page tomorrow leaves it in history forever.
-
-- **`hidden`** stops a half-written page reaching a student by accident. Real job,
-  done perfectly.
-- **`gated`** signals "this is not for casual circulation" and stops a forwarded link
-  being instantly readable. **Deterrence and framing, which is the job it was chosen
-  for** (Michael, 2026-08-01: *"don't circulate this is enough"*).
-- **Nothing here protects anything from someone who thinks to look at the repo.**
-
-Never put student data, personal contact details, credentials, medical or disciplinary
-information, or contract terms in a page and rely on `hidden` or `gated` to hold it.
-If it must not be read, it does not belong in this repo.
-
-### If that ever needs to change
-
-The gate becomes genuine protection the moment the markdown stops being public: **make
-the repo private** (Pages from a private repo needs GitHub Pro, ~$4/month). The
-`gates:` plumbing is already in place, so that is the only remaining step.
-
-### Linking to a hidden page
-
-~~A hidden page is not built, so a link pointing at it cannot resolve, and `--strict`
-kills the deploy.~~ **Changed 2026-08-01.** That rule let one unpublished target
-freeze the entire site. A link to a hidden or missing page now renders as a visible
-dead-link marker on that page only, is listed in the link report, and the build
-continues.
+**Everything else about gating** — the keystore, key groups, folder inheritance, the
+session keyring, what the gate honestly protects, and how to verify a change actually
+deployed — is in **[AUTHORING-GATES.md](AUTHORING-GATES.md)**. Read it before locking
+anything.
 
 ---
 
@@ -391,25 +83,13 @@ for an acronym and `Todd union` with a lowercase U. That is the only reason to a
 
 A folder's `index.md` becomes the page you land on when you click the section name
 (`navigation.indexes`). Give it an `id:` like any other page — **and note that gating
-it locks the whole folder**.
+it locks the whole folder** (see AUTHORING-GATES).
 
 ---
 
 ## Page anatomy
 
 Frontmatter, one H1, one lede paragraph.
-
-```markdown
----
-title: Smith Theatre
-id: smith-theatre
-status: public
----
-
-# Smith Theatre
-
-Primary performance space in the Sloan Performing Arts Center.
-```
 
 **One H1 per page**, always the page title. Two H1s break the right-hand outline.
 Sections are `##`. Sub-points are `###`. Deeper than that means the page wants
@@ -429,7 +109,8 @@ inconsistent without either being wrong:
 
 So `title: safety test page` with `# Safety test page` gives a lowercase sidebar entry
 and a capitalised page heading. **Keep them the same unless you mean it.** The
-exception is a **gated** page, which has no H1 to show.
+exception is a **gated** page, which has no H1 to show — the gate replaces the body, so
+Material falls back to `title:`.
 
 ---
 
@@ -520,7 +201,7 @@ there is no hover on a phone. The thing that works everywhere is `Linked from`.
 A preview over a `gated` link shows the unlock box, not the content: the preview
 fetches the **built** page, which holds only the form plus ciphertext.
 
-### What a broken link looks like now
+### What a broken link looks like
 
 It does **not** fail the build. The link renders in red with a dashed underline and a
 ⚠ on that page only, and the reason appears in the link report — a table in the
@@ -559,7 +240,8 @@ problem: it dodges every check above and rots silently.
 **Resist inventing more.** Four callout colors on one page means none read as urgent.
 
 ⚠️ **The GitHub web editor sometimes collapses that four-space indent to one** when you
-edit a line next to it. The body then falls silently out of the box.
+edit a line next to it. The body then falls silently out of the box. If a callout looks
+wrong after a phone edit, check the indent first.
 
 ---
 
@@ -594,6 +276,13 @@ here." An unconfirmed row reads as "measure this before you draft it," which is 
 
 ---
 
+## Text
+
+Standard markdown. **Blank line between every block** (paragraphs, lists, headings,
+tables). That one rule prevents most formatting surprises.
+
+---
+
 ## The footer build stamp
 
 ```
@@ -609,30 +298,28 @@ the source. ~~It used to sit on the face of the footer~~ and was moved 2026-08-0
 
 ⚠️ **A PR number only reads as stale if you know the current one.** When a build looks
 suspicious, check the [Actions runs](https://github.com/maw-agents/uritp-docs/actions).
-And the stamp itself can be cached — see the cache-buster note above.
+And **the stamp itself can be cached** — add `?x=1` to the URL before concluding
+anything (see AUTHORING-GATES → *Verifying a visibility change*).
 
 ---
 
 ## What breaks the build
 
-The list is deliberately short, and it keeps getting shorter. **Neither a broken link
-nor a missing gate key is on it any more**: both used to take the whole site stale
-over one page, and both now fail locally and loudly instead.
+The list is deliberately short and keeps getting shorter. **Neither a broken link nor a
+missing gate key is on it**: both used to take the whole site stale over one page, and
+both now fail locally and loudly instead.
 
 | # | Failure | Fails the deploy? | Why |
 |---|---|---|---|
 | 1 | Callout or tab body not indented four spaces | No, renders wrong | Content falls out of the box. |
 | 2 | Link to a missing, moved, or `hidden` page | **No, as of 2026-08-01** | Dead-link marker + link report. |
-| 3 | `status: gated` with no password at all | **No, as of 2026-08-01** | Content is dropped; the page shows an unavailable notice. |
-| 4 | `gates:` naming a group whose secret is not in the build env | **No, as of 2026-08-01** | Same. Reported in the run summary with the list of groups that DO exist. |
+| 3 | `status: gated` with no password at all | **No, as of 2026-08-01** | Content dropped; page shows an unavailable notice. |
+| 4 | `gates:` naming a group not in the keystore | **No, as of 2026-08-01** | Same. Run summary lists the groups that DO exist. |
 | 5 | No blank line before a table or list | No | Renders as one mashed paragraph. |
 | 6 | Two H1s on a page | No, renders wrong | Breaks the outline and the page title. |
 | 7 | Missing `status:` with no gated ancestor | No | The page silently will not build. |
 | 8 | Lowering `mkdocs-material` below 9.7 | **Yes** | `material.extensions.preview` does not exist there. |
-| 9 | A workflow change that trips an approval gate | **Worse than Yes** | The run reports `action_required` with zero jobs and simply never deploys. Test workflow edits on a branch. |
-
-~~Rows 3 and 4 used to read **Yes**.~~ Changed 2026-08-01 after a page was flipped to
-`gates:` before its secrets existed and froze every page on the site.
+| 9 | A workflow change that trips an approval gate | **Worse than Yes** | Reports `action_required` with zero jobs and never deploys. **Every PR now runs a build check** so this is caught on a branch. |
 
 ---
 
@@ -657,24 +344,20 @@ If you change any file this document describes, **update this file in the same P
 |---|---|---|
 | `mkdocs.yml` | Theme, features, extensions, hook order | An extension, plugin, or hook is added or removed |
 | `requirements.txt` | Build dependency floors | A floor moves, or a pinned feature changes |
-| `.github/workflows/deploy.yml` | The pre-wired gate key slots | A group name outside the pre-wired list is needed |
+| `.github/workflows/deploy.yml` | The keystore wiring + the PR build check | The keystore mechanism changes → **AUTHORING-GATES too** |
 | `docs/.nav.yml` | Top-level sidebar order | The add-a-page procedure changes |
 | `docs/<folder>/.nav.yml` | That section's displayed title | The per-folder title mechanism changes |
 | `docs/stylesheets/uritp.css` | Palette, headings, `.tbc`, `.gate`, print | A custom class is added, renamed, or dropped |
 | `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
-| `hooks/visibility.py` | `status:`, `listed:`, `gates:`, `inherit:`, encryption | Any status, inheritance, or gate behaviour changes |
 | `hooks/links.py` | `@id` resolution, backlinks, aliases, link report | Link syntax, a report kind, or backlink rules change |
 | `hooks/buildstamp.py` | The footer stamp | What the stamp shows changes |
-| `docs/javascripts/gate.js` | Browser-side unlock, the keyring | Crypto parameters or the unlock flow change |
+| **`hooks/visibility.py`** | Status, the keystore, encryption | → **[AUTHORING-GATES.md](AUTHORING-GATES.md)**, not here |
+| **`docs/javascripts/gate.js`** | Browser-side unlock, the keyring | → **[AUTHORING-GATES.md](AUTHORING-GATES.md)**, not here |
 
 A syntax rule described here with no extension behind it is worse than no
 documentation: it teaches something that silently renders as literal text. A status
 value the hook does not recognise is worse still: the page falls back to `hidden` and
 quietly disappears.
-
-**The two halves of the gate must change together.** `hooks/visibility.py` and
-`docs/javascripts/gate.js` share the cipher, the KDF and the iteration count. Change
-one without the other and every gated page fails to unlock with no readable error.
 
 **Hook order in `mkdocs.yml` is load-bearing.** `visibility.py` resolves status and
 drops `hidden` pages before `links.py` builds its id registry.
