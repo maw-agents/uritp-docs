@@ -1,0 +1,3 @@
+# Build dependencies for the docs site.
+# Also the file actions/setup-python hashes for its pip cache.
+mkdocs-material>=9.5,<10
