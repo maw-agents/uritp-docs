@@ -26,6 +26,20 @@ wrapped CEK is ~100 bytes, so page weight is effectively independent of how
 many groups can open it. The wrap list is SHUFFLED and unlabelled: which desk
 can open a document is itself information.
 
+A ONE-PAGE PASSWORD IS A FIRST-CLASS OPTION, not a leftover
+
+    status: gated
+    password: rehearsal26
+
+A literal `password:` locks that one page and nothing else. It is deliberately
+trivial to add and to delete -- one line, no secret to update, no group to
+invent, nothing else on the site affected. Use it for a page that needs a lock
+for a fortnight. Use a `gates:` group for a lock that outlives the page, or for
+anything that must survive a rotation. ONE CAVEAT, and it is the whole reason
+the keystore exists: a literal password is committed to the repository in
+plaintext and stays in git history forever, so it must never be a password that
+opens anything else.
+
 =======================================================================
 WHERE A GROUP NAME FINDS ITS PASSWORD -- two tiers, and the name never
 changes shape
@@ -68,12 +82,41 @@ rule, and the URITP_GATE_STRICT collision that rule existed to prevent. The
 derivation survives ONLY inside the hatch, where a real environment variable
 name is unavoidable.
 
-FOLDER INHERITANCE
-**A gated `index.md` locks its whole subtree.** Every page beneath it inherits
-the same keys and is genuinely encrypted -- not merely hidden from the sidebar,
-which would leave every child readable by direct URL while looking protected.
-The nearest gated ancestor wins; a page overrides by declaring its own
-`status:` (any value) or `inherit: false`. Only silence inherits.
+=======================================================================
+THE FOLDER WATERFALL  (precedence FLIPPED 2026-08-01, Michael)
+=======================================================================
+
+**A gated `index.md` locks its whole subtree, at any depth, and it BEATS what
+the child page declared.** Dropping an index.md into a folder IS the switch:
+folders that have one are locked as a unit, folders that do not are ordinary.
+Every page beneath a locked index is genuinely encrypted, not merely hidden
+from the sidebar -- which would leave every child readable by direct URL while
+looking protected.
+
+    docs/safety/index.md         status: gated   <- the switch
+    docs/safety/test.md          status: public  <- LOCKED ANYWAY, and reported
+    docs/safety/keys/master.md   (silent)        <- locked, at any depth
+
+~~A page overrides by declaring its own `status:` (any value) or
+`inherit: false`. Only silence inherits.~~ REVERSED on the day it shipped: it
+meant `status: public` on one child quietly punched a hole in a locked safety
+section, and the page that did it looked completely normal. The folder is now
+the stronger statement.
+
+Two things the waterfall deliberately CANNOT do:
+
+  * It cannot publish a `hidden` page. `hidden` is the author saying "this is
+    not finished"; a rule whose entire job is to RAISE protection must never
+    be the reason something reached a reader.
+  * It cannot be silent. `inherit: false` is the one escape hatch, it is one
+    greppable line, and every page whose declared status was overruled is
+    REPORTED BY NAME at build time. An override nobody can see would just be
+    the old defect wearing the other mask.
+
+KEYS UNDER THE WATERFALL: a locked child KEEPS its own `password:`/`gates:`
+and GAINS the parent's. Any one of them opens the page, which the envelope
+already supported, so a local one-page password stays a one-line thing to add
+and delete without disturbing the folder key.
 
 A MISSING KEY LOCKS THE PAGE, IT DOES NOT FREEZE THE SITE
 A gated page naming a group with no password behind it publishes as an
@@ -93,15 +136,15 @@ unverified as of 2026-08-01, so this file simply never emits one.
 NONE of this is access control while the repository is public. The markdown
 source of every page, INCLUDING a gated page's plaintext, is readable at
 github.com by anyone. The keystore keeps PASSWORDS out of the repo; it does
-not keep CONTENT out. See AUTHORING.md -> "What the gate actually does".
+not keep CONTENT out. See AUTHORING-GATES.md -> "What the gate actually does".
 
 📋 The readable copy of the keys lives in the ClickUp Accounts task, linked
-from AUTHORING.md -> Adding a key group. A secret cannot be read back, so
-that task is the master and this build is the copy.
+from AUTHORING-GATES.md -> Adding a key group. A secret cannot be read back,
+so that task is the master and this build is the copy.
 
-Wired in mkdocs.yml under `hooks:`. Documented in AUTHORING.md. Its browser
-half is docs/javascripts/gate.js: the two share the cipher, the KDF and the
-iteration count, so they change in the SAME PR or every gated page fails to
+Wired in mkdocs.yml under `hooks:`. Documented in AUTHORING-GATES.md. Its
+browser half is docs/javascripts/gate.js: the two share the cipher, the KDF and
+the iteration count, so they change in the SAME PR or every gated page fails to
 unlock with no error anyone can read.
 """
 
@@ -141,6 +184,7 @@ _store_notes = []   # parse warnings, safe to print (names only)
 _status = {}
 _keys = {}
 _unconfigured = {}
+_overridden = {}    # src_uri -> (status it declared, the index that overruled)
 _nolist = set()
 _inherited = set()
 _noindex_paths = set()
@@ -213,7 +257,8 @@ def _read_meta(abs_path):
 
 def _declared_status(meta):
     """The page's OWN status, or None if it did not declare one. Distinguishing
-    'said nothing' from 'said hidden' is what makes inheritance possible."""
+    'said nothing' from 'said hidden' is what makes the waterfall safe: silence
+    inherits, `hidden` is never overruled."""
     raw = meta.get("status")
     if raw is None:
         return None
@@ -238,6 +283,11 @@ def _gate_names(meta):
     if isinstance(names, str):
         names = [names]
     return [str(n).strip().lower() for n in names if str(n).strip()]
+
+
+def _has_own_keys(meta):
+    """Did this page bring key material of its own to the party?"""
+    return bool(meta.get("password")) or bool(_gate_names(meta))
 
 
 def _hatch_var(name):
@@ -272,8 +322,13 @@ def _available():
     return sorted(found)
 
 
-def _resolve_keys(meta, src_uri):
-    """Return (passwords, problems). Never raises unless URITP_GATES_STRICT=1.
+def _resolve_keys(metas, src_uri):
+    """Return (passwords, problems) for a LIST of key sources, nearest first.
+
+    More than one source is the normal case under the waterfall: a locked child
+    contributes its own local password and the locking index contributes the
+    folder key, and either one opens the page. Never raises unless
+    URITP_GATES_STRICT=1.
 
     `problems` non-empty means this page cannot be published at all: it is
     rendered as an unopenable notice rather than encrypted, and reported.
@@ -281,18 +336,19 @@ def _resolve_keys(meta, src_uri):
     found = []
     missing = []
 
-    literal = meta.get("password")
-    if literal:
-        found.append(str(literal))
+    for meta in metas:
+        literal = meta.get("password")
+        if literal:
+            found.append(str(literal))
 
-    for name in _gate_names(meta):
-        password, note = _password_for(name)
-        if note and note not in _store_notes:
-            _store_notes.append(note)
-        if password:
-            found.append(password)
-        else:
-            missing.append(name)
+        for name in _gate_names(meta):
+            password, note = _password_for(name)
+            if note and note not in _store_notes:
+                _store_notes.append(note)
+            if password:
+                found.append(password)
+            elif name not in missing:
+                missing.append(name)
 
     problems = []
     if missing:
@@ -313,7 +369,8 @@ def _resolve_keys(meta, src_uri):
         raise ValueError(src_uri + ": " + "; ".join(problems))
 
     # Two groups sharing one password would ship two wraps that both open,
-    # which leaks that they are the same secret.
+    # which leaks that they are the same secret. Deduping also means a child
+    # repeating its parent's password costs nothing.
     seen = set()
     unique = []
     for value in found:
@@ -388,12 +445,12 @@ def on_files(files, config):
     """Load the keystore, resolve status for every page, THEN drop what must
     not be built.
 
-    Two passes over the pages, because inheritance cannot be decided while
+    Two passes over the pages, because the waterfall cannot be decided while
     still walking: a folder's index.md may be read after one of its children.
     """
     _load_keystore()
 
-    for store in (_status, _keys, _unconfigured):
+    for store in (_status, _keys, _unconfigured, _overridden):
         store.clear()
     _nolist.clear()
     _inherited.clear()
@@ -418,15 +475,26 @@ def on_files(files, config):
             kept.append(f)
 
     for f, meta in pages:
-        status = _declared_status(meta)
-        source_meta, source_uri = meta, f.src_uri
+        declared = _declared_status(meta)
+        status = declared
+        source_uri = f.src_uri
 
-        # Inherit only when the page said nothing about its own status. A page
-        # that declares anything -- even `public` -- has made a decision.
-        if status is None and not _opted_out(meta):
+        # A page's own key material always counts, even when a parent locks it.
+        # That is what keeps a one-page local password a one-line thing.
+        key_metas = [meta] if _has_own_keys(meta) else []
+
+        # THE WATERFALL. The nearest gated index.md wins over whatever this page
+        # declared -- see the module docstring for why that precedence flipped.
+        # `hidden` is the one status it may not overrule: this rule raises
+        # protection and must never be the reason a page got published.
+        if declared != "hidden" and not _opted_out(meta):
             for folder in _ancestors(f.src_uri):
                 if folder in folder_gate and folder_gate[folder][1] != f.src_uri:
-                    source_meta, source_uri = folder_gate[folder]
+                    parent_meta, parent_uri = folder_gate[folder]
+                    if declared is not None and declared != "gated":
+                        _overridden[f.src_uri] = (declared, parent_uri)
+                    key_metas.append(parent_meta)
+                    source_uri = parent_uri
                     status = "gated"
                     _inherited.add(f.src_uri)
                     break
@@ -440,13 +508,15 @@ def on_files(files, config):
             continue
 
         if status == "gated":
-            passwords, problems = _resolve_keys(source_meta, source_uri)
+            passwords, problems = _resolve_keys(key_metas or [meta], source_uri)
             if problems:
                 _unconfigured[f.src_uri] = problems
             else:
                 _keys[f.src_uri] = passwords
 
-        if _is_unlisted(meta, status):
+        # Listing is judged on what the page ITSELF said. Being locked by a
+        # parent must not quietly drag an `unlisted` page back into the nav.
+        if _is_unlisted(meta, declared or status):
             _nolist.add(f.src_uri)
             f.inclusion = InclusionLevel.NOT_IN_NAV
 
@@ -464,8 +534,8 @@ def on_nav(nav, config, files):
     Belt and braces: awesome-nav builds navigation from scratch rather than
     filtering what MkDocs generates, so it may not honour InclusionLevel.
 
-    Inherited-gated children are deliberately LEFT in the sidebar: they are
-    genuinely encrypted, so showing them is honest.
+    Pages locked by a parent index are deliberately LEFT in the sidebar: they
+    are genuinely encrypted, so showing them is honest.
     """
 
     def prune(items):
@@ -508,7 +578,7 @@ def _notice(problems):
         '<p class="gate__label">Unavailable</p>'
         '<p class="gate__note">This page is restricted and its key has not been '
         'set up yet, so it cannot be opened by anyone. Nothing is missing from '
-        'the page itself. Ask production management, or see AUTHORING.md '
+        'the page itself. Ask production management, or see AUTHORING-GATES.md '
         '&rarr; Adding a key group.</p>'
         '<p class="gate__error">' + "; ".join(problems) + '</p>'
         '</div>'
@@ -565,6 +635,14 @@ def on_post_page(output, page, config):
     return output.replace("<head>", "<head>" + NOINDEX, 1)
 
 
+def _summary(lines):
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not path:
+        return
+    with open(path, "a", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+
+
 def _report():
     """Loud, because the whole point of not failing the build is that the
     problem must not become invisible instead.
@@ -581,6 +659,28 @@ def _report():
     if _inherited:
         print("gate: " + str(len(_inherited)) + " page(s) locked by a parent index")
 
+    # The waterfall overruling a page is legitimate and expected. It is
+    # reported anyway, by name: an override you cannot see is the same class of
+    # defect as the hole the override closed.
+    if _overridden:
+        print("gate: " + str(len(_overridden)) + " page(s) OVERRULED by a parent index:")
+        for src, (was, parent) in sorted(_overridden.items()):
+            print("  " + src + " -- declared '" + was + "', locked by " + parent)
+        lines = [
+            "### 🔒 Locked by a parent index",
+            "",
+            "These pages declared their own status and the folder's gated "
+            "`index.md` overruled it. This is the intended behaviour -- the "
+            "folder is the switch. Add `inherit: false` to a page that must "
+            "genuinely stand outside its folder's lock.",
+            "",
+            "| Page | It declared | Locked by |",
+            "|---|---|---|",
+        ]
+        for src, (was, parent) in sorted(_overridden.items()):
+            lines.append("| `" + src + "` | `" + was + "` | `" + parent + "` |")
+        _summary(lines + [""])
+
     if not _unconfigured:
         return
 
@@ -591,8 +691,7 @@ def _report():
     for src, problems in sorted(_unconfigured.items()):
         print("  " + src + " -- " + "; ".join(problems))
 
-    summary = os.environ.get("GITHUB_STEP_SUMMARY")
-    if not summary:
+    if not os.environ.get("GITHUB_STEP_SUMMARY"):
         return
 
     # Distinguish "no keystore at all" from "keystore present but this group
@@ -630,10 +729,9 @@ def _report():
         "`name = password` line (**Settings -> Secrets and variables -> "
         "Actions**). The readable copy of that block lives in the ClickUp "
         "Accounts task -- update it there first, then paste. "
-        "See AUTHORING.md -> Adding a key group.",
+        "See AUTHORING-GATES.md -> Adding a key group.",
     ]
-    with open(summary, "a", encoding="utf-8") as fh:
-        fh.write("\n".join(lines) + "\n")
+    _summary(lines)
 
 
 def on_post_build(config):
