@@ -1,0 +1,60 @@
+{
+  "_README": [
+    "THE EDGES. Corner rounding, line weights, shadow, motion, focus ring.",
+    "",
+    "AN ABSENT KEY INHERITS. A PRESENT KEY WINS.",
+    "",
+    "`shadow: none` is a real value, not an absent one -- writing it out is how",
+    "you say 'deliberately off' rather than 'not mentioned'.",
+    "`focus-w` is the keyboard focus ring. Never 0.",
+    "",
+    "Full reference: theme/README.md"
+  ],
+
+  "_base": {
+    "note": "The fallback every other row lands on. Must be complete.",
+    "radius": "3px",
+    "radius-lg": "4px",
+    "border-w": "1px",
+    "rule-w": "1px",
+    "bar-w": "2px",
+    "shadow": "none",
+    "motion": "120ms",
+    "ease": "cubic-bezier(.2,.7,.2,1)",
+    "focus-w": "2px",
+    "icon-dim": ".55"
+  },
+
+  "hairline": {
+    "note": "The house feel. Barely rounded, flat, one-pixel rules. A reference database, not a card UI.",
+    "radius": "3px",
+    "radius-lg": "4px",
+    "border-w": "1px",
+    "rule-w": "1px",
+    "bar-w": "2px",
+    "shadow": "none",
+    "motion": "120ms",
+    "ease": "cubic-bezier(.2,.7,.2,1)",
+    "focus-w": "2px",
+    "icon-dim": ".55"
+  },
+
+  "square": {
+    "note": "No rounding anywhere. Reads as a printed form.",
+    "inherits": "hairline",
+    "radius": "0",
+    "radius-lg": "0",
+    "bar-w": "3px",
+    "motion": "100ms"
+  },
+
+  "soft": {
+    "note": "Rounded and lifted. Included so the difference is visible, not because this site wants it. NOT the ClickUp_apps `soft` preset -- that one also carries an elevation scale and a motion set this repo never ported.",
+    "inherits": "hairline",
+    "radius": "8px",
+    "radius-lg": "12px",
+    "shadow": "0 2px 8px rgba(0,0,0,.18)",
+    "motion": "150ms",
+    "ease": "cubic-bezier(.16,1,.3,1)"
+  }
+}
