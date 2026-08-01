@@ -1,5 +1,6 @@
 ---
-title: safety test page
+title: Safety test page
+id: safety-test-1
 status: public
 ---
 
@@ -59,8 +60,8 @@ Plain paragraph. Blank line between every block: paragraphs, lists, headings, ta
 
 ## Related
 
-- [Safety and health](index.md)
-- [Smith Theatre](../venues/smith-theatre.md)
+- [Safety and health](@safety)
+- [Smith Theatre](@smith-theatre)
 
 ---
 
