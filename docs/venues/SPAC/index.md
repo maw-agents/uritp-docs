@@ -15,9 +15,7 @@ The mainstage performance building; theatre inside = Smith Theatre.
      Body MUST be indented four spaces. That is the whole trick. -->
 
 !!! note "Naming Terminology"
-    Placeholder wording while the page is still `hidden`. Say what is
-    missing and who to ask in the meantime.
-    We will call the *building* and the *theatre* "SPAC" for short.
+    Both the *building* and the *theatre* will be called "SPAC" for short.
 
 ## Venues and Spaces
 
