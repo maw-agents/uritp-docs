@@ -66,20 +66,29 @@ gates: [psm, supervisors]
 no page has to change. `password:` in frontmatter stays supported for a throwaway
 draft and stays documented as **publishing the password**.
 
-Each name reads `URITP_GATE_<NAME>` from the build environment. That answers the
-"select layouts/files" half directly: a supervisor key on venue pages, a PSM key on
-lock-up procedures, a designer key on paperwork standards, and pages that want two
-just name two.
+~~Each name reads `URITP_GATE_<NAME>` from the build environment.~~ **Superseded
+2026-08-01:** names resolve from the `URITP_GATE_KEYS` container secret with no
+transformation at all, and the per-group variable survives only as the rotation
+hatch. See AUTHORING-GATES.
+
+That answers the "select layouts/files" half directly: a supervisor key on venue
+pages, a PSM key on lock-up procedures, a designer key on paperwork standards, and
+pages that want two just name two.
 
 ### Hard requirements, each earned tonight
 
-1. **A named gate with no secret in the environment FAILS THE BUILD.** Not a warning.
-   The current single-key path already raises, and multi-key must not soften it: the
-   failure mode is a page everyone believes is locked shipping wide open, which is
-   exactly the thing we spent an hour chasing on 2026-08-01.
+1. ~~**A named gate with no secret in the environment FAILS THE BUILD.** Not a
+   warning.~~ **REVERSED 2026-08-01, same night.** Failing the build took the entire
+   site stale over one page's missing config, and a frozen site pressures whoever is
+   debugging it into reverting the gate to get the deploy back — which is how a locked
+   page ends up public at 2am. A missing key now DROPS the content and locks that one
+   page. `URITP_GATES_STRICT=1` restores hard-fail. The concern behind the original
+   rule was right; the remedy was the wrong shape.
 2. **`visibility.py` and `gate.js` change in the SAME PR.** They share the cipher, the
-   KDF and the iteration count. AUTHORING already says this. Change one and every
-   gated page fails to unlock with no readable error.
+   KDF and the iteration count. Change one and every gated page fails to unlock with
+   no readable error. **Scope clarified 2026-08-01:** this binds the CRYPTO. A DOM-only
+   change to `gate.js` (a heading tidy-up, an ARIA attribute) does not fire it and is
+   documented in AUTHORING-LOOK instead.
 3. **A wrapped-key list must not leak the group names to the reader.** Ship the wraps
    as an unlabelled array. Which desk can open a document is itself information.
 4. **Verify with a cache-buster after deploying.** A plain reload of a gated page
@@ -122,22 +131,53 @@ report, and a report that is never clean stops being read.
 
 ---
 
-## 3. Gated pages lose their own H1 and inherit the frontmatter title
+## 3. Headings on a gated page
 
-**Status: Scratch.** Observed on `safety/todd-lockup-procedure`: the source H1 reads
-`# Todd Lock-up 🔐 Procedure`, the served page shows **Todd Lock-up**.
+**Status: In review — the visible half is FIXED, one cosmetic remnant is still open.**
 
-Not a bug in the gate. The gate replaces the rendered body, so no `<h1>` survives into
-the content, and Material's fallback injects `page.title` (the frontmatter `title:`)
-in its place. Two consequences:
+Original observation, 2026-08-01: on `safety/todd-lockup-procedure` the source H1 reads
+`# Todd Lock-up 🔐 Procedure` and the served page shows **Todd Lock-up**.
 
-- A gated page's visible heading comes from `title:`, while a public page's comes from
-  its H1. Two pages authored identically render different headings purely because one
-  is gated, which is exactly the inconsistency Michael noticed.
-- The skip-to-content link still points at `#todd-lock-up-procedure`, an anchor built
-  from the original H1 and no longer present in the DOM. Harmless, but it is a dead
-  anchor shipped on every gated page.
+The mechanism was diagnosed correctly. The gate replaces the rendered body, so no
+`<h1>` survives into the content and Material's fallback injects `page.title` in its
+place. A gated page's heading therefore comes from `title:` while a public page's comes
+from its H1.
 
-Cheapest fix: have `visibility.py` emit an `<h1>` carrying the page title above the
-lock box, so the heading source is the same whether or not a page is gated. Needs a
-look at whether that then double-renders under Material's fallback check.
+### 🔴 What this spec got wrong, kept visible rather than deleted
+
+> ~~Cheapest fix: have `visibility.py` emit an `<h1>` carrying the page title above the
+> lock box, so the heading source is the same whether or not a page is gated. Needs a
+> look at whether that then double-renders under Material's fallback check.~~
+
+**That fix would have shipped the bug it was worried about — and the bug was already
+live by a different route.** Material's fallback fires when the *built* content holds
+no `<h1>`, which it does not. Then `gate.js` inserts the decrypted body, which carries
+the page's real `<h1>`. **The reader saw the title twice, every time, on every gated
+page — but only after unlocking.** Michael's screenshot showed it plainly.
+
+It hid for a day because *the built page is right and the live page is right*, right up
+until somebody types the password. Any verification that stopped short of unlocking was
+structurally incapable of finding it.
+
+**Fixed 2026-08-01:** `reveal()` in `gate.js` drops the injected heading and keeps the
+authored one, identified by what it structurally lacks — Material injects a bare `<h1>`
+with no `id`, while an authored heading gets an `id` and a `.headerlink` from the `toc`
+extension. See AUTHORING-LOOK → *Two `gate.js` behaviours documented here*.
+
+### Still open
+
+**Before unlocking, *Skip to content* on a gated page points at an anchor that is not
+in the DOM.** It is built from the original H1, which does not exist until the page is
+unlocked; after unlocking it resolves correctly. Cosmetic, keyboard-only, and the fix
+(teaching `visibility.py` to carry the anchor onto the lock box) touches the gate for
+a benefit measured in one tab press. Logged, not scheduled.
+
+---
+
+## 4. Sidebar cascade — hide a section's children until its index unlocks
+
+**Status: Futures.** Asked for 2026-08-01 and deliberately not built. A hidden nav
+entry implies protection it does not provide: the children stay reachable by direct
+URL and stay in search. Folder gate *inheritance* shipped instead, which is real
+encryption, so the sidebar can stay honest. Revisit only as a convenience layer on
+top of per-page gates, never as a substitute.

@@ -14,9 +14,9 @@ as a reader-facing page: it documents the machine, not the theatre.
 🔒 **Gates, keys and page visibility live in [AUTHORING-GATES.md](AUTHORING-GATES.md)**
 (`hooks/visibility.py` + `docs/javascripts/gate.js`).
 
-🎨 **Theme, colour, type, spacing and search behaviour live in
+🎨 **Theme, colour, type, chrome and search behaviour live in
 [AUTHORING-LOOK.md](AUTHORING-LOOK.md)** (`theme.yml` + `hooks/theme.py` +
-`docs/stylesheets/`).
+`hooks/pagefoot.py` + `docs/stylesheets/`).
 
 Both were split out 2026-08-01 for the same reason: there is no partial-edit path
 through this toolchain, so every change re-emits the whole file, and a 29KB canonical
@@ -118,8 +118,9 @@ inconsistent without either being wrong:
 
 So `title: safety test page` with `# Safety test page` gives a lowercase sidebar entry
 and a capitalised page heading. **Keep them the same unless you mean it.** The
-exception is a **gated** page, which has no H1 to show — the gate replaces the body, so
-Material falls back to `title:`.
+exception is a **gated** page: while it is locked it has no H1 to show, so Material
+falls back to `title:`. Unlock it and the authored H1 takes over. Keeping the two
+spellings identical is what stops the heading appearing to change as you unlock.
 
 ---
 
@@ -198,17 +199,11 @@ Link Safety → Smith Theatre once, and Smith Theatre gains a link back on its o
   report. **Not an error** — a section landing page is reached from the sidebar.
 - Kill switch: `URITP_BACKLINKS=0` in the build environment.
 
-### Instant previews (desktop)
-
-Hovering an internal link shows a card previewing the target. Enabled in `mkdocs.yml`
-via `material.extensions.preview`, free as of Material 9.7 — which is why
-`requirements.txt` floors there.
-
-⚠️ **A desktop-only nicety, never the mechanism.** It fires on hover and focus, and
-there is no hover on a phone. The thing that works everywhere is `Linked from`.
-
-A preview over a `gated` link shows the unlock box, not the content: the preview
-fetches the **built** page, which holds only the form plus ciphertext.
+⚠️ ~~Instant previews (`material.extensions.preview`) show a hover card of the target
+page on desktop.~~ **Removed 2026-08-01.** It attached to every internal link
+including the navigation and marked each one with an icon, on a site read mostly from
+a phone, where hover does not exist and the preview can never fire. `Linked from` is
+the mechanism that works everywhere. Reasoning in AUTHORING-LOOK → *The chrome*.
 
 ### What a broken link looks like
 
@@ -327,9 +322,10 @@ both now fail locally and loudly instead.
 | 5 | No blank line before a table or list | No | Renders as one mashed paragraph. |
 | 6 | Two H1s on a page | No, renders wrong | Breaks the outline and the page title. |
 | 7 | Missing `status:` with no gated ancestor | No | The page silently will not build. |
-| 8 | Lowering `mkdocs-material` below 9.7 | **Yes** | `material.extensions.preview` does not exist there. |
+| 8 | Lowering `mkdocs-material` below 9.7 | No, **as of 2026-08-01** | It was a hard failure while `material.extensions.preview` was enabled; that extension is gone. The floor stays because below it is missing features for no gain. |
 | 9 | A workflow change that trips an approval gate | **Worse than Yes** | Reports `action_required` with zero jobs and never deploys. **Every PR now runs a build check** so this is caught on a branch. |
-| 10 | An `active:` theme or a token that does not resolve in `theme.yml` | **Yes, deliberately** | A theme has no single page to fail on, and a silent fallback to the wrong design is the invisible failure this repo's other rules exist to prevent. Caught on the branch. See AUTHORING-LOOK. |
+| 10 | An `active:` theme, a vector row, or a token that does not resolve in `theme.yml` | **Yes, deliberately** | A theme has no single page to fail on, and a silent fallback to the wrong design is the invisible failure this repo's other rules exist to prevent. Caught on the branch. See AUTHORING-LOOK. |
+| 11 | A colon-plus-space inside an unquoted `note:` in `theme.yml` | **Yes** | YAML reads it as a nested mapping and the whole parse dies, pointing at the wrong line. Quote it. |
 
 ---
 
@@ -337,7 +333,8 @@ both now fail locally and loudly instead.
 
 No git, no terminal, nothing installed. Works from a phone.
 
-1. Open the page on the live site, click **Edit this page** at the bottom.
+1. Open the page on the live site, scroll to the bottom, click **Edit this page on
+   GitHub**.
 2. Edit the markdown. Commit.
 3. Wait about ninety seconds.
 4. **Check the footer stamp.** If it is not your edit, the build failed.
@@ -361,16 +358,18 @@ If you change any file this document describes, **update this file in the same P
 | `hooks/buildstamp.py` | The footer stamp | What the stamp shows changes |
 | **`theme.yml`** | The four theme vectors | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
 | **`hooks/theme.py`** | Token composition + validation | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
+| **`hooks/pagefoot.py`** | The page-foot edit link | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
 | **`docs/stylesheets/*`** | Every rule on the site | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)** — **except** a renamed author-typed class like `.tbc`, which belongs in both |
 | **`hooks/visibility.py`** | Status, the keystore, encryption | → **[AUTHORING-GATES.md](AUTHORING-GATES.md)**, not here |
-| **`docs/javascripts/gate.js`** | Browser-side unlock, the keyring | → **[AUTHORING-GATES.md](AUTHORING-GATES.md)**, not here |
+| **`docs/javascripts/gate.js`** | Browser-side unlock, the keyring | → **[AUTHORING-GATES.md](AUTHORING-GATES.md)**, not here. DOM-only changes go to AUTHORING-LOOK. |
 
 A syntax rule described here with no extension behind it is worse than no
 documentation: it teaches something that silently renders as literal text. A status
 value the hook does not recognise is worse still: the page falls back to `hidden` and
 quietly disappears.
 
-**Hook order in `mkdocs.yml` is load-bearing for the middle two.** `visibility.py`
-resolves status and drops `hidden` pages before `links.py` builds its id registry.
-`theme.py` and `buildstamp.py` touch neither the file list nor the markdown, so their
+**Hook order in `mkdocs.yml` is load-bearing for three of the five.** `visibility.py`
+resolves status and drops `hidden` pages before `links.py` builds its id registry, and
+`pagefoot.py` appends after `links.py` so the edit link lands below `Linked from`.
+`theme.py` and `buildstamp.py` touch neither the file list nor the page body, so their
 position does not matter.
