@@ -76,7 +76,7 @@ themes:
 #
 #  bg          the page
 #  surface-1   code blocks, inset panels
-#  surface-2   raised strips: callout headers, table row hover
+#  surface-2   raised strips: callout headers, table row hover, drawer header
 #  border      a line you are meant to SEE (inputs, table header underline)
 #  hairline    a line you are meant to barely notice (row rules, dividers)
 #  text        body copy
@@ -85,17 +85,19 @@ themes:
 #  accent      links, the active nav item, focus rings.  ONE colour, owned.
 #  accent-hover  its hover/press state
 #  on-accent   text sitting ON an accent fill (the Unlock button)
-#  chrome      ⭐ THE HEADER BANNER, and the drawer header on a phone. THIS IS
-#              THE ONE LINE for "make the top bar a different colour", and it
-#              is the whole reason the token exists. Every palette below sets
-#              it EQUAL TO bg, which is the deliberate flat house look: the
-#              header is the same ground as the page, separated by a rule
-#              rather than a block of colour. Give it a different value and
-#              the banner detaches from the page. If you take it somewhere far
-#              from a dark neutral, mirror it in mkdocs.yml -> theme.palette
-#              -> primary, which is the first-paint floor and the source of
-#              the mobile browser's own <meta theme-color>.
-#  on-chrome   text and icons sitting on the chrome
+#  chrome      ⭐ THE HEADER BANNER. The strip across the top of every page.
+#              Change this line and the banner repaints everywhere, without
+#              touching the page behind it. The house palettes set it EQUAL
+#              to `bg` because the house look is deliberately flat -- banner
+#              and page on one ground, separated by a hairline rather than a
+#              block of colour. That is now a CHOICE a palette makes, not a
+#              hard-wire in the stylesheet.
+#              ⚠️ Also mirror it into mkdocs.yml -> theme.palette.primary if
+#              you move it far from a dark neutral: Material derives the
+#              mobile browser chrome (<meta theme-color>) from that, and it
+#              paints before this file is read.
+#  on-chrome   text and icons sitting ON the banner. Must contrast with
+#              `chrome`, not with `bg`, the moment the two stop being equal.
 #  marker      [To be confirmed]{.tbc} and the gate label. Deliberately not the accent.
 #  bad         dead links, errors
 # ══════════════════════════════════════════════════════════════════════════
