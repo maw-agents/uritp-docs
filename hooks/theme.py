@@ -5,9 +5,10 @@ Reads the grids in ``theme/`` and injects the composed result into every page's
 ``<head>`` as ``--u-*`` custom properties. ``docs/stylesheets/uritp.css``
 consumes them and holds no literal colour, font, size or radius of its own.
 
-    theme/active.txt   ->  one slug
-    theme/themes.tsv   ->  that slug's row: colour x typography x forms x spacing
-    theme/*.tsv        ->  the four grids those four names point into
+    theme/active.txt   ->  one slug: the site default
+    theme/themes.tsv   ->  each slug's row: colour x typography x forms x spacing
+    theme/*.tsv        ->  the four grids those names point into
+    a page's `theme:`  ->  that ONE page (or folder) wears a different one
 
 WHY GRIDS AND NOT ONE YAML FILE (changed 2026-08-01, Michael)
 The values are a table and a table belongs in a table. ``theme.yml`` held all
@@ -37,34 +38,61 @@ row resolves against. ``_default`` is the join's equivalent.
 [!] An empty cell is INHERIT, never "nothing". A token that wants to be off
 says so with a real value: ``shadow`` is the word ``none``, not a blank.
 
-THE WEBFONT SEAM IS CLOSED (2026-08-01) -- this hook now writes the config
-Until today the typography grid said which family the CSS ASKED FOR while
-``mkdocs.yml -> theme.font`` said which family Material DOWNLOADED, in a
-different file, kept in agreement by hand. Point one at a family the other had
-not been told to fetch and the page silently rendered the next entry in the
-fallback stack, with no error anywhere. It was documented as "a seam that
-cannot be closed." It can: ``on_config`` runs before any template renders, so
-the grid simply SETS ``theme.font`` from its own ``webfont-text`` and
-``webfont-code`` columns. One file decides, so the two cannot disagree.
+=======================================================================
+THE SKIN WATERFALL -- a page or a folder can wear its own theme
+=======================================================================
 
-    webfont-text = IBM Plex Sans      download it
-    webfont-text = none               download nothing (system fonts only)
+    ---
+    title: Electrics
+    theme: utility          # this page, or this whole folder from its index.md
+    ---
 
-These two columns are the only ones that are NOT emitted as CSS -- they
-configure Material rather than describing a style. ``NOT_CSS`` holds them.
+A gated ``index.md`` locks its subtree; a THEMED ``index.md`` skins its
+subtree the same way. Every theme in ``themes.tsv`` is composed at config
+time, so picking one per page is a dictionary lookup, not extra work.
 
-WHY A BAD NAME STILL FAILS THE BUILD
+⚠️⚠️ THERE ARE NOW TWO WATERFALLS AND THEY RUN IN OPPOSITE DIRECTIONS. Do not
+unify them, and do not "make them consistent":
+
+    THE LOCK waterfall (hooks/visibility.py)   PARENT WINS.
+        A lock you can undo by accident, in a file nobody is looking at,
+        is not a lock.
+
+    THE SKIN waterfall (this file)             CHILD WINS.
+        A skin is a preference. Nothing is at risk, so the more specific
+        statement is the one to honour.
+
+The asymmetry is the point: precedence follows CONSEQUENCE, not symmetry. The
+day somebody merges these into one "inheritance" concept is the day a locked
+page quietly publishes.
+
+``theme: default`` is the escape -- it means "whatever active.txt says", so a
+page can stand outside a themed folder without hard-coding the site theme's
+name (which would rot the moment ``active.txt`` changed).
+
+A NAME THAT DOES NOT RESOLVE FALLS BACK, IT DOES NOT FAIL THE BUILD, and that
+is the opposite of the rule for ``active.txt`` -- for a reason. A bad global
+theme has no page to fail on: it is the whole site or nothing, so it must
+stop the build. A bad PAGE theme has exactly one page to fail on, so it does
+what every other local failure here does: renders anyway, wearing the site
+theme, and reports itself by name.
+
+⚠️ ONE THING A PAGE THEME CANNOT CHANGE: WHICH WEBFONT IS DOWNLOADED.
+Material's font loader is global config, not per page. A parked theme whose
+typography row names a family the active theme does not load is REPORTED at
+build time, because the symptom -- one page silently rendering in the fallback
+font -- is invisible to every other check we have.
+
+WHY A BAD ``active.txt`` NAME STILL FAILS THE BUILD
 The house rule is that failures should be local and visible, not global and
-silent -- a dead link marks one link, a missing gate key locks one page. A
-theme has no page to fail on: it is the whole site or nothing. And a theme
-that quietly fell back to something else is precisely the invisible failure
-that rule exists to prevent. So this raises, names the file, and lists what IS
-defined; the PR build check catches it on the branch before it reaches main.
+silent. See the paragraph above: the active theme is the one with nowhere
+local to fail. Parked themes that will not compose are reported and skipped,
+the same trade the contrast gate makes -- the active one must be perfect,
+parked ones only have to tell you.
 
 REQUIRED is owned HERE, not in the grids, and deliberately: the stylesheet is
 what consumes these names, so the code that pairs with the stylesheet is what
-knows which ones may not be missing. After the whole chain resolves, a token
-still absent fails BY NAME rather than rendering one element invisible.
+knows which ones may not be missing.
 
 Wired in mkdocs.yml under ``hooks:``. Documented in theme/README.md.
 ``hooks/contrast.py`` imports this module to reuse ``_read``, ``_index`` and
@@ -73,6 +101,10 @@ Wired in mkdocs.yml under ``hooks:``. Documented in theme/README.md.
 
 import csv
 import os
+import posixpath
+import re
+
+import yaml
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIR = os.path.join(ROOT, "theme")
@@ -93,8 +125,12 @@ DEFAULT = "_default"    # the same idea, one level up, inside themes.tsv
 META = {"slug", "mode", "inherits", "name", "note"}
 MAX_HOPS = 8
 
+# What a page writes to opt OUT of a themed folder and back to the site theme.
+# A word rather than the active theme's name, which would rot on the next swap.
+SITE = "default"
+
 # Required, but NOT written into the CSS: these configure Material's webfont
-# loader instead of describing a style. See THE WEBFONT SEAM above.
+# loader instead of describing a style. See THE WEBFONT SEAM in the README.
 NOT_CSS = {"webfont-text", "webfont-code"}
 OFF = "none"            # `webfont-text = none` means download nothing
 
@@ -127,7 +163,14 @@ MODES = {
     "light": "[data-md-color-scheme=default]",
 }
 
-_style = ""
+_FRONTMATTER = re.compile(rb"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
+
+_styles = {}        # theme slug   -> the <style> block for it
+_active = ""        # the site theme, from active.txt
+_page_theme = {}    # src_uri      -> the theme that page ASKED for
+_folder_theme = {}  # folder path  -> (slug, the index.md that said so)
+_unresolved = {}    # src_uri      -> a name that did not resolve
+_worn = {}          # src_uri      -> the theme actually applied
 _trace = []
 
 
@@ -270,6 +313,40 @@ def _block(selector, body):
     return selector + "{" + body + "}"
 
 
+def _vectors_for(slug, joins, fallback):
+    chosen = {}
+    row = joins[slug]
+    for vector in VECTORS:
+        name = row.get(vector) or fallback.get(vector)
+        if not name:
+            _fail(
+                JOIN,
+                "`" + slug + "` names no " + vector + " and `" + DEFAULT
+                + "` does not fill it either",
+            )
+        chosen[vector] = name
+    return chosen
+
+
+def _build(slug, chosen, tables):
+    """One theme -> one <style> block, and the typography it wants."""
+    css = []
+    for mode, selector in MODES.items():
+        tokens = _compose("color", tables["color"], chosen["color"], mode)
+        css.append(_block(selector, _declare(tokens, "color")))
+
+    root = ""
+    typography = None
+    for vector in ("typography", "forms", "spacing"):
+        tokens = _compose(vector, tables[vector], chosen[vector])
+        if vector == "typography":
+            typography = tokens
+        root += _declare(tokens, vector)
+    css.insert(0, _block(":root", root))
+
+    return '<style id="u-theme">' + "".join(css) + "</style>", typography
+
+
 def _apply_webfont(config, tokens):
     """Write the family names Material should DOWNLOAD, from the same grid row
     that decided which families the CSS asks for. This is the seam-closing
@@ -298,7 +375,7 @@ def _apply_webfont(config, tokens):
     return text + " + " + code
 
 
-def _active():
+def _read_active():
     """One slug. Blank lines and `#` comments are ignored, so the file can
     explain itself without the explanation becoming the theme name."""
     if not os.path.exists(ACTIVE):
@@ -322,69 +399,206 @@ def _active():
     return names[0]
 
 
-def on_config(config):
-    global _style
-    del _trace[:]
+# Kept for hooks/contrast.py, which asks the same question.
+def _active_slug():
+    return _read_active()
 
-    active = _active()
+
+_active_alias = _active_slug
+
+
+def _frontmatter_theme(abs_path):
+    """Just the `theme:` line out of a page's frontmatter.
+
+    ⚠️ This reads the file directly rather than using `page.meta`, because the
+    FOLDER waterfall has to know about every index.md before any page is
+    rendered, and MkDocs only parses a page's meta when it reaches that page.
+    hooks/visibility.py reads frontmatter the same way for the same reason;
+    they are two small parses of a generic format, not two claimants on one
+    truth, and sharing them would mean this hook depending on the gate that
+    runs after it.
+    """
+    try:
+        with open(abs_path, "rb") as fh:
+            head = fh.read(4096)
+    except OSError:
+        return ""
+    match = _FRONTMATTER.match(head)
+    if not match:
+        return ""
+    try:
+        meta = yaml.safe_load(match.group(1)) or {}
+    except yaml.YAMLError:
+        return ""
+    if not isinstance(meta, dict):
+        return ""
+    return str(meta.get("theme") or "").strip()
+
+
+def _ancestors(src_uri):
+    """Folder paths above this page, nearest first."""
+    parent = posixpath.dirname(src_uri)
+    parts = parent.split("/") if parent else []
+    out = []
+    while parts:
+        out.append("/".join(parts))
+        parts = parts[:-1]
+    out.append("")
+    return out
+
+
+def _wanted(src_uri):
+    """What this page ASKED to wear, and who asked. CHILD WINS -- see the
+    module docstring on the two waterfalls."""
+    own = _page_theme.get(src_uri)
+    if own:
+        return own, src_uri
+    for folder in _ancestors(src_uri):
+        if folder in _folder_theme and _folder_theme[folder][1] != src_uri:
+            slug, source = _folder_theme[folder]
+            return slug, source
+    return "", ""
+
+
+def on_config(config):
+    global _active
+    del _trace[:]
+    _styles.clear()
+
+    _active = _read_active()
     joins = {row["slug"]: row for row in _read(JOIN)}
 
-    if active.startswith("_"):
+    if _active.startswith("_"):
         _fail(
             "active.txt",
-            "`" + active + "` is a fallback row, not a theme. Available: "
+            "`" + _active + "` is a fallback row, not a theme. Available: "
             + _slugs(joins),
         )
-    theme = joins.get(active)
-    if theme is None:
+    if _active not in joins:
         _fail(
             "active.txt",
-            "`" + active + "` is not a row in " + JOIN + ". Available: "
+            "`" + _active + "` is not a row in " + JOIN + ". Available: "
             + _slugs(joins),
         )
-
-    fallback = joins.get(DEFAULT)
-    if fallback is None:
+    if DEFAULT not in joins:
         _fail(JOIN, "no `" + DEFAULT + "` row; it is what fills empty cells")
 
-    chosen = {}
-    for vector in VECTORS:
-        name = theme.get(vector) or fallback.get(vector)
-        if not name:
-            _fail(
-                JOIN,
-                "`" + active + "` names no " + vector + " and `" + DEFAULT
-                + "` does not fill it either",
-            )
-        chosen[vector] = name
+    fallback = joins[DEFAULT]
+    tables = {v: _index(v, GRID[v]) for v in VECTORS}
 
-    css = []
-    palette = _index("color", GRID["color"])
-    for mode, selector in MODES.items():
-        tokens = _compose("color", palette, chosen["color"], mode)
-        css.append(_block(selector, _declare(tokens, "color")))
-
-    root = ""
-    webfont = ""
-    for vector in ("typography", "forms", "spacing"):
-        tokens = _compose(vector, _index(vector, GRID[vector]), chosen[vector])
-        if vector == "typography":
-            webfont = _apply_webfont(config, tokens)
-        root += _declare(tokens, vector)
-    css.insert(0, _block(":root", root))
-
-    _style = '<style id="u-theme">' + "".join(css) + "</style>"
-
-    # Printed every build so a fallback that fired is VISIBLE in the log,
-    # rather than being the quiet thing nobody notices for a month.
-    print("theme: " + active + " = " + " x ".join(chosen[v] for v in VECTORS))
+    # The ACTIVE theme first, and strictly: it is the one with no page to fail
+    # on, so anything wrong with it stops the build.
+    chosen = _vectors_for(_active, joins, fallback)
+    style, typography = _build(_active, chosen, tables)
+    _styles[_active] = style
+    webfont = _apply_webfont(config, typography)
+    print("theme: " + _active + " = " + " x ".join(chosen[v] for v in VECTORS))
     for line in _trace:
         print(line)
     print("  webfont = " + webfont)
+
+    # Then every other theme, so a page can name one. A parked theme that will
+    # not compose is REPORTED and skipped rather than taking the site down --
+    # the same trade the contrast gate makes.
+    wanted_font = typography["webfont-text"]
+    for slug in sorted(joins):
+        if slug == _active or slug.startswith("_"):
+            continue
+        try:
+            other = _vectors_for(slug, joins, fallback)
+            _styles[slug], parked = _build(slug, other, tables)
+        except ValueError as problem:
+            print("::warning::theme: `" + slug + "` will not compose, so no "
+                  "page can wear it -- " + str(problem))
+            continue
+        # A page theme cannot change which webfont downloads: Material's font
+        # loader is global. A mismatch means one page silently renders in the
+        # fallback face, which no other check here can see.
+        if parked["webfont-text"] != wanted_font:
+            print(
+                "::warning::theme: `" + slug + "` wants the webfont `"
+                + parked["webfont-text"] + "` but the site loads `"
+                + wanted_font + "`. A page wearing `" + slug + "` gets its "
+                "sizes and colours but NOT its typeface."
+            )
+
+    print("theme: " + str(len(_styles)) + " theme(s) composed and available "
+          "to pages")
     return config
+
+
+def on_files(files, config):
+    """Note which pages, and which folders, asked for a theme. Runs before any
+    page is rendered, which is why the frontmatter is read directly."""
+    _page_theme.clear()
+    _folder_theme.clear()
+    _unresolved.clear()
+    _worn.clear()
+
+    for f in files:
+        if not f.is_documentation_page():
+            continue
+        slug = _frontmatter_theme(f.abs_src_path)
+        if not slug:
+            continue
+        _page_theme[f.src_uri] = slug
+        if posixpath.basename(f.src_uri) == "index.md" and slug != SITE:
+            _folder_theme[posixpath.dirname(f.src_uri)] = (slug, f.src_uri)
+    return files
 
 
 def on_post_page(output, page, config):
     """Last thing in <head>, so these declarations win any tie with Material's
     own scheme variables without needing a specificity trick."""
-    return output.replace("</head>", _style + "</head>", 1)
+    src = page.file.src_uri
+    slug, source = _wanted(src)
+
+    if slug and slug != SITE and slug not in _styles:
+        _unresolved[src] = (slug, source)
+        slug = ""
+    if not slug or slug == SITE:
+        slug = _active
+
+    if slug != _active:
+        _worn[src] = slug
+    return output.replace("</head>", _styles[slug] + "</head>", 1)
+
+
+def on_post_build(config):
+    """Report the skin waterfall. A page wearing something other than the site
+    theme is a deliberate choice and should be visible; a page that asked for
+    something that does not exist is a typo and must be."""
+    if _worn:
+        print("theme: " + str(len(_worn)) + " page(s) wearing another theme")
+        for src, slug in sorted(_worn.items()):
+            print("  " + src + " -> " + slug)
+
+    if not _unresolved:
+        return
+
+    print("theme: " + str(len(_unresolved)) + " page(s) asked for a theme that "
+          "does not exist, and are wearing `" + _active + "` instead:")
+    for src, (slug, source) in sorted(_unresolved.items()):
+        where = src if source == src else src + " (via " + source + ")"
+        print("::warning::theme: " + where + " asked for `" + slug + "`")
+
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary:
+        return
+    lines = [
+        "### ⚠️ Page themes that did not resolve",
+        "",
+        "These pages named a theme that is not a row in `theme/themes.tsv`, "
+        "or one that failed to compose. They rendered in the site theme "
+        "**`" + _active + "`** instead -- nothing is broken, but nobody got "
+        "the skin they asked for.",
+        "",
+        "| Page | Asked for | Named in |",
+        "|---|---|---|",
+    ]
+    for src, (slug, source) in sorted(_unresolved.items()):
+        lines.append(
+            "| `" + src + "` | `" + slug + "` | `" + source + "` |"
+        )
+    with open(summary, "a", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
