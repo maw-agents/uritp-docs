@@ -29,11 +29,11 @@ theme:
   # silent fallback. The seam is named in theme.yml -> VECTOR 2.
   font: {text: IBM Plex Sans, code: IBM Plex Mono}
 
-  # FIRST-PAINT FLOOR, NOT THE DESIGN. The real chrome colour is the colour
-  # vector in theme.yml, applied over the top. These two entries exist so the
+  # FIRST-PAINT FLOOR, NOT THE DESIGN. The real chrome colour is the `chrome`
+  # token in theme.yml, applied over the top. These two entries exist so the
   # scheme toggle works and so the mobile browser chrome (<meta theme-color>,
   # which Material derives from `primary`) is not bright indigo. Mirror the
-  # active palette here if you swap to something far from a dark neutral.
+  # active palette's `chrome` here if you take it far from a dark neutral.
   # First entry is the default, so the site opens DARK.
   palette:
     - scheme: slate
@@ -62,6 +62,27 @@ theme:
   #   answer, and it renders as an anchor with NO TEXT, which a screen reader
   #   announces as a raw URL. hooks/pagefoot.py renders a worded link at the
   #   foot of the page instead. Removed 2026-08-01, Michael.
+
+# ⚠️⚠️ `status:` IS A RESERVED MATERIAL KEY AND WE ALSO USE IT. READ THIS.
+#
+# hooks/visibility.py reads `status:` from page frontmatter to decide what
+# publishes. Material ALSO reads it, in partials/nav-item.html, and renders a
+# badge beside that page's title in the navigation:
+#
+#     {% if nav_item.meta and nav_item.meta.status %}
+#       {{ render_status(nav_item, nav_item.meta.status) }}
+#
+# It knows `new`, `deprecated` and `encrypted`; anything else gets the default
+# `information-outline` glyph. Our four values are all "anything else", so every
+# page carried an ⓘ and every index-less folder did not -- because a bare
+# section has no page meta to read.
+#
+# The badge is hidden in uritp.css (NAV). Two live consequences:
+#   * Do not name a page `status: new` or `status: deprecated` expecting our
+#     gate to understand it -- visibility.py treats an unknown value as `hidden`.
+#   * If a badge is ever WANTED, delete that CSS rule and add `extra.status`
+#     entries below for the tooltips. Material's shield-lock glyph
+#     (`--md-status--encrypted`) would fit `gated` exactly.
 
 extra_css: [stylesheets/uritp.css, stylesheets/links.css]
 extra_javascript: [javascripts/gate.js]   # client half of `status: gated`
@@ -95,11 +116,15 @@ markdown_extensions:
   - toc: {permalink: true}
 
   # material.extensions.preview (instant previews) was REMOVED 2026-08-01.
-  # It attaches to EVERY internal link, navigation included, and marks each one
-  # with a small icon. On a phone -- the primary reading surface here -- the
-  # preview itself can never fire, because it needs hover, so the site was
-  # carrying a row of icons advertising a feature that surface cannot use.
-  # The mechanism that works everywhere is `Linked from`, rendered by
-  # hooks/links.py. This reverses the same-day decision to ship previews as a
-  # desktop bonus; that call was right about desktop and wrong about the cost
-  # on mobile. Adding it back means accepting the nav icons.
+  #
+  # ⚠️ THE STATED REASON WAS WRONG AND IS CORRECTED HERE. The removal was
+  # argued on two grounds: (a) previews need hover and phones have none, and
+  # (b) the extension was putting an icon on every nav row. (b) IS FALSE. The
+  # icons survived the removal untouched, and they were Material's `status:`
+  # badge reading OUR OWN frontmatter -- see the block above. Recorded because
+  # a wrong reason left in a config file is how the next person re-derives it.
+  #
+  # (a) still stands on its own, so the removal STANDS: the primary reading
+  # surface here is a phone, and a desktop-only hover card is not worth a
+  # dependency. Adding it back is a live option and now costs nothing in nav
+  # icons. Re-read AUTHORING-LOOK.md -> The chrome first.
