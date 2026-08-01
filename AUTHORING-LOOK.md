@@ -229,29 +229,50 @@ the reason.
 |---|---|---|
 | The GitHub repo block | Name, star count and fork count in the header and at the top of the mobile drawer | It reported **0 stars, 0 forks** on a venue reference nobody stars. `repo_url` stays in `mkdocs.yml` — this hides the display, not the config, and `page.edit_url` is built from it. |
 | `content.action.edit` | A pencil icon top-right of every page | It reads as an invitation to edit a document whose job is to be the settled answer, and it rendered as an anchor with **no text at all** — a screen reader announced the raw URL. Replaced by `hooks/pagefoot.py`. |
-| `material.extensions.preview` | Hover card previewing a link's target | It attaches to **every** internal link including the navigation, and marks each one with a small icon. Previews need hover. Phones have no hover. So the primary reading surface was carrying a row of icons for a feature it can never use. `Linked from` is the mechanism that works everywhere. |
+| `material.extensions.preview` | Hover card previewing a link's target | Previews need hover and this site is read on a phone. **⚠️ The second reason once given — that it iconised every nav row — was WRONG; see below.** The removal stands on the hover argument alone, and adding it back now costs nothing in icons. |
+| The `status:` nav badge (hidden in CSS, not removed) | An ⓘ beside every page title in the sidebar | It was **our own frontmatter**. See below. |
 
-### The edit link
+### 🔴 The ⓘ on every nav row — a reserved key we did not know we were using
 
-`hooks/pagefoot.py` renders one worded line at the bottom of every page, below
-`Linked from`:
+**`status:` is a Material key. We also use it. Both at once.**
 
+Material's `partials/nav-item.html` finishes rendering a nav link with:
+
+```jinja
+{% if nav_item.meta and nav_item.meta.status %}
+  {{ render_status(nav_item, nav_item.meta.status) }}
+{% endif %}
 ```
-────────────────────────────
-Edit this page on GitHub
-```
 
-Words rather than an icon, on purpose: it is self-describing, it survives being
-read aloud, and it works if the icon font never loads. Kill switch
-`URITP_EDITLINK=0`. A page with no `edit_url` — a redirect stub, anything generated
-— gets no link rather than a broken one.
+It knows three values — `new`, `deprecated`, `encrypted` — and falls back to
+`--md-status`, the **information-outline** glyph, for anything else. Our four values
+are all "anything else". So every page carried an ⓘ, and `Venues` / `Production` /
+`Reference` did not, **because a folder with no `index.md` has no page meta to read.**
 
-⚠️ **Anything that describes the chrome to READERS lives in `docs/`, and nothing
-points at it.** Removing the pencil left `docs/using-these-docs.md` telling guest
-designers to click an icon that no longer existed, and the repo's pointer discipline
-did not catch it because every pointer runs *code → AUTHORING\*.md*. `mkdocs.yml` has
-no idea an orientation page documents its feature flags. **Turning a chrome feature
-on or off means grepping `docs/` for it too.**
+That is the whole pattern, and it is *also* exactly what instant previews would have
+looked like — which is how it got misdiagnosed on 2026-08-01 and cost a working
+feature. The icons outlived the removal untouched. Two clues were sitting there:
+removing the extension changed nothing, and the icons kept appearing on precisely
+the set of rows that have frontmatter.
+
+**Hidden, not renamed.** `status:` is the right word for what it does here and it is
+written in every page, in `_TEMPLATE.md`, and across three reference files. One CSS
+rule in `uritp.css` → NAV beats a rename touching everything.
+
+**Two live consequences:**
+
+- **Do not write `status: new` or `status: deprecated`** expecting the gate to
+  understand it. `hooks/visibility.py` treats an unrecognised value as `hidden`, so
+  the page vanishes.
+- **If a badge is ever wanted**, delete that CSS rule and add `extra.status` entries
+  in `mkdocs.yml` for the tooltips. Material ships a shield-lock glyph
+  (`--md-status--encrypted`) that would suit `gated` exactly — a padlock beside every
+  locked page in the sidebar. Offered, not taken: the standing instruction is less
+  chrome, not more.
+
+**The transferable lesson:** a plausible cause that explains the symptom is not the
+cause. Two independent things here produce an identical icon on an identical set of
+rows, and the only way to tell them apart was to read the template.
 
 ### 🔴 The blocked chevron, and how one fix broke another
 
@@ -272,25 +293,38 @@ overlap whatever the title height becomes.
 while leaving its *absolutely positioned children* alone is a collision waiting to
 happen. Absolute positioning is a contract with a box you just changed the shape of.
 
-### 🔴 The tall Safety row, and the same lesson again
+### 🔴 The tall Safety row, and the fix that had to be done twice
 
 Michael, 2026-08-01: *"nav menu has weird spacing for safety?"* It did, and Safety
 was the only row it happened to.
 
-**Safety was the only top-level section carrying an `index.md`.** Venues, Production
-and Reference have none. Under `navigation.indexes` Material renders that case
-differently: it wraps the row in a `.md-nav__container` which **also carries
-`.md-nav__link`**, then nests the page link and the expand label inside it. Three
-elements, one class — so the drawer's row padding and its 44px tap floor were being
-applied at every level and the row grew.
+**Safety was the only top-level section carrying an `index.md`.** Under
+`navigation.indexes` Material renders that case as a `.md-nav__container`: a wrapper
+that **also carries `.md-nav__link`**, holding a nested `<a>` and `<label>` that carry
+it too. Three elements, one class.
 
-The container is a layout box now: flex row, no padding, no floor. The children keep
-both.
+**Attempt 1 blamed the padding and was wrong.** Material already writes
+`.md-nav--primary .md-nav__link > .md-nav__link { padding: 0 }` — the wrapper is
+padded, the children are not, and it has handled this since long before us. Zeroing
+the wrapper removed the row's *only* padding, and the title went flush to the drawer
+edge with the chevron hard against the other. **A fix that changes the symptom instead
+of removing it means the diagnosis was wrong** — that is the tell, and it is cheap to
+act on.
+
+**The actual culprit was `min-height: var(--u-touch)`.** Our 44px tap floor, which
+Material has no equivalent of and therefore no rule to cancel, applied at all three
+levels: a 44px child inside a 44px padded parent.
+
+The fix cancels the tap floor in exactly the place Material cancels the padding, then
+stretches the children so the whole row stays tappable rather than just the line of
+text at the top of it.
 
 **Same lesson as the chevron, one layer out:** a blanket rule on a component class is
 a bet that the component only ever renders one shape. It renders two here, and the
-second one only appears when a folder gains an index page — so the bug arrives on the
-day somebody adds a file, nowhere near the CSS.
+second only appears when a folder gains an index page — so the bug arrives on the day
+somebody adds a file, nowhere near the CSS. **Read the component's own stylesheet
+before overriding it.** Both of these cost a round trip that reading `_nav.scss`
+would have saved.
 
 ### Focus and tap targets
 
@@ -412,3 +446,11 @@ This heading and everything under it stays out of the index.
 | `mkdocs.yml` → `theme.font` | Which webfont is downloaded | The typography vector points at a new family |
 | `mkdocs.yml` → `theme.palette` → `primary` | First paint + `<meta theme-color>` | The `chrome` token moves far from a dark neutral |
 | `mkdocs.yml` → `theme.features` | Which Material chrome is on | Anything in *The chrome* table above is restored or removed — **and grep `docs/` for pages that describe it** |
+| `requirements.txt` → the 9.x floor | Which Material template ships | Never casually. `partials/nav-item.html` is behaviour we suppress. |
+
+⚠️ **Anything that describes the chrome to READERS lives in `docs/`, and nothing
+points at it.** Removing the pencil left `docs/using-these-docs.md` telling guest
+designers to click an icon that no longer existed, and the repo's pointer discipline
+did not catch it because every pointer runs *code → AUTHORING\*.md*. `mkdocs.yml` has
+no idea an orientation page documents its feature flags. **Turning a chrome feature
+on or off means grepping `docs/` for it too.**
