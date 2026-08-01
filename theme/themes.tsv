@@ -1,0 +1,7 @@
+slug	name	color	typography	forms	spacing	note
+_default	Defaults	uritp-prp	plex-docs	hairline	standard	An empty cell in any row below takes its value from this row. Never point active.txt at this row.
+uritp-prp	URITP PRP	uritp-prp	plex-docs	hairline	standard	The house look. Neutral slate, one owned blue, hairline rules.
+uritp-prp-large	URITP PRP Large	uritp-prp	plex-large	hairline	roomy	Same skin, bigger type and more air. A callboard screen, or reading at arm's length.
+uritp-granite	URITP Granite	uritp-granite				Warmer stone ground, lifted off black. Same blue accent. Everything but colour is the default.
+utility	Utility	maw-dark-utility	plex-docs	hairline	standard	The ClickUp_apps anchor palette, teal accent. Proves the vocabulary transfers.
+paper	Paper	paper-mono	plex-docs	square	roomy	Greyscale, squared edges, roomy. Closest to a printed document.

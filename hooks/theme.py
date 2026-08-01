@@ -1,53 +1,82 @@
 """
 The 4-vector theme resolver.
 
-Reads ``theme.yml`` at the repo root, composes the four vectors named by the
-active theme, and injects the result into every page's ``<head>`` as ``--u-*``
-custom properties. ``docs/stylesheets/uritp.css`` consumes them and holds no
-literal colour, font, size or radius of its own.
+Reads the grids in ``theme/`` and injects the composed result into every page's
+``<head>`` as ``--u-*`` custom properties. ``docs/stylesheets/uritp.css``
+consumes them and holds no literal colour, font, size or radius of its own.
 
-    theme.yml  active: uritp-prp
-               -> colour uritp-prp x typography plex-docs
-                  x forms hairline x spacing standard
+    theme/active.txt   ->  one slug
+    theme/themes.tsv   ->  that slug's row: colour x typography x forms x spacing
+    theme/*.tsv        ->  the four grids those four names point into
 
-SWAPPING THE WHOLE SITE IS ONE LINE. That is the entire point of the file and
-the reason this hook exists rather than a second stylesheet: a theme kept as
-"another CSS file" means every swap is a diff nobody can read, and the two
-files drift the moment one gains a rule the other never got.
+WHY GRIDS AND NOT ONE YAML FILE (changed 2026-08-01, Michael)
+The values are a table and a table belongs in a table. ``theme.yml`` held all
+four vectors as nested YAML, which meant every tweak was an edit inside a
+structured document where indentation is load-bearing and a stray colon kills
+the parse -- it cost a build the day it shipped. A TSV opens as a grid on
+GitHub, in Numbers, in anything, and a wrong cell is visible as a wrong cell.
 
-WHY NOT A GENERATED .css FILE
-An inline ``<style>`` costs about 1.5KB per page and buys two things a
-separate file cannot: no extra request, and no window in which the page is
-painted before its own colours arrive. The site is read on phones on venue
-wifi. A flash of the wrong theme is worse than 1.5KB.
+WHY TSV AND NOT CSV
+Half these values contain commas: font stacks, ``cubic-bezier(.2,.7,.2,1)``,
+``rgba(0,0,0,.18)``. Tab-separated means none of them need quoting and none of
+them can be broken by a quote that went missing.
 
-WHY A BAD THEME NAME FAILS THE BUILD
+THE FALLBACK CHAIN -- one rule, applied at both levels
+
+    An EMPTY CELL inherits. A FILLED CELL wins.
+
+  * ``themes.tsv``: an empty vector cell takes its value from the ``_default``
+    row. So a theme that only changes colour names one thing.
+  * a vector grid: an empty token cell takes its value from the row named in
+    ``inherits``, walking that chain, then from the ``_base`` row of that same
+    file. So a palette that only nudges its neutrals names only its neutrals.
+
+``_base`` is the safety net and must be COMPLETE -- it is what a half-written
+row resolves against. ``_default`` is the join's equivalent.
+
+[!] An empty cell is INHERIT, never "nothing". A token that wants to be off
+says so with a real value: ``shadow`` is the word ``none``, not a blank.
+
+WHY A BAD NAME STILL FAILS THE BUILD
 The house rule is that failures should be local and visible, not global and
 silent -- a dead link marks one link, a missing gate key locks one page. A
 theme has no page to fail on: it is the whole site or nothing. And a theme
 that quietly fell back to something else is precisely the invisible failure
-that rule exists to prevent. So this raises, and the PR build check catches it
-on the branch before it can reach ``main``.
+that rule exists to prevent. So this raises, names the file, and lists what IS
+defined; the PR build check catches it on the branch before it reaches main.
 
-REQUIRED is owned HERE, not in theme.yml, and deliberately: the stylesheet is
+REQUIRED is owned HERE, not in the grids, and deliberately: the stylesheet is
 what consumes these names, so the code that pairs with the stylesheet is what
-knows which ones may not be missing. A palette that forgets a token fails by
-name instead of rendering one element invisible.
+knows which ones may not be missing. After the whole chain resolves, a token
+still absent fails BY NAME rather than rendering one element invisible.
 
-Wired in mkdocs.yml under ``hooks:``. Documented in AUTHORING-LOOK.md.
+Wired in mkdocs.yml under ``hooks:``. Documented in theme/README.md.
 """
 
+import csv
 import os
 
-import yaml
-
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SOURCE = os.path.join(ROOT, "theme.yml")
+DIR = os.path.join(ROOT, "theme")
+
+ACTIVE = os.path.join(DIR, "active.txt")
 
 VECTORS = ("color", "typography", "forms", "spacing")
+JOIN = "themes.tsv"
+GRID = {
+    "color": "colors.tsv",
+    "typography": "typography.tsv",
+    "forms": "forms.tsv",
+    "spacing": "spacing.tsv",
+}
+
+BASE = "_base"          # the complete fallback row inside every vector grid
+DEFAULT = "_default"    # the same idea, one level up, inside themes.tsv
+META = {"slug", "mode", "inherits", "name", "note"}
+MAX_HOPS = 8
 
 # Every token docs/stylesheets/uritp.css reads. Adding a var() there means
-# adding its name here and to every row of that vector, in the SAME PR.
+# adding its name here AND a column to that vector's grid, in the SAME PR.
 REQUIRED = {
     "color": (
         "bg surface-1 surface-2 border hairline text text-strong text-soft "
@@ -62,42 +91,134 @@ REQUIRED = {
     "spacing": "touch pad-cell pad-block gap-xs gap-md gap-lg measure".split(),
 }
 
+# Colour is the only vector with modes, because the site has a scheme toggle.
 MODES = {
     "dark": "[data-md-color-scheme=slate]",
     "light": "[data-md-color-scheme=default]",
 }
 
 _style = ""
+_trace = []
 
 
-def _fail(message):
-    raise ValueError("theme.yml: " + message)
+def _fail(where, message):
+    raise ValueError("theme/" + where + ": " + message)
 
 
-def _row(data, vector, name):
-    table = data.get(vector)
-    if not isinstance(table, dict):
-        _fail("no `" + vector + ":` section")
-    row = table.get(name)
-    if not isinstance(row, dict):
-        defined = ", ".join(sorted(table)) if table else "(none)"
-        _fail(
-            vector + " `" + str(name) + "` does not exist. Defined: " + defined
-        )
-    return row
+def _read(filename):
+    """A grid as a list of dicts. Values are stripped -- a trailing space in a
+    spreadsheet cell is invisible and would otherwise become part of a colour.
+    A short row (fewer cells than headers) reads as empty, not as None."""
+    path = os.path.join(DIR, filename)
+    if not os.path.exists(path):
+        _fail(filename, "file is missing")
+    rows = []
+    with open(path, encoding="utf-8", newline="") as fh:
+        for raw in csv.DictReader(fh, delimiter="\t"):
+            row = {}
+            for key, value in raw.items():
+                if key is None:
+                    continue
+                row[key.strip()] = (value or "").strip()
+            if row.get("slug"):
+                rows.append(row)
+    if not rows:
+        _fail(filename, "no rows")
+    return rows
 
 
-def _check(tokens, vector, label):
+def _index(vector, filename):
+    """Colour rows are keyed by (slug, mode); everything else by slug."""
+    table = {}
+    for row in _read(filename):
+        if vector == "color":
+            mode = row.get("mode", "")
+            if mode not in MODES:
+                _fail(
+                    filename,
+                    "row `" + row["slug"] + "` has mode `" + mode
+                    + "`; it must be dark or light",
+                )
+            table[(row["slug"], mode)] = row
+        else:
+            table[row["slug"]] = row
+    return table
+
+
+def _slugs(table):
+    """Public row names, so an error tells you what you CAN use."""
+    seen = set()
+    for key in table:
+        slug = key[0] if isinstance(key, tuple) else key
+        if not slug.startswith("_"):
+            seen.add(slug)
+    return ", ".join(sorted(seen)) or "(none)"
+
+
+def _compose(vector, table, slug, mode=None):
+    """Walk the inherits chain, then fall through to _base. First value wins,
+    so the row you named always beats what it inherits."""
+    filename = GRID[vector]
+    tokens = {}
+    chain = []
+    current = slug
+
+    while current:
+        if current in chain:
+            _fail(filename, "`inherits` loops: " + " -> ".join(chain + [current]))
+        if len(chain) >= MAX_HOPS:
+            _fail(filename, "`inherits` chain is too deep from `" + slug + "`")
+        chain.append(current)
+
+        key = (current, mode) if vector == "color" else current
+        row = table.get(key)
+        if row is None:
+            detail = "`" + current + "`"
+            if mode:
+                detail += " (" + mode + ")"
+            if current != slug:
+                detail += ", inherited from `" + chain[-2] + "`"
+            _fail(filename, "no row " + detail + ". Defined: " + _slugs(table))
+
+        for name, value in row.items():
+            if name in META or not value:
+                continue
+            tokens.setdefault(name, value)
+
+        current = row.get("inherits", "")
+
+    base = table.get((BASE, mode) if vector == "color" else BASE)
+    if base is None:
+        _fail(filename, "no `" + BASE + "` row; it is the fallback and is required")
+    filled = []
+    for name, value in base.items():
+        if name in META or not value:
+            continue
+        if name not in tokens:
+            tokens[name] = value
+            filled.append(name)
+
+    label = " <- ".join(chain)
+    if filled:
+        label += " <- " + BASE + " (" + ", ".join(sorted(filled)) + ")"
+    _trace.append("  " + vector + ((":" + mode) if mode else "") + " = " + label)
+
     missing = [k for k in REQUIRED[vector] if k not in tokens]
     if missing:
-        _fail(label + " is missing token(s): " + ", ".join(missing))
+        _fail(
+            filename,
+            "`" + slug + "`" + ((" " + mode) if mode else "")
+            + " resolves without token(s): " + ", ".join(missing)
+            + ". Add the column, or fill it in `" + BASE + "`.",
+        )
+    return tokens
 
 
 def _declare(tokens, vector):
-    """Only the tokens the stylesheet actually reads. A `note:` is prose for a
+    """Only the tokens the stylesheet actually reads. A `note` is prose for a
     human and has no business in the CSS."""
     return "".join(
-        "--u-" + key + ":" + str(tokens[key]) + ";" for key in REQUIRED[vector]
+        "--u-" + key + ":" + tokens[key] + ";" for key in REQUIRED[vector]
     )
 
 
@@ -105,50 +226,85 @@ def _block(selector, body):
     return selector + "{" + body + "}"
 
 
+def _active():
+    """One slug. Blank lines and `#` comments are ignored, so the file can
+    explain itself without the explanation becoming the theme name."""
+    if not os.path.exists(ACTIVE):
+        _fail("active.txt", "file is missing; it names the live theme")
+    with open(ACTIVE, encoding="utf-8") as fh:
+        names = [
+            line.split("#")[0].strip()
+            for line in fh
+            if line.split("#")[0].strip()
+        ]
+    if not names:
+        _fail("active.txt", "is empty; it must hold one theme slug")
+    if len(names) > 1:
+        # Commenting the old name out is the intended way to park it. Two live
+        # names would make the theme depend on line order, silently.
+        _fail(
+            "active.txt",
+            "holds " + str(len(names)) + " names (" + ", ".join(names)
+            + "); it must hold exactly one. Comment the others out with #.",
+        )
+    return names[0]
+
+
 def on_config(config):
     global _style
+    del _trace[:]
 
-    with open(SOURCE, encoding="utf-8") as fh:
-        data = yaml.safe_load(fh) or {}
+    active = _active()
+    joins = {row["slug"]: row for row in _read(JOIN)}
 
-    active = data.get("active")
-    themes = data.get("themes")
-    if not isinstance(themes, dict):
-        _fail("no `themes:` join table")
-    if active not in themes:
+    if active.startswith("_"):
         _fail(
-            "active theme `" + str(active) + "` is not in the join table. "
-            "Available: " + ", ".join(sorted(themes))
+            "active.txt",
+            "`" + active + "` is a fallback row, not a theme. Available: "
+            + _slugs(joins),
+        )
+    theme = joins.get(active)
+    if theme is None:
+        _fail(
+            "active.txt",
+            "`" + active + "` is not a row in " + JOIN + ". Available: "
+            + _slugs(joins),
         )
 
-    combo = themes[active] or {}
+    fallback = joins.get(DEFAULT)
+    if fallback is None:
+        _fail(JOIN, "no `" + DEFAULT + "` row; it is what fills empty cells")
+
     chosen = {}
     for vector in VECTORS:
-        name = combo.get(vector)
+        name = theme.get(vector) or fallback.get(vector)
         if not name:
-            _fail("theme `" + active + "` names no " + vector + " vector")
-        chosen[vector] = (name, _row(data, vector, name))
+            _fail(
+                JOIN,
+                "`" + active + "` names no " + vector + " and `" + DEFAULT
+                + "` does not fill it either",
+            )
+        chosen[vector] = name
 
-    # Colour is the only vector with modes, because the site has a toggle.
-    palette_name, palette = chosen["color"]
     css = []
+    palette = _index("color", GRID["color"])
     for mode, selector in MODES.items():
-        tokens = palette.get(mode)
-        if not isinstance(tokens, dict):
-            _fail("colour `" + palette_name + "` has no `" + mode + ":` mode")
-        _check(tokens, "color", "colour `" + palette_name + "` " + mode)
+        tokens = _compose("color", palette, chosen["color"], mode)
         css.append(_block(selector, _declare(tokens, "color")))
 
     root = ""
     for vector in ("typography", "forms", "spacing"):
-        name, tokens = chosen[vector]
-        _check(tokens, vector, vector + " `" + name + "`")
+        tokens = _compose(vector, _index(vector, GRID[vector]), chosen[vector])
         root += _declare(tokens, vector)
     css.insert(0, _block(":root", root))
 
     _style = '<style id="u-theme">' + "".join(css) + "</style>"
 
-    print("theme: " + active + " = " + " x ".join(chosen[v][0] for v in VECTORS))
+    # Printed every build so a fallback that fired is VISIBLE in the log,
+    # rather than being the quiet thing nobody notices for a month.
+    print("theme: " + active + " = " + " x ".join(chosen[v] for v in VECTORS))
+    for line in _trace:
+        print(line)
     return config
 
 
