@@ -1,42 +1,56 @@
 """
 The 4-vector theme resolver.
 
-Reads the grids in ``theme/`` and injects the composed result into every page's
-``<head>`` as ``--u-*`` custom properties. ``docs/stylesheets/uritp.css``
-consumes them and holds no literal colour, font, size or radius of its own.
+Reads ``theme/`` and injects the composed result into every page's ``<head>``
+as ``--u-*`` custom properties. ``docs/stylesheets/uritp.css`` consumes them
+and holds no literal colour, font, size or radius of its own.
 
-    theme/active.txt   ->  one slug: the site default
-    theme/themes.tsv   ->  each slug's row: colour x typography x forms x spacing
-    theme/*.tsv        ->  the four grids those names point into
-    a page's `theme:`  ->  that ONE page (or folder) wears a different one
+    theme/active.txt      one slug: the site default
+    theme/themes.tsv      the JOIN -- one row per theme, four pointers
+    theme/<vector>.json   the VALUES those pointers name
+    a page's `theme:`     that one page (or folder) wears a different theme
 
-WHY GRIDS AND NOT ONE YAML FILE (changed 2026-08-01, Michael)
-The values are a table and a table belongs in a table. ``theme.yml`` held all
-four vectors as nested YAML, which meant every tweak was an edit inside a
-structured document where indentation is load-bearing and a stray colon kills
-the parse -- it cost a build the day it shipped. A TSV opens as a grid on
-GitHub, in Numbers, in anything, and a wrong cell is visible as a wrong cell.
+WHY JSON FOR THE VECTORS AND TSV FOR THE JOIN (changed 2026-08-01, Michael:
+"any clearer way to edit the values than the TSV which is dense prose when in
+edit mode? at least with JSON i get the variable names in line")
 
-WHY TSV AND NOT CSV
-Half these values contain commas: font stacks, ``cubic-bezier(.2,.7,.2,1)``,
-``rgba(0,0,0,.18)``. Tab-separated means none of them need quoting and none of
-them can be broken by a quote that went missing.
+The two formats answer two different questions, and that is the whole rule:
 
-THE FALLBACK CHAIN -- one rule, applied at both levels
+    A TABLE you read ACROSS stays a grid.   themes.tsv, contrast.tsv
+    A RECORD you edit one at a time is JSON. the four vectors
 
-    An EMPTY CELL inherits. A FILLED CELL wins.
+``themes.tsv`` is six short rows compared column by column -- which theme uses
+which palette -- and that is exactly what a grid is for. A palette is fifteen
+tokens times two modes, edited one palette at a time and almost never compared
+cell-to-cell against another. As a TSV row that is thirty anonymous values in
+tab-separated sequence: correct, diffable, and unreadable in an editor, where
+the header is scrolled off the top and the only way to know which value you are
+changing is to count columns. JSON puts the name on the line.
+
+This was not the original call. The grids replaced YAML earlier the same day
+for a good reason (a table belongs in a table) and the mistake was applying it
+to all four vectors instead of asking which of them are actually tables.
+
+THE FALLBACK CHAIN -- one rule, at both levels
+
+    An ABSENT value inherits. A PRESENT value wins.
 
   * ``themes.tsv``: an empty vector cell takes its value from the ``_default``
     row. So a theme that only changes colour names one thing.
-  * a vector grid: an empty token cell takes its value from the row named in
-    ``inherits``, walking that chain, then from the ``_base`` row of that same
-    file. So a palette that only nudges its neutrals names only its neutrals.
+  * a vector file: a token that is not listed comes from the entry named in
+    ``inherits``, walking that chain, then from ``_base`` in the same file.
 
-``_base`` is the safety net and must be COMPLETE -- it is what a half-written
-row resolves against. ``_default`` is the join's equivalent.
+``_base`` is the safety net and must be COMPLETE. ``_default`` is the join's
+equivalent. Neither may be named by ``active.txt``.
 
-[!] An empty cell is INHERIT, never "nothing". A token that wants to be off
-says so with a real value: ``shadow`` is the word ``none``, not a blank.
+[!] ABSENT means INHERIT, never "nothing". A token that wants to be off says so
+with a real value: ``"shadow": "none"``.
+
+THE WEBFONT SEAM IS CLOSED -- this hook writes the config
+The typography vector says which family the CSS ASKS FOR; it also now sets
+``theme.font``, which is what Material DOWNLOADS. They used to be two files
+kept in agreement by hand, and a mismatch silently rendered the next entry in
+the fallback stack with no error anywhere.
 
 =======================================================================
 THE SKIN WATERFALL -- a page or a folder can wear its own theme
@@ -44,14 +58,12 @@ THE SKIN WATERFALL -- a page or a folder can wear its own theme
 
     ---
     title: Electrics
-    theme: utility          # this page, or this whole folder from its index.md
+    theme: utility
     ---
 
-A gated ``index.md`` locks its subtree; a THEMED ``index.md`` skins its
-subtree the same way. Every theme in ``themes.tsv`` is composed at config
-time, so picking one per page is a dictionary lookup, not extra work.
+On an ``index.md`` that skins the whole subtree.
 
-⚠️⚠️ THERE ARE NOW TWO WATERFALLS AND THEY RUN IN OPPOSITE DIRECTIONS. Do not
+[!][!] THERE ARE TWO WATERFALLS AND THEY RUN IN OPPOSITE DIRECTIONS. Do not
 unify them, and do not "make them consistent":
 
     THE LOCK waterfall (hooks/visibility.py)   PARENT WINS.
@@ -62,37 +74,25 @@ unify them, and do not "make them consistent":
         A skin is a preference. Nothing is at risk, so the more specific
         statement is the one to honour.
 
-The asymmetry is the point: precedence follows CONSEQUENCE, not symmetry. The
-day somebody merges these into one "inheritance" concept is the day a locked
-page quietly publishes.
+Precedence follows CONSEQUENCE, not symmetry. The day somebody merges these
+into one "inheritance" concept is the day a locked page quietly publishes.
 
-``theme: default`` is the escape -- it means "whatever active.txt says", so a
-page can stand outside a themed folder without hard-coding the site theme's
-name (which would rot the moment ``active.txt`` changed).
+``theme: default`` means "whatever active.txt says", so a page can stand
+outside a themed folder without hard-coding a name that will rot.
 
-A NAME THAT DOES NOT RESOLVE FALLS BACK, IT DOES NOT FAIL THE BUILD, and that
-is the opposite of the rule for ``active.txt`` -- for a reason. A bad global
-theme has no page to fail on: it is the whole site or nothing, so it must
-stop the build. A bad PAGE theme has exactly one page to fail on, so it does
-what every other local failure here does: renders anyway, wearing the site
-theme, and reports itself by name.
+A PAGE theme that does not resolve FALLS BACK AND REPORTS; a bad ``active.txt``
+FAILS THE BUILD. Opposite outcomes, one rule: a failure should be local and
+visible. The site theme has no single page to fail on, so it must stop
+everything; a page theme has exactly one, so it fails there and says so.
 
-⚠️ ONE THING A PAGE THEME CANNOT CHANGE: WHICH WEBFONT IS DOWNLOADED.
-Material's font loader is global config, not per page. A parked theme whose
-typography row names a family the active theme does not load is REPORTED at
-build time, because the symptom -- one page silently rendering in the fallback
-font -- is invisible to every other check we have.
+[!] A PAGE THEME CANNOT CHANGE WHICH WEBFONT IS DOWNLOADED -- Material's font
+loader is global config. A theme whose typography names a family the site does
+not load is REPORTED, because the symptom (one page silently in the fallback
+face) is invisible to every other check here.
 
-WHY A BAD ``active.txt`` NAME STILL FAILS THE BUILD
-The house rule is that failures should be local and visible, not global and
-silent. See the paragraph above: the active theme is the one with nowhere
-local to fail. Parked themes that will not compose are reported and skipped,
-the same trade the contrast gate makes -- the active one must be perfect,
-parked ones only have to tell you.
-
-REQUIRED is owned HERE, not in the grids, and deliberately: the stylesheet is
-what consumes these names, so the code that pairs with the stylesheet is what
-knows which ones may not be missing.
+REQUIRED is owned HERE, not in the data: the stylesheet is what consumes these
+names, so the code that pairs with the stylesheet is what knows which ones may
+not be missing.
 
 Wired in mkdocs.yml under ``hooks:``. Documented in theme/README.md.
 ``hooks/contrast.py`` imports this module to reuse ``_read``, ``_index`` and
@@ -100,6 +100,7 @@ Wired in mkdocs.yml under ``hooks:``. Documented in theme/README.md.
 """
 
 import csv
+import json
 import os
 import posixpath
 import re
@@ -114,14 +115,16 @@ ACTIVE = os.path.join(DIR, "active.txt")
 VECTORS = ("color", "typography", "forms", "spacing")
 JOIN = "themes.tsv"
 GRID = {
-    "color": "colors.tsv",
-    "typography": "typography.tsv",
-    "forms": "forms.tsv",
-    "spacing": "spacing.tsv",
+    "color": "colors.json",
+    "typography": "typography.json",
+    "forms": "forms.json",
+    "spacing": "spacing.json",
 }
 
-BASE = "_base"          # the complete fallback row inside every vector grid
+BASE = "_base"          # the complete fallback entry inside every vector file
 DEFAULT = "_default"    # the same idea, one level up, inside themes.tsv
+
+# Keys that describe an entry rather than being a token it carries.
 META = {"slug", "mode", "inherits", "name", "note"}
 MAX_HOPS = 8
 
@@ -130,13 +133,13 @@ MAX_HOPS = 8
 SITE = "default"
 
 # Required, but NOT written into the CSS: these configure Material's webfont
-# loader instead of describing a style. See THE WEBFONT SEAM in the README.
+# loader instead of describing a style.
 NOT_CSS = {"webfont-text", "webfont-code"}
-OFF = "none"            # `webfont-text = none` means download nothing
+OFF = "none"            # `webfont-text: none` means download nothing
 
 # Every token docs/stylesheets/uritp.css reads, plus the two webfont names.
-# Adding a var() to the stylesheet means adding its name here AND a column to
-# that vector's grid, in the SAME PR.
+# Adding a var() to the stylesheet means adding its name here AND to `_base`
+# in that vector's file, in the SAME PR.
 REQUIRED = {
     "color": (
         "bg surface-1 surface-2 border hairline text text-strong text-soft "
@@ -179,15 +182,15 @@ def _fail(where, message):
 
 
 def _read(filename, key="slug"):
-    """A grid as a list of dicts. Values are stripped -- a trailing space in a
-    spreadsheet cell is invisible and would otherwise become part of a colour.
-    A short row (fewer cells than headers) reads as empty, not as None.
+    """A TSV as a list of dicts. Used by the JOIN and by contrast.tsv -- the two
+    files that really are tables read across.
 
-    ``key`` is the column that must be present for a row to count, which also
-    skips the blank lines a spreadsheet leaves at the end of a file. It is a
-    parameter rather than a hard-coded "slug" because contrast.tsv is a grid
-    too and is keyed by `fg` -- assuming every table in this folder has the
-    same key column is what broke the contrast gate's first build.
+    Values are stripped: a trailing space in a spreadsheet cell is invisible and
+    would otherwise become part of a value. ``key`` is the column that makes a
+    row real, which also skips the blank lines a spreadsheet leaves at the end.
+    It is a parameter rather than a hard-coded "slug" because contrast.tsv is
+    keyed by `fg` -- assuming every table here shares one key column is what
+    broke the contrast gate's first build.
     """
     path = os.path.join(DIR, filename)
     if not os.path.exists(path):
@@ -212,26 +215,69 @@ def _read(filename, key="slug"):
     return rows
 
 
+def _load(filename):
+    """A vector file. `_README` is prose for whoever opens it and is dropped.
+
+    A JSON syntax error is reported with its line and column, which is the one
+    real cost of this format over a grid -- and the reason the error message
+    says where to look rather than just what went wrong.
+    """
+    path = os.path.join(DIR, filename)
+    if not os.path.exists(path):
+        _fail(filename, "file is missing")
+    with open(path, encoding="utf-8") as fh:
+        try:
+            data = json.load(fh)
+        except ValueError as problem:
+            _fail(filename, "is not valid JSON -- " + str(problem))
+    if not isinstance(data, dict):
+        _fail(filename, "must be an object of named entries")
+    return {
+        name: entry
+        for name, entry in data.items()
+        if name != "_README" and isinstance(entry, dict)
+    }
+
+
 def _index(vector, filename):
-    """Colour rows are keyed by (slug, mode); everything else by slug."""
+    """Name -> the values under it. Colour is keyed by (slug, mode) because it
+    is the only vector with a dark and a light form; `inherits` is copied onto
+    each mode so the chain walker does not need to know the difference."""
+    data = _load(filename)
     table = {}
-    for row in _read(filename):
-        if vector == "color":
-            mode = row.get("mode", "")
-            if mode not in MODES:
+    for slug, entry in data.items():
+        parent = str(entry.get("inherits") or "").strip()
+        if vector != "color":
+            row = {k: str(v) for k, v in entry.items() if k not in METAMETA}
+            row["inherits"] = parent
+            table[slug] = row
+            continue
+        for mode in MODES:
+            block = entry.get(mode)
+            if block is None:
+                # Not a warning: a palette with one mode half-works, which is
+                # the failure this split exists to prevent.
                 _fail(
                     filename,
-                    "row `" + row["slug"] + "` has mode `" + mode
-                    + "`; it must be dark or light",
+                    "`" + slug + "` has no `" + mode + "` block. Every palette "
+                    "needs both, because the site has a scheme toggle.",
                 )
-            table[(row["slug"], mode)] = row
-        else:
-            table[row["slug"]] = row
+            if not isinstance(block, dict):
+                _fail(filename, "`" + slug + "`." + mode + " must be an object")
+            row = {k: str(v) for k, v in block.items() if k not in METAMETA}
+            row["inherits"] = parent
+            table[(slug, mode)] = row
+    if not table:
+        _fail(filename, "has no entries")
     return table
 
 
+# Keys that never carry a token value, at either nesting level.
+METAMETA = {"note", "inherits", "name", "dark", "light"}
+
+
 def _slugs(table):
-    """Public row names, so an error tells you what you CAN use."""
+    """Public names, so an error tells you what you CAN use."""
     seen = set()
     for key in table:
         slug = key[0] if isinstance(key, tuple) else key
@@ -242,7 +288,7 @@ def _slugs(table):
 
 def _compose(vector, table, slug, mode=None):
     """Walk the inherits chain, then fall through to _base. First value wins,
-    so the row you named always beats what it inherits."""
+    so the entry you named always beats what it inherits."""
     filename = GRID[vector]
     tokens = {}
     chain = []
@@ -263,7 +309,7 @@ def _compose(vector, table, slug, mode=None):
                 detail += " (" + mode + ")"
             if current != slug:
                 detail += ", inherited from `" + chain[-2] + "`"
-            _fail(filename, "no row " + detail + ". Defined: " + _slugs(table))
+            _fail(filename, "no entry " + detail + ". Defined: " + _slugs(table))
 
         for name, value in row.items():
             if name in META or not value:
@@ -274,7 +320,7 @@ def _compose(vector, table, slug, mode=None):
 
     base = table.get((BASE, mode) if vector == "color" else BASE)
     if base is None:
-        _fail(filename, "no `" + BASE + "` row; it is the fallback and is required")
+        _fail(filename, "no `" + BASE + "` entry; it is the fallback and is required")
     filled = []
     for name, value in base.items():
         if name in META or not value:
@@ -294,7 +340,7 @@ def _compose(vector, table, slug, mode=None):
             filename,
             "`" + slug + "`" + ((" " + mode) if mode else "")
             + " resolves without token(s): " + ", ".join(missing)
-            + ". Add the column, or fill it in `" + BASE + "`.",
+            + ". Add them, or fill them in `" + BASE + "`.",
         )
     return tokens
 
@@ -328,7 +374,7 @@ def _vectors_for(slug, joins, fallback):
     return chosen
 
 
-def _build(slug, chosen, tables):
+def _build(chosen, tables):
     """One theme -> one <style> block, and the typography it wants."""
     css = []
     for mode, selector in MODES.items():
@@ -348,14 +394,13 @@ def _build(slug, chosen, tables):
 
 
 def _apply_webfont(config, tokens):
-    """Write the family names Material should DOWNLOAD, from the same grid row
-    that decided which families the CSS asks for. This is the seam-closing
-    move: one file decides, so the two cannot drift apart.
+    """Write the family names Material should DOWNLOAD, from the same entry
+    that decided which families the CSS asks for. One file decides, so the two
+    cannot drift apart.
 
     Material takes `font: false` to mean "load nothing", and it is all or
-    nothing -- there is no per-face switch. So `none` in one column and a real
-    family in the other is a contradiction, and it is refused rather than
-    silently resolved in whichever direction happens to be first."""
+    nothing -- there is no per-face switch. So `none` in one and a real family
+    in the other is a contradiction, refused rather than silently resolved."""
     text = tokens["webfont-text"]
     code = tokens["webfont-code"]
 
@@ -399,24 +444,13 @@ def _read_active():
     return names[0]
 
 
-# Kept for hooks/contrast.py, which asks the same question.
-def _active_slug():
-    return _read_active()
-
-
-_active_alias = _active_slug
-
-
 def _frontmatter_theme(abs_path):
     """Just the `theme:` line out of a page's frontmatter.
 
-    ⚠️ This reads the file directly rather than using `page.meta`, because the
+    [!] This reads the file directly rather than using `page.meta`, because the
     FOLDER waterfall has to know about every index.md before any page is
     rendered, and MkDocs only parses a page's meta when it reaches that page.
-    hooks/visibility.py reads frontmatter the same way for the same reason;
-    they are two small parses of a generic format, not two claimants on one
-    truth, and sharing them would mean this hook depending on the gate that
-    runs after it.
+    hooks/visibility.py reads frontmatter the same way for the same reason.
     """
     try:
         with open(abs_path, "rb") as fh:
@@ -455,8 +489,7 @@ def _wanted(src_uri):
         return own, src_uri
     for folder in _ancestors(src_uri):
         if folder in _folder_theme and _folder_theme[folder][1] != src_uri:
-            slug, source = _folder_theme[folder]
-            return slug, source
+            return _folder_theme[folder]
     return "", ""
 
 
@@ -489,7 +522,7 @@ def on_config(config):
     # The ACTIVE theme first, and strictly: it is the one with no page to fail
     # on, so anything wrong with it stops the build.
     chosen = _vectors_for(_active, joins, fallback)
-    style, typography = _build(_active, chosen, tables)
+    style, typography = _build(chosen, tables)
     _styles[_active] = style
     webfont = _apply_webfont(config, typography)
     print("theme: " + _active + " = " + " x ".join(chosen[v] for v in VECTORS))
@@ -506,7 +539,7 @@ def on_config(config):
             continue
         try:
             other = _vectors_for(slug, joins, fallback)
-            _styles[slug], parked = _build(slug, other, tables)
+            _styles[slug], parked = _build(other, tables)
         except ValueError as problem:
             print("::warning::theme: `" + slug + "` will not compose, so no "
                   "page can wear it -- " + str(problem))
@@ -597,8 +630,6 @@ def on_post_build(config):
         "|---|---|---|",
     ]
     for src, (slug, source) in sorted(_unresolved.items()):
-        lines.append(
-            "| `" + src + "` | `" + slug + "` | `" + source + "` |"
-        )
+        lines.append("| `" + src + "` | `" + slug + "` | `" + source + "` |")
     with open(summary, "a", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
