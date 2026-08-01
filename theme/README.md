@@ -36,12 +36,22 @@ column `bg`. Menu rows too tight? `spacing.tsv`, column `pad-row`.
 
 That cell is the only place the value exists. Nothing else needs touching.
 
-### 3. Build a variant — add a row, fill only what changes
+### 3. Repaint a theme without making a new one — edit ITS colour cell
 
-That is what the `inherits` column is for, and `uritp-granite` in
-`colors.tsv` is the worked example. It inherits `uritp-prp`, fills the ten
-neutrals, and leaves the accent cells **blank** — so it keeps the house blue
-automatically. Change that blue once and the granite variant follows it.
+A theme is four pointers, so you can repoint one of them and leave the rest
+alone. Changing the `color` cell of the `uritp-prp` row swaps that theme's
+entire palette — same type, same edges, same density, different paint. That is
+what happened on 2026-08-01: the house theme's colour cell was pointed at
+`mclaren`, and putting `uritp-prp` back in that one cell restores the slate.
+
+**A new theme is for a new COMBINATION.** Repointing is for "same site,
+different paint."
+
+### 4. Build a variant — add a row, fill only what changes
+
+That is what the `inherits` column is for. `uritp-granite` and `mclaren` in
+`colors.tsv` are both worked examples: each names a parent, fills what it
+changes, and leaves the rest **blank** to inherit.
 
 ---
 
@@ -108,10 +118,16 @@ when you flip the scheme.
 | `marker` | `[To be confirmed]` pills and the gate label |
 | `bad` | Dead links, errors |
 
-**Values are `oklch(lightness chroma hue)`.** Lightness is the percentage,
-chroma is how saturated it is (`0` is pure grey), hue is the angle. Warmer
-means moving hue toward 90. Greyer means dropping chroma. Less black means
-raising the lightness on `bg`.
+**Any CSS colour works.** Most rows use `oklch(lightness chroma hue)` because
+it is the easiest thing to nudge by hand: lightness is the percentage, chroma
+is how saturated it is (`0` is pure grey), hue is the angle. Warmer means
+moving hue toward 90. Greyer means dropping chroma. Less black means raising
+the lightness on `bg`.
+
+⚠️ **The `mclaren` row is hex, deliberately.** Those values are copied verbatim
+from `mawizorek/ClickUp_apps` → `shared/themes/colors.tsv`, which is a hex
+grid. Converting them by hand would mean typing numbers nobody could check
+against the source. Verbatim beats converted; the browser does not care.
 
 ⚠️ **`chrome` is the header bar.** Every palette here sets it equal to `bg`,
 which is the deliberate flat look: the header is the same ground as the page,
@@ -193,9 +209,9 @@ menu rows, the password field and the Unlock button all read it.
 1. Add **two rows** to `colors.tsv`, `dark` and `light`, same slug.
 2. Fill every column — **or** name a row in `inherits` and fill only what
    differs.
-3. Add a row to `themes.tsv` pointing at it. Leave the other three vectors
-   blank unless you want something other than the defaults.
-4. Point `active.txt` at it when you want to see it.
+3. Either point an existing theme's `color` cell at it, or add a new row to
+   `themes.tsv` if you also want different type, edges or density.
+4. Point `active.txt` at that theme when you want to see it.
 
 A token still missing after the whole fallback chain **fails the build and
 names the token**. A theme name that does not exist fails and lists the names
@@ -205,6 +221,10 @@ theme that quietly fell back to something else would be invisible.
 **The build log prints what resolved**, including which cells came from a
 fallback and which fonts were requested — so an inherited value is something
 you can see, not something you have to remember.
+
+⚠️ **Nothing yet checks that a palette is READABLE.** The build proves every
+token exists; it does not prove the text can be seen against its background.
+That gap is real and it is the next thing worth building.
 
 ---
 
@@ -247,3 +267,17 @@ picker; this one composes at build time because MkDocs emits static HTML.
 Editing a grid there changes nothing here. The schemas also differ — that one
 carries light mode as extra columns and has tokens for objects a docs site
 does not have. Same words, separate files, on purpose.
+
+**`mclaren` is the first palette copied across**, and copying it showed where
+the two schemas do not line up. Three mappings are judgement calls, not
+translations, and they are worth knowing about if you edit that row:
+
+- **Their `text-soft` is teal** (`#5fc9d8`) — a deliberate McLaren secondary.
+  Here `text-soft` is every lede and caption on the site, so teal prose would
+  fight the links. It is warm grey instead.
+- **Their teal lives in `accent-hover`**, so links go papaya → teal on hover.
+  Upstream calls `accent` → `accent-2` "a two-hue sweep"; this is that sweep,
+  spent on the one interaction a docs site has.
+- **Light mode uses their `accent-deep`** (`#c05e18`), not papaya. Papaya on
+  near-white is around 2.5:1 — unreadable as link text. That call is exactly
+  the kind a contrast gate should be making instead of a person.
