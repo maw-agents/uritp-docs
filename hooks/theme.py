@@ -34,7 +34,7 @@ THE FALLBACK CHAIN -- one rule, applied at both levels
 ``_base`` is the safety net and must be COMPLETE -- it is what a half-written
 row resolves against. ``_default`` is the join's equivalent.
 
-⚠️ An empty cell is INHERIT, never "nothing". A token that wants to be off
+[!] An empty cell is INHERIT, never "nothing". A token that wants to be off
 says so with a real value: ``shadow`` is the word ``none``, not a blank.
 
 WHY A BAD NAME STILL FAILS THE BUILD
@@ -60,9 +60,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIR = os.path.join(ROOT, "theme")
 
 ACTIVE = os.path.join(DIR, "active.txt")
-JOIN = os.path.join(DIR, "themes.tsv")
 
 VECTORS = ("color", "typography", "forms", "spacing")
+JOIN = "themes.tsv"
 GRID = {
     "color": "colors.tsv",
     "typography": "typography.tsv",
@@ -112,8 +112,8 @@ def _read(filename):
     path = os.path.join(DIR, filename)
     if not os.path.exists(path):
         _fail(filename, "file is missing")
+    rows = []
     with open(path, encoding="utf-8", newline="") as fh:
-        rows = []
         for raw in csv.DictReader(fh, delimiter="\t"):
             row = {}
             for key, value in raw.items():
@@ -127,15 +127,15 @@ def _read(filename):
     return rows
 
 
-def _index(vector, rows):
+def _index(vector, filename):
     """Colour rows are keyed by (slug, mode); everything else by slug."""
     table = {}
-    for row in rows:
+    for row in _read(filename):
         if vector == "color":
             mode = row.get("mode", "")
             if mode not in MODES:
                 _fail(
-                    GRID[vector],
+                    filename,
                     "row `" + row["slug"] + "` has mode `" + mode
                     + "`; it must be dark or light",
                 )
@@ -146,11 +146,12 @@ def _index(vector, rows):
 
 
 def _slugs(table):
-    seen = []
+    """Public row names, so an error tells you what you CAN use."""
+    seen = set()
     for key in table:
         slug = key[0] if isinstance(key, tuple) else key
-        if slug not in seen and not slug.startswith("_"):
-            seen.append(slug)
+        if not slug.startswith("_"):
+            seen.add(slug)
     return ", ".join(sorted(seen)) or "(none)"
 
 
@@ -164,10 +165,7 @@ def _compose(vector, table, slug, mode=None):
 
     while current:
         if current in chain:
-            _fail(
-                filename,
-                "`inherits` loops: " + " -> ".join(chain + [current]),
-            )
+            _fail(filename, "`inherits` loops: " + " -> ".join(chain + [current]))
         if len(chain) >= MAX_HOPS:
             _fail(filename, "`inherits` chain is too deep from `" + slug + "`")
         chain.append(current)
@@ -189,8 +187,7 @@ def _compose(vector, table, slug, mode=None):
 
         current = row.get("inherits", "")
 
-    base_key = (BASE, mode) if vector == "color" else BASE
-    base = table.get(base_key)
+    base = table.get((BASE, mode) if vector == "color" else BASE)
     if base is None:
         _fail(filename, "no `" + BASE + "` row; it is the fallback and is required")
     filled = []
@@ -204,7 +201,7 @@ def _compose(vector, table, slug, mode=None):
     label = " <- ".join(chain)
     if filled:
         label += " <- " + BASE + " (" + ", ".join(sorted(filled)) + ")"
-    _trace.append("  " + vector + (":" + mode if mode else "") + " = " + label)
+    _trace.append("  " + vector + ((":" + mode) if mode else "") + " = " + label)
 
     missing = [k for k in REQUIRED[vector] if k not in tokens]
     if missing:
@@ -229,24 +226,36 @@ def _block(selector, body):
     return selector + "{" + body + "}"
 
 
+def _active():
+    """One slug. Blank lines and `#` comments are ignored, so the file can
+    explain itself without the explanation becoming the theme name."""
+    if not os.path.exists(ACTIVE):
+        _fail("active.txt", "file is missing; it names the live theme")
+    with open(ACTIVE, encoding="utf-8") as fh:
+        names = [
+            line.split("#")[0].strip()
+            for line in fh
+            if line.split("#")[0].strip()
+        ]
+    if not names:
+        _fail("active.txt", "is empty; it must hold one theme slug")
+    if len(names) > 1:
+        # Commenting the old name out is the intended way to park it. Two live
+        # names would make the theme depend on line order, silently.
+        _fail(
+            "active.txt",
+            "holds " + str(len(names)) + " names (" + ", ".join(names)
+            + "); it must hold exactly one. Comment the others out with #.",
+        )
+    return names[0]
+
+
 def on_config(config):
     global _style
     del _trace[:]
 
-    if not os.path.exists(ACTIVE):
-        _fail("active.txt", "file is missing; it names the live theme")
-    with open(ACTIVE, encoding="utf-8") as fh:
-        active = "".join(
-            line.split("#")[0].strip()
-            for line in fh
-            if line.split("#")[0].strip()
-        )
-    if not active:
-        _fail("active.txt", "is empty; it must hold one theme slug")
-
-    joins = _index("join", _read("themes.tsv")) if False else {
-        row["slug"]: row for row in _read("themes.tsv")
-    }
+    active = _active()
+    joins = {row["slug"]: row for row in _read(JOIN)}
 
     if active.startswith("_"):
         _fail(
@@ -258,46 +267,42 @@ def on_config(config):
     if theme is None:
         _fail(
             "active.txt",
-            "`" + active + "` is not a row in themes.tsv. Available: "
+            "`" + active + "` is not a row in " + JOIN + ". Available: "
             + _slugs(joins),
         )
 
     fallback = joins.get(DEFAULT)
     if fallback is None:
-        _fail("themes.tsv", "no `" + DEFAULT + "` row; it fills empty cells")
+        _fail(JOIN, "no `" + DEFAULT + "` row; it is what fills empty cells")
 
     chosen = {}
     for vector in VECTORS:
         name = theme.get(vector) or fallback.get(vector)
         if not name:
             _fail(
-                "themes.tsv",
-                "`" + active + "` names no " + vector
-                + " and `" + DEFAULT + "` does not fill it either",
+                JOIN,
+                "`" + active + "` names no " + vector + " and `" + DEFAULT
+                + "` does not fill it either",
             )
         chosen[vector] = name
 
     css = []
-    palette = _index("color", _read(GRID["color"]))
+    palette = _index("color", GRID["color"])
     for mode, selector in MODES.items():
         tokens = _compose("color", palette, chosen["color"], mode)
         css.append(_block(selector, _declare(tokens, "color")))
 
     root = ""
     for vector in ("typography", "forms", "spacing"):
-        table = _index(vector, _read(GRID[vector]))
-        tokens = _compose(vector, table, chosen[vector])
+        tokens = _compose(vector, _index(vector, GRID[vector]), chosen[vector])
         root += _declare(tokens, vector)
     css.insert(0, _block(":root", root))
 
     _style = '<style id="u-theme">' + "".join(css) + "</style>"
 
-    # Printed every build so a fallback that fired is visible in the log,
+    # Printed every build so a fallback that fired is VISIBLE in the log,
     # rather than being the quiet thing nobody notices for a month.
-    print(
-        "theme: " + active + " = "
-        + " x ".join(chosen[v] for v in VECTORS)
-    )
+    print("theme: " + active + " = " + " x ".join(chosen[v] for v in VECTORS))
     for line in _trace:
         print(line)
     return config
