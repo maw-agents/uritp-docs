@@ -1,6 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600&display=swap");
 /* ^ MUST stay line 1. CSS silently drops any @import that follows another rule. */
 
+/* ⚠️ POINTER: adding, renaming, or dropping a custom class (.tbc and friends) means
+   updating ../../AUTHORING.md in the SAME PR. Authors write the class by hand, so a
+   renamed class renders as nothing with no error. */
+
 /* ── PALETTE. Change these six values and the whole site follows. ─────────── */
 :root, [data-md-color-primary=custom], [data-md-color-accent=custom] {
   --md-primary-fg-color: oklch(48% 0.145 282);    /* header bar, active nav item */
@@ -28,7 +32,7 @@
 .md-typeset table:not([class]) th { background: none; padding-left: 0; font-size: .62rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--md-default-fg-color--light); }
 .md-typeset table:not([class]) td { padding-left: 0; border-top: 0; border-bottom: 1px solid var(--md-default-fg-color--lightest); }
 
-/* ── [To be confirmed]{.tbc} ──────────────────────────────────────────────── */
+/* ── [To be confirmed]{.tbc} ── documented in AUTHORING.md ────────────────── */
 .md-typeset .tbc { padding: 1px 7px; border: 1px solid var(--amber); border-radius: 5px; font-size: .62rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--amber); }
 
 /* ── CALLOUTS. Drop Material's thick left stripe for an even hairline box. ── */
