@@ -29,7 +29,7 @@ Position-by-position detail lives in the [rigging detail sheet](smith-rigging-de
 
 ## Venue notes
 
-Every note here exists because it caught someone out. Pick your department.
+Notes exist here because it caught someone out. Pick your department.
 
 === "General staging"
 
