@@ -27,6 +27,18 @@ many groups can open it, and rotating one group's key rewraps 100 bytes
 without touching the body or any other group. The wrap list is SHUFFLED and
 unlabelled: which desk can open a document is itself information.
 
+HOW A GROUP NAME FINDS ITS KEY -- there is no mapping table
+A group is an environment variable named URITP_GATE_<GROUP>, uppercased with
+hyphens turned into underscores. `psm` is URITP_GATE_PSM; `front-of-house` is
+URITP_GATE_FRONT_OF_HOUSE. That is a DERIVATION, not a lookup: nothing in this
+repository lists the group names, so adding one is creating the secret and
+using its name. The workflow discovers keys by this prefix (see
+.github/workflows/deploy.yml -> Collect gate keys) rather than naming them.
+
+The prefix is load-bearing and is the reason the derivation exists at all.
+Without it the hook would have to treat EVERY environment variable as a
+possible password, which would make PATH and HOME into gate keys.
+
 FOLDER INHERITANCE
 **A gated `index.md` locks its whole subtree.** Every page beneath it inherits
 the same keys and is genuinely encrypted -- not merely hidden from the sidebar,
@@ -34,24 +46,15 @@ which would leave every child readable by direct URL while looking protected.
 The nearest gated ancestor wins; a page overrides by declaring its own
 `status:` (any value) or `inherit: false`. Only silence inherits.
 
-A MISSING KEY LOCKS THE PAGE, IT DOES NOT FREEZE THE SITE (2026-08-01)
-If a page names `gates: [psm]` and the build environment has no
-URITP_GATE_PSM, this hook used to raise and kill the deploy. It did that for a
-good reason -- publishing a page everyone believes is locked, in plaintext, is
-the worst outcome available -- but it bought that safety at the price of the
-ENTIRE SITE going stale over one page's missing config.
-
-That trade was already rejected once tonight. `--strict` used to kill the
-deploy over a single dead link; hooks/links.py now renders a marker on the one
-affected page and lets the build continue. This is the same principle applied
-to the same class of failure:
-
-    the page's content is NEVER published, the page says plainly that its key
-    is not configured, the build reports it loudly, and everything else ships.
-
-Strictly safer than the old behaviour, in fact: a frozen site tempts whoever is
-debugging it into reverting the gate to get the deploy back, which is how a
-locked page ends up public. Set URITP_GATE_STRICT=1 to restore hard-fail.
+A MISSING KEY LOCKS THE PAGE, IT DOES NOT FREEZE THE SITE
+A gated page naming a group with no secret behind it publishes as an
+unopenable notice: the content is DROPPED (not encrypted, not shipped), the
+page says so plainly, the build reports it loudly, and everything else
+deploys. Failing the whole build here took the entire site stale over one
+page's missing config on 2026-08-01 -- the same trade `--strict` used to make
+over a single dead link, rejected for the same reason. The failure must be
+local and visible, not global and silent. URITP_GATES_STRICT=1 restores
+hard-fail.
 
 NONE of these are access control while the repository is public. The markdown
 source of every page, INCLUDING a gated page's plaintext, is readable at
@@ -83,7 +86,13 @@ ALLOWED = {"public", "gated", "unlisted", "hidden"}
 ITERATIONS = 250000
 
 ENV_PREFIX = "URITP_GATE_"
-STRICT = os.environ.get("URITP_GATE_STRICT") == "1"
+
+# NOT URITP_GATE_STRICT. Every URITP_GATE_* variable is now discovered as a
+# password group, so that name would have registered a gate called "strict"
+# whose password was "1". A control flag inside the namespace it controls is a
+# collision waiting to happen; keep flags on URITP_GATES_* (plural) and keys on
+# URITP_GATE_* (singular).
+STRICT = os.environ.get("URITP_GATES_STRICT") == "1"
 
 NOINDEX = '<meta name="robots" content="noindex, nofollow">'
 
@@ -148,14 +157,25 @@ def _env_key(name):
     return ENV_PREFIX + name.upper().replace("-", "_")
 
 
+def _available():
+    """Group names the build environment can actually satisfy, lowercased back
+    into the form a page would write. Used only to make the error message
+    useful -- a NAME is not a secret, it is written in frontmatter."""
+    found = []
+    for key, value in os.environ.items():
+        if key.startswith(ENV_PREFIX) and value:
+            found.append(key[len(ENV_PREFIX):].lower())
+    return sorted(found)
+
+
 def _resolve_keys(meta, src_uri):
-    """Return (passwords, problems). Never raises unless URITP_GATE_STRICT=1.
+    """Return (passwords, problems). Never raises unless URITP_GATES_STRICT=1.
 
     `problems` non-empty means this page cannot be published at all: it is
     rendered as an unopenable notice rather than encrypted, and reported.
     """
     found = []
-    problems = []
+    missing = []
 
     literal = meta.get("password")
     if literal:
@@ -166,10 +186,21 @@ def _resolve_keys(meta, src_uri):
         if secret:
             found.append(secret)
         else:
-            problems.append(
-                "gate '" + name + "' has no " + _env_key(name)
-                + " in the build environment"
-            )
+            missing.append(name)
+
+    problems = []
+    if missing:
+        have = _available()
+        detail = (
+            "no secret named "
+            + ", ".join(_env_key(n) for n in missing)
+            + " reached the build"
+        )
+        detail += (
+            "; groups available right now: " + ", ".join(have)
+            if have else "; no gate keys reached the build at all"
+        )
+        problems.append(detail)
 
     if not found and not problems:
         problems.append(
@@ -432,13 +463,19 @@ def on_post_page(output, page, config):
 def _report():
     """Loud, because the whole point of not failing the build is that the
     problem must not become invisible instead."""
+    have = _available()
+    print("gate: keys available -- " + (", ".join(have) if have else "none"))
+
     if _inherited:
         print("gate: " + str(len(_inherited)) + " page(s) locked by a parent index")
 
     if not _unconfigured:
         return
 
-    print("gate: " + str(len(_unconfigured)) + " page(s) UNAVAILABLE, key not configured:")
+    print(
+        "gate: " + str(len(_unconfigured))
+        + " page(s) UNAVAILABLE, key not configured:"
+    )
     for src, problems in sorted(_unconfigured.items()):
         print("  " + src + " -- " + "; ".join(problems))
 
@@ -459,10 +496,10 @@ def _report():
         lines.append("| `" + src + "` | " + "; ".join(problems) + " |")
     lines += [
         "",
-        "Add the secret in **Settings -> Secrets and variables -> Actions**, "
-        "then name it in the `env:` block of `.github/workflows/deploy.yml`. "
-        "A secret that exists but is not passed through is invisible to the "
-        "build. See AUTHORING.md -> Adding a key group.",
+        "Add a repository secret named `" + ENV_PREFIX + "<GROUP>` in "
+        "**Settings -> Secrets and variables -> Actions**. The build discovers "
+        "it by prefix; there is no list to update. See AUTHORING.md -> Adding "
+        "a key group.",
     ]
     with open(summary, "a", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
