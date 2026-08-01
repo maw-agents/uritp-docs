@@ -26,7 +26,7 @@ Everything else has been confirmed by someone who checked. Each page carries a r
 
 You do not need to know git.
 
-1. Click the **pencil icon** at the top right of any page.
+1. Scroll to the **bottom** of any page and click **Edit this page on GitHub**.
 2. Edit the text. It is plain markdown: `#` for a heading, `-` for a bullet, `**bold**`.
 3. Describe your change and propose it.
 
@@ -37,5 +37,7 @@ If you would rather not touch the repository at all, send the correction to prod
 ## Access
 
 The site is open to anyone with the link. **Editing is not.** Write access is limited, which is why the information here can be treated as authoritative rather than crowd-sourced.
+
+Some pages ask for a password. That is not a permissions system: it means *do not circulate this*. If you were not given the password, the page was not meant for you today, and production management can hand it over in a sentence.
 
 Box folders linked from these pages follow your University of Rochester account. If a folder will not open for you, that is a permissions issue, not a broken link.
