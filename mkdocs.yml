@@ -1,0 +1,89 @@
+# ─────────────────────────────────────────────────────────────
+# URITP Production Resources
+# THEME SWAP: change `theme.name` below. Everything else survives.
+# Content lives in docs/*.md and never needs to change.
+# ─────────────────────────────────────────────────────────────
+
+site_name: URITP Production Resources
+site_description: >-
+  Venue information, technical drawings, and production standards for the
+  University of Rochester International Theatre Program.
+site_url: https://maw-agents.github.io/uritp-docs/
+copyright: University of Rochester International Theatre Program
+
+repo_url: https://github.com/maw-agents/uritp-docs
+repo_name: uritp-docs
+edit_uri: edit/main/docs/
+
+theme:
+  name: material          # <-- THE SWAP POINT
+  language: en
+  font:
+    text: DM Sans
+    code: IBM Plex Mono
+  palette:
+    scheme: default
+    primary: custom
+    accent: custom
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+  features:
+    - navigation.sections
+    - navigation.tracking
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.action.edit
+    - content.tabs.link
+    - content.code.copy
+
+extra_css:
+  - stylesheets/uritp.css
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.smartsymbols
+
+plugins:
+  - search
+
+extra:
+  generator: false
+  social:
+    - icon: material/email
+      link: mailto:mawizorek@gmail.com
+      name: Contact production management
+
+nav:
+  - Start here:
+      - Overview: index.md
+      - Using these docs: using-these-docs.md
+  - Venues:
+      - Smith Theatre: venues/smith-theatre.md
+      - SPAC Lobby: venues/spac-lobby.md
+      - Todd Union: venues/todd-union.md
+  - Production:
+      - Paperwork standards: production/paperwork-standards.md
+  - Safety:
+      - Safety and health: safety/index.md
+  - Reference:
+      - Revision history: reference/revision-history.md
