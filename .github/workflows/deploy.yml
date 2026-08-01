@@ -24,8 +24,65 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: requirements.txt
+
+      # -- GATE KEYS -------------------------------------------------------
+      # Adding a password group is TWO steps and NEITHER IS HERE: create the
+      # secret in Settings named URITP_GATE_<GROUP>, then use <group> in a
+      # page's `gates:`. This step finds it. There is no list of key names
+      # anywhere in this repository.
+      #
+      # WHY THIS IS A SEPARATE STEP, AND WHY IT MUST STAY ONE:
+      # `toJSON(secrets)` hands the WHOLE secrets context to whatever runs in
+      # the step, GITHUB_TOKEN included. Security scanners flag that pattern
+      # and they are right to. So the blast radius is confined to these few
+      # lines of standard-library Python: no imports beyond the stdlib, no
+      # network, no third-party code. It copies ONLY the URITP_GATE_* entries
+      # forward and drops everything else. The Build step below runs mkdocs
+      # and its plugin tree, and never sees anything but the gate keys.
+      #
+      # NEVER move `toJSON(secrets)` onto the Build step. That hands every
+      # secret to every plugin in the dependency tree, which is the whole
+      # thing this split exists to prevent.
+      - name: Collect gate keys
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+        run: |
+          python - <<'PY'
+          import json, os, secrets as rand
+
+          PREFIX = "URITP_GATE_"
+          NEWLINES = (chr(10), chr(13))
+
+          data = json.loads(os.environ["ALL_SECRETS"])
+          lines, names = [], []
+
+          for name in sorted(data):
+              if not name.startswith(PREFIX):
+                  continue
+              value = data[name]
+              if not value:
+                  continue
+              # A line break in a value would terminate the heredoc early and
+              # could inject arbitrary environment variables. Skip and say so.
+              if any(ch in value for ch in NEWLINES):
+                  print("::warning::" + name + " contains a line break and was skipped")
+                  continue
+              delim = "GATE_EOF_" + rand.token_hex(16)
+              lines.extend([name + "<<" + delim, value, delim])
+              names.append(name)
+
+          # Names are not secret: they are written in page frontmatter. Values
+          # are never printed, and GitHub masks them regardless.
+          print("gate keys discovered: " + (", ".join(names) if names else "none"))
+
+          if lines:
+              with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+                  fh.write(chr(10).join(lines) + chr(10))
+          PY
+
       - name: Install MkDocs Material
         run: pip install -r requirements.txt
+
       - name: Build site
         run: mkdocs build --strict
         env:
@@ -35,29 +92,9 @@ jobs:
           # Empty on workflow_dispatch (no head commit); the hook falls back to
           # the short SHA.
           BUILD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          # Gate keys arrive from the Collect step via GITHUB_ENV. Nothing to
+          # list here, ever.
 
-          # ── GATE KEYS ──────────────────────────────────────────────────
-          # One line per password group. `gates: [psm]` in a page's frontmatter
-          # makes hooks/visibility.py read URITP_GATE_PSM from here.
-          #
-          # ⚠️ A secret is NOT automatically visible to the build. Adding it in
-          #    Settings -> Secrets and variables -> Actions is only half the
-          #    job: it must also be named on this list, or the build fails with
-          #    "the environment carries no URITP_GATE_<NAME>". That failure is
-          #    deliberate — the alternative is publishing a page everyone
-          #    believes is locked, in full plaintext, silently.
-          #
-          # ⚠️ An UNSET secret interpolates to an empty string, not an error, so
-          #    a typo in the secret's name here looks exactly like a missing
-          #    secret. The hook's build failure names the variable it wanted;
-          #    compare it against this list character by character.
-          #
-          # Adding a group: add the secret in Settings, add a line here, then
-          # put its name in a page's `gates:`. Documented in AUTHORING.md ->
-          # "Adding a key group".
-          URITP_GATE_ADMIN: ${{ secrets.URITP_GATE_ADMIN }}
-          URITP_GATE_DEV: ${{ secrets.URITP_GATE_DEV }}
-          URITP_GATE_PSM: ${{ secrets.URITP_GATE_PSM }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
