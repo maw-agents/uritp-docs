@@ -1,0 +1,30 @@
+/* Dead internal links, emitted by hooks/links.py.
+
+   Deliberately its own file: the hook owns its presentation, and a ten-line
+   addition does not justify rewriting 12KB of uritp.css (which is how a
+   transcription error gets introduced into a working stylesheet).
+
+   POINTER: renaming .deadlink means updating hooks/links.py AND AUTHORING.md
+   in the SAME PR. Nothing errors if this drifts -- the marker just stops
+   being visible, which defeats the entire point of not failing the build. */
+
+.md-typeset .deadlink {
+  color: oklch(56% 0.17 25);
+  border-bottom: 1px dashed currentColor;
+  cursor: help;
+}
+
+.md-typeset .deadlink::after {
+  content: " \26A0";          /* ⚠ so it reads as broken without relying on hue */
+  font-size: .85em;
+}
+
+[data-md-color-scheme=slate] .md-typeset .deadlink {
+  color: oklch(72% 0.15 25);
+}
+
+/* On paper a dashed red underline says nothing. Spell it out. */
+@media print {
+  .md-typeset .deadlink { color: inherit; border-bottom: 0; }
+  .md-typeset .deadlink::after { content: " [link target missing]"; font-size: .8em; }
+}
