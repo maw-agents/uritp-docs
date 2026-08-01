@@ -40,11 +40,19 @@
   --md-default-fg-color--lightest: var(--u-hairline);
   --md-code-bg-color:              var(--u-surface-1);
 
-  /* The header. Flat: same ground as the page, separated by a rule, not a
-     block of colour. `primary` in mkdocs.yml is only the first-paint floor. */
-  --md-primary-fg-color:           var(--u-bg);
-  --md-primary-bg-color:           var(--u-text-strong);
-  --md-primary-bg-color--light:    var(--u-text-soft);
+  /* ⭐ THE HEADER BANNER. `chrome` is its own colour token, so "change the
+     top bar everywhere" is ONE line in theme.yml instead of a hunt through
+     Material's variable names. Every palette we ship sets chrome = bg, which
+     is the deliberate flat house look: the header is the same ground as the
+     page, separated by a rule and not a block of colour. Give chrome its own
+     value and the banner detaches -- header, tab strip and the mobile drawer
+     header all follow it, because all three read this token.
+     `primary` in mkdocs.yml stays the first-paint floor and the source of the
+     phone browser's <meta theme-color>; mirror it there if chrome moves far
+     from a dark neutral. */
+  --md-primary-fg-color:           var(--u-chrome);
+  --md-primary-bg-color:           var(--u-on-chrome);
+  --md-primary-bg-color--light:    color-mix(in oklab, var(--u-on-chrome) 62%, transparent);
 
   /* Links and the active nav item. Previously this was whatever Material
      defaults to under `primary: black` -- a blue nobody chose. It is a token
@@ -122,7 +130,9 @@
   margin-bottom: 1.4em;
 }
 
-/* ══ CHROME. Flat, quiet, no shadow. ═════════════════════════════════════ */
+/* ══ CHROME. Flat, quiet, no shadow. ═════════════════════════════════════
+   The colour comes from the bridge above (--u-chrome). These rules are the
+   SHAPE of the chrome, which is not a theme decision. */
 .md-header {
   box-shadow: var(--u-shadow);
   border-bottom: var(--u-rule-w) solid var(--u-hairline);
@@ -156,7 +166,7 @@
   font-weight: 600;
 }
 
-/* ⚠️ MOBILE DRAWER. Two separate repairs; do not collapse them.
+/* ⚠️ MOBILE DRAWER. Three separate repairs; do not collapse them.
 
    1. SCHEME. Material's slide-in drawer panels do not inherit the slate
       scheme and render white-on-white in dark mode: the submenu is unusable.
@@ -171,13 +181,27 @@
 
       The repair is to stop fighting the absolute position and lay the title
       out honestly: a flex row, arrow first, text second, real space between
-      them. Now the two cannot overlap no matter what the title height becomes. */
+      them. Now the two cannot overlap no matter what the title height becomes.
+
+   3. THE TALL SECTION ROW (fixed 2026-08-01). Michael: "nav menu has weird
+      spacing for safety". Safety was the only TOP-LEVEL section carrying an
+      index.md, and under `navigation.indexes` Material renders that case
+      differently: it wraps the row in a `.md-nav__container` which ALSO
+      carries `.md-nav__link`, then nests the page link and the expand label
+      inside it. Three elements, same class -- so repair 2's row padding and
+      the 44px tap floor were being applied at every level and the row grew.
+      The container is a layout box and gets neither.
+
+      The general lesson is repair 2's, again: a blanket rule on a component
+      class is a bet that the component only ever renders one shape. */
 @media screen and (max-width: 76.1875em) {
   .md-nav--primary,
   .md-nav--primary .md-nav {
     background-color: var(--u-bg);
     color: var(--u-text);
   }
+  /* The drawer header IS the header banner on a phone, so it reads the same
+     token. Change chrome once and both move together. */
   .md-nav--primary .md-nav__title {
     display: flex;
     align-items: center;
@@ -186,8 +210,8 @@
     line-height: 1.25;
     height: auto;
     padding: 0 .8rem;
-    background-color: var(--u-surface-2);
-    color: var(--u-text-strong);
+    background-color: var(--u-chrome);
+    color: var(--u-on-chrome);
     box-shadow: none;
     border-bottom: var(--u-rule-w) solid var(--u-hairline);
   }
@@ -214,6 +238,20 @@
   .md-nav--primary .md-nav__link {
     padding: .72rem .8rem;
     min-height: var(--u-touch);
+  }
+  /* Repair 3. A section that owns an index.md. The container is layout only:
+     no padding, no floor, no second helping of either. Harmless on a build
+     where Material never emits it -- the selector simply matches nothing. */
+  .md-nav--primary .md-nav__container {
+    display: flex;
+    align-items: stretch;
+    padding: 0;
+    min-height: 0;
+  }
+  .md-nav--primary .md-nav__container > .md-nav__link { flex: 1 1 auto; }
+  .md-nav--primary .md-nav__container > label.md-nav__link {
+    flex: 0 0 auto;
+    padding-left: .2rem;
   }
   /* Which row am I on. A file tree marks the branch you are standing in. */
   .md-nav--primary .md-nav__link--active {
@@ -440,6 +478,8 @@
     --u-text-strong: #000;
     --u-text-soft: #555;
     --u-accent: #000;
+    --u-chrome: #fff;
+    --u-on-chrome: #000;
     --u-marker: #7a4f00;
     --u-shadow: none;
   }
