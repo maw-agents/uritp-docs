@@ -1,5 +1,5 @@
-slug	inherits	touch	pad-cell	pad-block	gap-xs	gap-md	gap-lg	measure
-_base		44px	.5rem	.7rem	.2rem	.85rem	2.1rem	68ch
-standard		44px	.5rem	.7rem	.2rem	.85rem	2.1rem	68ch
-dense	standard		.34rem	.55rem	.14rem	.65rem	1.6rem	76ch
-roomy	standard	48px	.68rem	.95rem	.28rem	1.05rem	2.6rem	62ch
+slug	inherits	touch	pad-cell	pad-block	pad-row	gap-xs	gap-md	gap-lg	measure
+_base		44px	.5rem	.7rem	.72rem .8rem	.2rem	.85rem	2.1rem	68ch
+standard		44px	.5rem	.7rem	.72rem .8rem	.2rem	.85rem	2.1rem	68ch
+dense	standard		.34rem	.55rem	.5rem .7rem	.14rem	.65rem	1.6rem	76ch
+roomy	standard	48px	.68rem	.95rem	.95rem .9rem	.28rem	1.05rem	2.6rem	62ch

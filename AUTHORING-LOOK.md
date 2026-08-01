@@ -26,16 +26,38 @@ Companion to [AUTHORING.md](AUTHORING.md) (writing pages) and
 
 ## Editing the stylesheet
 
-`docs/stylesheets/uritp.css` contains **no colour, no font name, no size and no
-radius.** Every value is a `--u-*` token composed from `theme/`.
+`docs/stylesheets/uritp.css` contains **no colour, no font name, and no size,
+radius or gap that anyone would want to reskin.** Those are `--u-*` tokens
+composed from `theme/`.
 
 ⚠️ **A literal value committed there silently opts that element out of every
 future swap.** The build fails by name when a palette forgets a token; it
 cannot detect a stylesheet that stopped asking for one. If you need a value
 with no token, add the column to the right grid in `theme/` **and** its name to
-`REQUIRED` in `hooks/theme.py`, in the same PR. `chrome` is the worked example:
-it did not exist until Michael asked where the one line for the header banner
-was, and the honest answer was that there wasn't one.
+`REQUIRED` in `hooks/theme.py`, in the same PR. `chrome`, `pad-row` and
+`fs-nav` all arrived that way, each because a real question — *where do I make
+the header a different colour / the menu rows roomier / the menu text bigger* —
+turned out to have no answer in the grid.
+
+**The numbers that remain are proportions, not style**, and the distinction is
+why the file is not one giant variable list. A token answers *what should this
+look like*. A literal answers *where does this sit relative to the thing beside
+it*: a heading's bottom margin in `em` of its own size, an icon's offset inside
+its box, a 1.3 line-height. Those track the tokens automatically because they
+are relative. Turning them into dials would mean fifty columns nobody sets.
+
+**Two named exceptions**, both of which must stay hard-coded:
+
+- **Breakpoints.** The two widths where the layout changes are Material's own,
+  matched deliberately so our rules switch on the same line its rules do. A
+  theme that could move them would let a palette desynchronise our layout from
+  the component's — the exact collision class that cost two fixes in one day.
+- **The `@media print` block.** It overrides the tokens rather than Material's
+  variables, so the bridge keeps doing the translating and the block stays
+  short forever. Paper is not a theme, it is a physical constraint: ink on
+  white at full contrast, whichever skin was on screen. A themeable print
+  palette would let a swap produce an unreadable printout, and a venue page
+  carried into a production meeting is the case that must never break.
 
 The file has one **bridge** block at the top mapping `--u-*` onto Material's
 `--md-*` variables. That is the only place the two systems touch.
@@ -44,11 +66,6 @@ The file has one **bridge** block at the top mapping `--u-*` onto Material's
 `:root`.** Material sets its scheme colours from those attribute selectors; an
 unscoped rule loses the specificity contest and the dark toggle breaks in a way
 that only shows up in one mode.
-
-The `@media print` block is **the one deliberate exception** to the no-literals
-rule. It overrides the tokens rather than Material's variables, so the bridge
-keeps doing the translating and the block stays short forever. Paper is not a
-theme, it is a physical constraint.
 
 ---
 
@@ -62,6 +79,7 @@ a Material default; none should be restored without reading the reason.
 | The GitHub repo block | Name, star count and fork count in the header and at the top of the mobile drawer | It reported **0 stars, 0 forks** on a venue reference nobody stars. `repo_url` stays in `mkdocs.yml` — this hides the display, not the config, and `page.edit_url` is built from it. |
 | `content.action.edit` | A pencil icon top-right of every page | It reads as an invitation to edit a document whose job is to be the settled answer, and it rendered as an anchor with **no text at all** — a screen reader announced the raw URL. Replaced by `hooks/pagefoot.py`. |
 | `material.extensions.preview` | Hover card previewing a link's target | Previews need hover and this site is read on a phone. **⚠️ The second reason once given — that it iconised every nav row — was WRONG; see below.** The removal stands on the hover argument alone, and adding it back now costs nothing in icons. |
+| `theme.font` | A font block in `mkdocs.yml` | It named the same families as the typography grid, in a second file, kept in agreement by hand. `hooks/theme.py` writes it from `webfont-text` / `webfont-code` now. **Do not add it back** — it would be overwritten every build. |
 
 And one thing deliberately **kept**, which is rarer and therefore worth more
 words.
@@ -127,6 +145,25 @@ rendering an empty box.
 **The transferable lesson:** a plausible cause that explains the symptom is not
 the cause. Two independent things here produce an identical icon on an identical
 set of rows, and the only way to tell them apart was to read the template.
+
+### What `theme.palette` actually still does
+
+Less than it looks like, and it is worth writing down because it reads like the
+design and is not. The real chrome colour is the `chrome` column in
+`theme/colors.tsv`, applied through the bridge. The two `palette` entries in
+`mkdocs.yml` survive for exactly two reasons:
+
+1. **The scheme toggle needs two palettes declared** to have something to
+   toggle between.
+2. **Material derives the phone browser's own bar colour** (`<meta
+   name="theme-color">`) from `primary`. `black` is a deliberate neutral choice
+   for that one job.
+
+There is no flash-of-unstyled-colour to guard against here, whatever an older
+comment may have implied: `hooks/theme.py` writes its `<style>` into the HTML at
+**build** time, so the tokens are present in the very first byte the browser
+parses. The runtime-resolver problem that idea was inherited from does not exist
+in a static site.
 
 ### The edit link
 
@@ -203,7 +240,7 @@ used to do exactly that and signal focus with a border colour alone — invisibl
 to anyone who cannot distinguish two greys, and gone entirely in forced-colours
 mode.
 
-Mobile nav rows, the password field and the Unlock button all take their minimum
+Menu rows, the password field and the Unlock button all take their minimum
 height from `touch` in `theme/spacing.tsv`, so density stays a theme decision
 and never quietly drops below the 44px floor.
 
@@ -303,13 +340,12 @@ Or a single section, using `attr_list` (already enabled):
 
 | File | Holds | Update here when |
 |---|---|---|
-| [`theme/`](theme/) | **Every colour, font, size, radius and gap** | Any look change at all — see its README |
-| `hooks/theme.py` | Composition, the fallback chain, `REQUIRED` | A token is added, or the injection changes |
+| [`theme/`](theme/) | **Every colour, font, size, radius and gap** — and which webfonts download | Any look change at all — see its README |
+| `hooks/theme.py` | Composition, the fallback chain, `REQUIRED`, `theme.font` | A token is added, or the injection changes |
 | `hooks/pagefoot.py` | The page-foot edit link | Its label, placement, or condition changes |
 | `docs/stylesheets/uritp.css` | Every rule on the site | A custom class is added, renamed, or dropped — **and [AUTHORING.md](AUTHORING.md) too**, since authors type `.tbc` by hand |
 | `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
-| `mkdocs.yml` → `theme.font` | Which webfont is downloaded | `theme/typography.tsv` points at a new family |
-| `mkdocs.yml` → `theme.palette` → `primary` | First paint + `<meta theme-color>` | The `chrome` column moves far from a dark neutral |
+| `mkdocs.yml` → `theme.palette` | The scheme toggle + the phone browser's bar colour | Almost never. It is not the design; see above. |
 | `mkdocs.yml` → `extra.status` | Sidebar badge tooltips | A `status:` value is added or renamed — **and `docs/using-these-docs.md`** |
 | `mkdocs.yml` → `theme.features` | Which Material chrome is on | Anything in *The chrome* table above is restored or removed — **and grep `docs/` for pages that describe it** |
 | `requirements.txt` → the 9.x floor | Which Material template ships | Never casually. `partials/nav-item.html` is behaviour we depend on. |

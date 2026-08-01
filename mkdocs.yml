@@ -1,6 +1,7 @@
 # THEME: everything about the look lives in the `theme/` folder as TSV grids.
 #   Swap the whole site by editing ONE WORD in theme/active.txt. Nudge one
 #   value by editing ONE CELL in the matching grid. Start at theme/README.md.
+#   NOTHING about colour, type, edges or density is set in this file.
 #   (theme.yml is a retired stub as of 2026-08-01 and is read by nothing.)
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml.
 # VISIBILITY: every page needs `status:` in its frontmatter or it will not build.
@@ -24,18 +25,26 @@ copyright: URITP | MAW
 theme:
   name: material
 
-  # THE WEBFONT LOADER, NOT THE TYPE CHOICE. This tells Material which family
-  # to DOWNLOAD. Which family the CSS asks for is theme/typography.tsv. Point
-  # that grid at something not requested here and you get a silent fallback.
-  # The seam is named in theme/README.md -> typography.
-  font: {text: IBM Plex Sans, code: IBM Plex Mono}
+  # ⚠️ NO `font:` BLOCK HERE ON PURPOSE, AND DO NOT ADD ONE BACK.
+  #
+  # hooks/theme.py SETS `theme.font` at build time from the `webfont-text` and
+  # `webfont-code` columns of the active row in theme/typography.tsv. That is
+  # the same row that decides which family the CSS asks for, so the family we
+  # DOWNLOAD and the family we ASK FOR can no longer disagree.
+  #
+  # This closes a seam that was documented for weeks as unclosable: two files
+  # naming the same font, kept in agreement by hand, where a mismatch produced
+  # a silent fallback to the next entry in the stack with no error anywhere.
+  # A `font:` block written here would be overwritten on every build, so it
+  # would read as configuration while doing nothing at all.
 
-  # FIRST-PAINT FLOOR, NOT THE DESIGN. The real chrome colour is the `chrome`
-  # column in theme/colors.tsv, applied over the top. These two entries exist
-  # so the scheme toggle works and so the mobile browser chrome (<meta
-  # theme-color>, which Material derives from `primary`) is not bright indigo.
-  # Mirror the active palette's `chrome` here if you take it far from a dark
-  # neutral. First entry is the default, so the site opens DARK.
+  # ⚠️ `palette` IS NOT THE DESIGN, and it does less than it looks like.
+  # The real chrome colour is the `chrome` column in theme/colors.tsv, applied
+  # through uritp.css. These two entries exist for exactly two reasons: the
+  # scheme TOGGLE needs two palettes declared to have something to toggle
+  # between, and Material derives the phone browser's own bar colour
+  # (<meta theme-color>) from `primary`. `black` is a deliberate neutral
+  # choice for that bar. First entry is the default, so the site opens DARK.
   palette:
     - scheme: slate
       primary: black
@@ -114,10 +123,10 @@ plugins:
 # from pages that will actually exist; reverse those two and a link to a hidden
 # page resolves to a 404. pagefoot.py appends after links.py so the edit link
 # lands BELOW the `Linked from` section rather than between the body and it.
-# theme.py and buildstamp.py are order-independent: neither touches the file
-# list or the page body.
+# theme.py runs FIRST because it writes theme.font into the config, which
+# Material reads when it renders; buildstamp.py is order-independent.
 hooks:
-  - hooks/theme.py        # composes theme/*.tsv into --u-* tokens
+  - hooks/theme.py        # composes theme/*.tsv into --u-* tokens + theme.font
   - hooks/visibility.py   # frontmatter `status:` gate, hidden by default
   - hooks/links.py        # @page-id resolution, backlinks, retired-URL redirects
   - hooks/pagefoot.py     # "Edit this page on GitHub" at the page foot
