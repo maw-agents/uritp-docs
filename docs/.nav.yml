@@ -7,6 +7,9 @@
 # append_unmatched puts anything not named below at the bottom of the sidebar,
 # so a brand new folder shows up on its own. Move its name into the list when
 # you want it somewhere specific.
+#
+# ⚠️ POINTER: if the add-a-page procedure changes, update ../../AUTHORING.md
+#    in the SAME PR.
 
 append_unmatched: true
 

@@ -1,5 +1,9 @@
 # THEME SWAP: change theme.name. Nothing in docs/*.md is affected by a swap.
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml, not here.
+#
+# ⚠️ POINTER: adding or removing a markdown_extension changes what page authors can
+#    write. Update ../AUTHORING.md in the SAME PR or it teaches syntax that no longer
+#    renders.
 
 site_name: URITP Production Resources
 site_url: https://maw-agents.github.io/uritp-docs/
@@ -26,6 +30,7 @@ plugins:
   - search        # must be listed: declaring plugins replaces the defaults
   - awesome-nav   # builds the sidebar from docs/, steered by docs/.nav.yml
 
+# Each line below enables authoring syntax documented in AUTHORING.md.
 markdown_extensions:
   - tables
   - admonition                                 # !!! warning "Title"
