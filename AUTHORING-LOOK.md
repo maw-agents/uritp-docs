@@ -10,9 +10,10 @@ Companion to [AUTHORING.md](AUTHORING.md) (writing pages) and
 >
 > The four vectors are TSV grids in [`theme/`](theme/). Swap the whole site by
 > editing one word in [`theme/active.txt`](theme/active.txt). Nudge one value
-> by editing one cell. This file used to explain all of that and now points at
-> it instead: **one place, referenced, never restated.** A copy of a value is a
-> copy that rots, and this document proved that twice on 2026-08-01.
+> by editing one cell. **How light and dark work is explained there too.**
+> This file used to restate all of that and now points at it instead: **one
+> place, referenced, never restated.** A copy of a value is a copy that rots,
+> and this document proved that twice on 2026-08-01.
 
 **This file describes:** `docs/stylesheets/uritp.css` · `docs/stylesheets/links.css`
 · `hooks/pagefoot.py` · the `theme:` and `extra:` blocks in `mkdocs.yml`
@@ -67,6 +68,11 @@ The file has one **bridge** block at the top mapping `--u-*` onto Material's
 unscoped rule loses the specificity contest and the dark toggle breaks in a way
 that only shows up in one mode.
 
+⚠️ **A bridge variable only works if Material actually reads that variable for
+the thing you are trying to change.** See the `primary: black` trap below: for
+several of its palette values Material writes a *literal* onto the component
+instead, and no amount of correct variable-setting reaches it.
+
 ---
 
 ## The chrome
@@ -80,9 +86,75 @@ a Material default; none should be restored without reading the reason.
 | `content.action.edit` | A pencil icon top-right of every page | It reads as an invitation to edit a document whose job is to be the settled answer, and it rendered as an anchor with **no text at all** — a screen reader announced the raw URL. Replaced by `hooks/pagefoot.py`. |
 | `material.extensions.preview` | Hover card previewing a link's target | Previews need hover and this site is read on a phone. **⚠️ The second reason once given — that it iconised every nav row — was WRONG; see below.** The removal stands on the hover argument alone, and adding it back now costs nothing in icons. |
 | `theme.font` | A font block in `mkdocs.yml` | It named the same families as the typography grid, in a second file, kept in agreement by hand. `hooks/theme.py` writes it from `webfont-text` / `webfont-code` now. **Do not add it back** — it would be overwritten every build. |
+| `theme.palette[].primary` | `primary: black` on both palette entries | It **silently defeated the `chrome` token** in both modes. See below. **Do not add it back.** |
 
 And one thing deliberately **kept**, which is rarer and therefore worth more
 words.
+
+### 🔴 `primary: black`, and a variable that could never win
+
+Michael, 2026-08-01: *"the header didn't render well in light mode… it kept
+banner color but swapped color text."* Exactly right, and the cause is not in
+our stylesheet at all.
+
+Material special-cases `black` in `palette/_primary.scss`. For every ordinary
+colour it only sets variables, which our bridge overrides cleanly. For `black`
+it **writes literals onto the components**:
+
+```scss
+[data-md-color-primary="black"] {
+  .md-header { background-color: hsla(var(--md-hue), 15%, 9%, 1); }
+  html & .md-nav--primary .md-nav__title[for="__drawer"] { ... }
+  .md-tabs { background-color: ... }
+}
+```
+
+So `--md-primary-fg-color: var(--u-chrome)` was correct, live, and **unread**.
+The banner was hard black in *both* modes. Nobody caught it in dark mode
+because that black is close to our dark `bg`. In light mode the background
+stayed black while `--md-primary-bg-color` — which Material *does* read from
+the variable — flipped the text to the light-mode `on-chrome`. Dark brown text
+on a black bar.
+
+Note the drawer rule carries `html &`, which outranks our own drawer-title rule
+on specificity. Two of our tokens were being ignored, not one.
+
+**The fix is deletion.** With no `primary` key, no `[data-md-color-primary]`
+rule matches and Material's own default applies —
+`.md-header { background-color: var(--md-primary-fg-color) }` — which is the
+variable we were setting correctly all along.
+
+⚠️ **The reason that key was kept was itself false, and it was written down
+twice.** Both this file and `mkdocs.yml` claimed `primary` was the source of
+the phone browser's `<meta name="theme-color">`. It is not. Material's palette
+component reads the **header's computed background** and writes that into the
+meta tag on every scheme change:
+
+```ts
+const style = window.getComputedStyle(getComponentElement("header"))
+return style.backgroundColor…   // → meta.content
+```
+
+So removing the key did not cost the browser-bar colour — it **fixed** it. The
+phone's bar now tracks the `chrome` token per mode, with nothing to keep in
+sync.
+
+**The transferable lesson**, and it is the third time today: *a plausible
+reason is not a verified one.* "Keep `primary` for the theme-color meta" was
+never tested, survived in two canonical files, and defended a line that was
+actively breaking the feature it sat next to. It took reading
+`palette/index.ts` to disprove — the same move that found the ⓘ badge and the
+nav row height.
+
+### What `theme.palette` still does
+
+**One job: the toggle needs two entries to switch between.** That is the whole
+remit. Each entry names a `scheme` and its toggle icon, and nothing else.
+
+There is also no flash-of-unstyled-colour to guard against, whatever an older
+comment implied: `hooks/theme.py` writes its `<style>` into the HTML at **build**
+time, so the tokens are present in the first byte the browser parses. That idea
+was inherited from the runtime app resolver and never applied to a static site.
 
 ### ⓘ / 🔒 The sidebar badge — a reserved key we did not know we were using
 
@@ -141,29 +213,6 @@ page vanishes from the site.
 `mask-image: var(--md-status--encrypted, var(--md-status))`. If a future
 Material drops that variable, the row degrades to the plain ⓘ instead of
 rendering an empty box.
-
-**The transferable lesson:** a plausible cause that explains the symptom is not
-the cause. Two independent things here produce an identical icon on an identical
-set of rows, and the only way to tell them apart was to read the template.
-
-### What `theme.palette` actually still does
-
-Less than it looks like, and it is worth writing down because it reads like the
-design and is not. The real chrome colour is the `chrome` column in
-`theme/colors.tsv`, applied through the bridge. The two `palette` entries in
-`mkdocs.yml` survive for exactly two reasons:
-
-1. **The scheme toggle needs two palettes declared** to have something to
-   toggle between.
-2. **Material derives the phone browser's own bar colour** (`<meta
-   name="theme-color">`) from `primary`. `black` is a deliberate neutral choice
-   for that one job.
-
-There is no flash-of-unstyled-colour to guard against here, whatever an older
-comment may have implied: `hooks/theme.py` writes its `<style>` into the HTML at
-**build** time, so the tokens are present in the very first byte the browser
-parses. The runtime-resolver problem that idea was inherited from does not exist
-in a static site.
 
 ### The edit link
 
@@ -340,12 +389,12 @@ Or a single section, using `attr_list` (already enabled):
 
 | File | Holds | Update here when |
 |---|---|---|
-| [`theme/`](theme/) | **Every colour, font, size, radius and gap** — and which webfonts download | Any look change at all — see its README |
+| [`theme/`](theme/) | **Every colour, font, size, radius and gap** — both modes, and which webfonts download | Any look change at all — see its README |
 | `hooks/theme.py` | Composition, the fallback chain, `REQUIRED`, `theme.font` | A token is added, or the injection changes |
 | `hooks/pagefoot.py` | The page-foot edit link | Its label, placement, or condition changes |
 | `docs/stylesheets/uritp.css` | Every rule on the site | A custom class is added, renamed, or dropped — **and [AUTHORING.md](AUTHORING.md) too**, since authors type `.tbc` by hand |
 | `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
-| `mkdocs.yml` → `theme.palette` | The scheme toggle + the phone browser's bar colour | Almost never. It is not the design; see above. |
+| `mkdocs.yml` → `theme.palette` | **Only** the two entries the scheme toggle switches between | Almost never. It is not the design, and **it must not regain a `primary` key.** |
 | `mkdocs.yml` → `extra.status` | Sidebar badge tooltips | A `status:` value is added or renamed — **and `docs/using-these-docs.md`** |
 | `mkdocs.yml` → `theme.features` | Which Material chrome is on | Anything in *The chrome* table above is restored or removed — **and grep `docs/` for pages that describe it** |
 | `requirements.txt` → the 9.x floor | Which Material template ships | Never casually. `partials/nav-item.html` is behaviour we depend on. |
