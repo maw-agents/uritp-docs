@@ -166,6 +166,28 @@
   font-weight: 600;
 }
 
+/* 🔴 THE ⓘ ON EVERY NAV ROW. It is OUR OWN FRONTMATTER, not an extension.
+
+   Material's partials/nav-item.html ends with:
+
+       {% if nav_item.meta and nav_item.meta.status %}
+         {{ render_status(nav_item, nav_item.meta.status) }}
+       {% endif %}
+
+   `status:` is a RESERVED Material key that puts a badge beside a nav title,
+   and `--md-status` defaults to `information-outline` for any value Material
+   does not recognise. Every page here carries `status:` for hooks/visibility.py,
+   so every page got an ⓘ, and a folder with no index.md got none because there
+   was no page meta to read. That is the exact pattern that was blamed on
+   `material.extensions.preview` on 2026-08-01 -- wrongly. See mkdocs.yml.
+
+   Hidden rather than renamed: `status:` is the right word for what it does here
+   and it is written in every page, the template and three reference files. If a
+   badge is ever wanted, delete this rule and add `extra.status.<value>` in
+   mkdocs.yml for the tooltip -- Material ships a shield-lock glyph
+   (`--md-status--encrypted`) that would suit `gated` exactly. */
+.md-nav__link .md-status { display: none; }
+
 /* ⚠️ MOBILE DRAWER. Three separate repairs; do not collapse them.
 
    1. SCHEME. Material's slide-in drawer panels do not inherit the slate
@@ -183,17 +205,28 @@
       out honestly: a flex row, arrow first, text second, real space between
       them. Now the two cannot overlap no matter what the title height becomes.
 
-   3. THE TALL SECTION ROW (fixed 2026-08-01). Michael: "nav menu has weird
-      spacing for safety". Safety was the only TOP-LEVEL section carrying an
-      index.md, and under `navigation.indexes` Material renders that case
-      differently: it wraps the row in a `.md-nav__container` which ALSO
-      carries `.md-nav__link`, then nests the page link and the expand label
-      inside it. Three elements, same class -- so repair 2's row padding and
-      the 44px tap floor were being applied at every level and the row grew.
-      The container is a layout box and gets neither.
+   3. THE TALL SECTION ROW (fixed 2026-08-01, on the second attempt).
+      Michael: "nav menu has weird spacing for safety". Safety was the only
+      TOP-LEVEL section with an index.md, so under `navigation.indexes` it was
+      the only row Material renders as a `.md-nav__container`: a wrapper that
+      ALSO carries `.md-nav__link`, holding a nested `<a>` and `<label>` that
+      carry it too. Three elements, one class.
 
-      The general lesson is repair 2's, again: a blanket rule on a component
-      class is a bet that the component only ever renders one shape. */
+      ⚠️ The padding was never the problem, and the first fix assumed it was.
+      Material already writes `.md-nav--primary .md-nav__link > .md-nav__link
+      { padding: 0 }` -- the wrapper is padded and the children are not. Zeroing
+      the wrapper therefore removed the row's ONLY padding and the title went
+      flush to the drawer edge. The real culprit was `min-height: var(--u-touch)`
+      further down, which Material has no equivalent of and no rule to cancel,
+      so the row became a 44px child inside a 44px padded parent.
+
+      So: cancel the tap floor exactly where Material cancels the padding, and
+      let the wrapper be the row. Children stretch to fill it, which keeps the
+      whole 44px tappable instead of just the text.
+
+      The lesson is repair 2's, one layer out: a blanket rule on a component
+      class is a bet the component only renders one shape. And when a fix
+      changes the symptom instead of removing it, the diagnosis was wrong. */
 @media screen and (max-width: 76.1875em) {
   .md-nav--primary,
   .md-nav--primary .md-nav {
@@ -239,23 +272,29 @@
     padding: .72rem .8rem;
     min-height: var(--u-touch);
   }
-  /* Repair 3. A section that owns an index.md. The container is layout only:
-     no padding, no floor, no second helping of either. Harmless on a build
-     where Material never emits it -- the selector simply matches nothing. */
-  .md-nav--primary .md-nav__container {
+  /* Repair 3. A link nested inside a section-index wrapper. Material zeroes
+     its padding here; zero its tap floor in the same place, or the row stacks
+     a 44px box inside a 44px box. The wrapper is the row. */
+  .md-nav--primary .md-nav__link > .md-nav__link { min-height: 0; }
+  /* ...and let those children fill the row so the whole 44px is tappable,
+     not just the line of text sitting at the top of it. */
+  .md-nav--primary .md-nav__container { align-items: stretch; }
+  .md-nav--primary .md-nav__container > .md-nav__link {
     display: flex;
-    align-items: stretch;
-    padding: 0;
-    min-height: 0;
-  }
-  .md-nav--primary .md-nav__container > .md-nav__link { flex: 1 1 auto; }
-  .md-nav--primary .md-nav__container > label.md-nav__link {
-    flex: 0 0 auto;
-    padding-left: .2rem;
+    align-items: center;
   }
   /* Which row am I on. A file tree marks the branch you are standing in. */
   .md-nav--primary .md-nav__link--active {
     box-shadow: inset 2px 0 0 var(--u-accent);
+  }
+  /* On a section-index row the active link is a child, so the bar would land
+     at the wrapper's padding edge rather than the row edge. Put it on the row
+     and take it off the child. */
+  .md-nav--primary .md-nav__container:has(.md-nav__link--active) {
+    box-shadow: inset 2px 0 0 var(--u-accent);
+  }
+  .md-nav--primary .md-nav__container > .md-nav__link--active {
+    box-shadow: none;
   }
   .md-nav--primary .md-nav__icon:not(.md-nav__button) { opacity: .55; }
 }
