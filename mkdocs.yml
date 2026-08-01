@@ -1,6 +1,7 @@
-# THEME SWAP: change `active:` in theme.yml at the repo ROOT. Not here, and
-#   not in a stylesheet. That one line picks a colour x typography x forms x
-#   spacing combination; hooks/theme.py composes it. See AUTHORING-LOOK.md.
+# THEME: everything about the look lives in the `theme/` folder as TSV grids.
+#   Swap the whole site by editing ONE WORD in theme/active.txt. Nudge one
+#   value by editing ONE CELL in the matching grid. Start at theme/README.md.
+#   (theme.yml is a retired stub as of 2026-08-01 and is read by nothing.)
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml.
 # VISIBILITY: every page needs `status:` in its frontmatter or it will not build.
 # LINKS: internal links are ids, not paths. See hooks/links.py + AUTHORING.md.
@@ -24,17 +25,17 @@ theme:
   name: material
 
   # THE WEBFONT LOADER, NOT THE TYPE CHOICE. This tells Material which family
-  # to DOWNLOAD. Which family the CSS asks for is the typography vector in
-  # theme.yml. Point the vector at something not requested here and you get a
-  # silent fallback. The seam is named in theme.yml -> VECTOR 2.
+  # to DOWNLOAD. Which family the CSS asks for is theme/typography.tsv. Point
+  # that grid at something not requested here and you get a silent fallback.
+  # The seam is named in theme/README.md -> typography.
   font: {text: IBM Plex Sans, code: IBM Plex Mono}
 
   # FIRST-PAINT FLOOR, NOT THE DESIGN. The real chrome colour is the `chrome`
-  # token in theme.yml, applied over the top. These two entries exist so the
-  # scheme toggle works and so the mobile browser chrome (<meta theme-color>,
-  # which Material derives from `primary`) is not bright indigo. Mirror the
-  # active palette's `chrome` here if you take it far from a dark neutral.
-  # First entry is the default, so the site opens DARK.
+  # column in theme/colors.tsv, applied over the top. These two entries exist
+  # so the scheme toggle works and so the mobile browser chrome (<meta
+  # theme-color>, which Material derives from `primary`) is not bright indigo.
+  # Mirror the active palette's `chrome` here if you take it far from a dark
+  # neutral. First entry is the default, so the site opens DARK.
   palette:
     - scheme: slate
       primary: black
@@ -116,7 +117,7 @@ plugins:
 # theme.py and buildstamp.py are order-independent: neither touches the file
 # list or the page body.
 hooks:
-  - hooks/theme.py        # composes theme.yml into --u-* tokens
+  - hooks/theme.py        # composes theme/*.tsv into --u-* tokens
   - hooks/visibility.py   # frontmatter `status:` gate, hidden by default
   - hooks/links.py        # @page-id resolution, backlinks, retired-URL redirects
   - hooks/pagefoot.py     # "Edit this page on GitHub" at the page foot
