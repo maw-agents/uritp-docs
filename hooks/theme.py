@@ -67,6 +67,8 @@ knows which ones may not be missing. After the whole chain resolves, a token
 still absent fails BY NAME rather than rendering one element invisible.
 
 Wired in mkdocs.yml under ``hooks:``. Documented in theme/README.md.
+``hooks/contrast.py`` imports this module to reuse ``_read``, ``_index`` and
+``_compose``, so the numbers it measures are the numbers a page really gets.
 """
 
 import csv
@@ -133,22 +135,34 @@ def _fail(where, message):
     raise ValueError("theme/" + where + ": " + message)
 
 
-def _read(filename):
+def _read(filename, key="slug"):
     """A grid as a list of dicts. Values are stripped -- a trailing space in a
     spreadsheet cell is invisible and would otherwise become part of a colour.
-    A short row (fewer cells than headers) reads as empty, not as None."""
+    A short row (fewer cells than headers) reads as empty, not as None.
+
+    ``key`` is the column that must be present for a row to count, which also
+    skips the blank lines a spreadsheet leaves at the end of a file. It is a
+    parameter rather than a hard-coded "slug" because contrast.tsv is a grid
+    too and is keyed by `fg` -- assuming every table in this folder has the
+    same key column is what broke the contrast gate's first build.
+    """
     path = os.path.join(DIR, filename)
     if not os.path.exists(path):
         _fail(filename, "file is missing")
     rows = []
     with open(path, encoding="utf-8", newline="") as fh:
-        for raw in csv.DictReader(fh, delimiter="\t"):
+        reader = csv.DictReader(fh, delimiter="\t")
+        if reader.fieldnames and key not in [
+            (name or "").strip() for name in reader.fieldnames
+        ]:
+            _fail(filename, "has no `" + key + "` column")
+        for raw in reader:
             row = {}
-            for key, value in raw.items():
-                if key is None:
+            for name, value in raw.items():
+                if name is None:
                     continue
-                row[key.strip()] = (value or "").strip()
-            if row.get("slug"):
+                row[name.strip()] = (value or "").strip()
+            if row.get(key):
                 rows.append(row)
     if not rows:
         _fail(filename, "no rows")
