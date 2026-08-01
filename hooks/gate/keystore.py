@@ -48,12 +48,24 @@ just the password. No prefix, no sigil, no second key to learn. Add a group to
 the secret and every page already naming it starts working; delete the group
 and that page falls back to treating the word as a literal, which is reported.
 
-⚠️ THE ONE AMBIGUITY, NAMED RATHER THAN ENGINEERED AWAY: a literal password
-that happens to be spelled exactly like a group name resolves as the GROUP.
-So do not use a group name as a page's one-off password -- and if the keystore
-later gains a group whose name equals some page's literal, that page silently
-changes which secret opens it. That is why every resolution is printed by name
-and kind at build time: the trace is the mitigation, not a cleverer rule.
+🔴 THE DANGEROUS HALF OF THAT RULE IS THE FALLBACK, so it is instrumented.
+A TYPO IN A GROUP NAME IS STILL A VALID LITERAL. `gates: [psmm]` does not
+fail -- `psmm` is not a group, so it quietly becomes the page's password, and
+the page locks behind a secret nobody was given. Same silent shape as the bug
+above, one keystroke away, and no rule can tell a typo from a deliberate
+one-off password.
+
+So: a literal that is a CLOSE MATCH to a real group name is flagged by name,
+every build, with the suggestion. Not refused -- `dev2` may genuinely be the
+password someone wants -- but never silent. The check is the mitigation,
+because the grammar cannot be.
+
+⚠️ THE OTHER AMBIGUITY, NAMED RATHER THAN ENGINEERED AWAY: a literal password
+spelled exactly like a group name resolves as the GROUP. So do not use a group
+name as a page's one-off password -- and if the keystore later gains a group
+whose name equals some page's literal, that page silently changes which secret
+opens it. That is why every resolution is printed by name and kind at build
+time: the trace is the mitigation, not a cleverer rule.
 
 This is a CASUAL gate on a PUBLIC repo. The whole page source, including a
 gated page's plaintext, is readable on github.com. Guessing right about intent
@@ -119,6 +131,7 @@ The readable master copy of the key block is the ClickUp Accounts task -- a
 secret cannot be read back, so this build is the copy, not the source.
 """
 
+import difflib
 import os
 
 CONTAINER = "URITP_GATE_KEYS"
@@ -131,6 +144,11 @@ ENV_PREFIX = "URITP_GATE_"      # tier 2 only: the rotation hatch
 # ⚠️ Keep `gates` first: it is the one AUTHORING-GATES.md teaches, so it is the
 # one named first in any error message built from this tuple.
 FIELDS = ("gates", "gate", "keys", "key", "password", "passwords")
+
+# How close a literal has to be to a group name before the build says "did you
+# mean". 0.7 catches a transposition or a doubled letter (psmm -> psm) without
+# flagging every short word against every short group name.
+_NEAR = 0.7
 
 
 def hatch_var(name):
@@ -237,6 +255,31 @@ class Keystore:
             )
         return inside or outside, None
 
+    def _typo_note(self, value):
+        """Does this literal look like a fumbled group name?
+
+        🔴 The one place the fallback rule can hurt: a typo is indistinguishable
+        from a deliberate one-off password, so the page locks behind a secret
+        nobody was given and nothing complains. Flag, never refuse -- `dev2`
+        might really be the password someone wants.
+
+        🔒 Compares names against names. The literal IS a password, so the
+        caller must not print it; only the SUGGESTION is safe to show, and the
+        note below deliberately never echoes what was written.
+        """
+        near = difflib.get_close_matches(
+            value.lower(), self.available(), n=2, cutoff=_NEAR
+        )
+        if not near:
+            return None
+        return (
+            "a key on this page is not a group name, so it is being used as a "
+            "literal password -- but it is one keystroke from "
+            + " or ".join(near)
+            + ". If you meant that group, fix the spelling; if you really meant "
+            "a one-off password, ignore this"
+        )
+
     def resolve(self, meta):
         """Every key this page declares, in any spelling, as [Resolved].
 
@@ -266,6 +309,7 @@ class Keystore:
                 continue
             else:
                 kind, password = "literal", value
+                note = self._typo_note(value)
 
             if password in seen:
                 continue
