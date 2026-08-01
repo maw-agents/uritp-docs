@@ -1,6 +1,7 @@
 # THEME SWAP: change theme.name. Nothing in docs/*.md is affected by a swap.
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml, not here.
 # VISIBILITY: every page needs `status:` in its frontmatter or it will not build.
+# COLOR: brand color is theme.palette below, NOT uritp.css. See the note there.
 #
 # POINTER: adding or removing a markdown_extension changes what page authors can
 #   write, and changing hooks/visibility.py changes what publishes. Update
@@ -15,7 +16,27 @@ copyright: University of Rochester International Theatre Program
 theme:
   name: material
   font: {text: DM Sans, code: IBM Plex Mono}
-  palette: {primary: custom, accent: custom}   # colors defined in uritp.css
+
+  # First entry is the default, so the site opens DARK.
+  # `primary` and `accent` take Material's named colors, which is the whole
+  # point of this block: the brand color is config, not CSS. Valid primary
+  # names: red, pink, purple, deep purple, indigo, blue, light blue, cyan,
+  # teal, green, light green, lime, yellow, amber, orange, deep orange,
+  # brown, grey, blue grey, black, white.
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    - scheme: default
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+
   features:
     - navigation.sections    # sidebar groups instead of one flat list
     - navigation.top         # back-to-top button
