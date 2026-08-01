@@ -1,0 +1,29 @@
+fg	bg	min	note
+# EVERY PAIR THAT MUST BE LEGIBLE. Delete a row to stop checking it; change a
+# min to move the bar. A row starting with # is a comment and is skipped.
+# 4.5 is the WCAG floor for body text. 3.0 is the floor for non-text (lines,
+# outlines, focus rings) and for large text, which this site does not use.
+# Checked for EVERY palette in colors.tsv, in BOTH modes, on every build.
+text	bg	4.5	Body copy on the page
+text	surface-2	4.5	Body copy on a raised strip (table row hover, callout body)
+text-strong	bg	4.5	Headings and the first cell of a table row
+text-soft	bg	4.5	Ledes and captions. This is the pair that failed on 2026-08-01
+text-soft	surface-2	4.5	Small caps labels on a callout header
+accent	bg	4.5	Links in prose. It is text, so it takes the text floor
+accent	surface-2	4.5	A link inside a callout
+accent-hover	bg	4.5	A link you are pointing at is still text
+on-accent	accent	4.5	The Unlock button's label on its own fill
+on-chrome	chrome	4.5	The site title in the header banner
+marker	bg	4.5	The [To be confirmed] pill and the gate label
+bad	bg	4.5	Dead-link markers and the gate error line
+border	bg	3.0	Input outlines and the table header rule. Non-text floor
+# DELIBERATELY ABSENT, and this is a design decision rather than an oversight:
+#
+#   hairline   It is MEANT to be barely visible -- row rules and dividers that
+#              you notice only when they are gone. Gating it would fail the
+#              design on purpose, and a gate that flags an intentional choice
+#              trains you to ignore the gate.
+#
+#   surface-1  Code blocks and inset panels. `text` is checked against `bg` and
+#              `surface-2`, which bracket it; a third near-identical row would
+#              add noise without adding coverage.
