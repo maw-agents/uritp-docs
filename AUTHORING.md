@@ -127,17 +127,30 @@ gates: [psm, admin]          # either password works
 gate: psm                    # singular, still valid, same as [psm]
 ```
 
-Each name reads `URITP_GATE_<NAME>` from the build environment, uppercased with
-hyphens turned into underscores (`front-of-house` → `URITP_GATE_FRONT_OF_HOUSE`).
+**There is no list of group names anywhere in this repository, and no mapping table.**
+A group name becomes a secret name by derivation: uppercase it, turn hyphens into
+underscores, prefix `URITP_GATE_`.
 
-| Group | Secret | Roughly |
-|---|---|---|
-| `admin` | `URITP_GATE_ADMIN` | Program leadership |
-| `dev` | `URITP_GATE_DEV` | Whoever is building this site |
-| `psm` | `URITP_GATE_PSM` | Production stage management |
+| In a page | The secret it needs |
+|---|---|
+| `gates: [psm]` | `URITP_GATE_PSM` |
+| `gates: [admin]` | `URITP_GATE_ADMIN` |
+| `gates: [front-of-house]` | `URITP_GATE_FRONT_OF_HOUSE` |
 
-**How it works, because the shape matters if you ever debug it.** The body is
-encrypted **once** with a random content key. That content key is then encrypted
+The build discovers keys **by that prefix**, so creating the secret and using its name
+is the whole procedure. Nothing to register, nothing to keep in sync.
+
+⚠️ **The prefix is load-bearing, not decoration.** It is what separates "this env var
+is a gate password" from "this env var is `PATH`". Without it the hook would have to
+treat every environment variable as a candidate password.
+
+⚠️ **`URITP_GATE_` is a reserved namespace: only put passwords in it.** Control flags
+live on `URITP_GATES_` (plural) for exactly this reason — `URITP_GATES_STRICT`, not
+`URITP_GATE_STRICT`, which would otherwise register a group called *strict* whose
+password is `1`.
+
+**How the encryption works, because the shape matters if you ever debug it.** The body
+is encrypted **once** with a random content key. That content key is then encrypted
 separately for each group. A wrapped key is ~100 bytes, so:
 
 - Page weight barely moves as you add groups. It is not N copies of the page.
@@ -196,7 +209,8 @@ restated.
 A gated page naming a group with no secret behind it publishes as an **unopenable
 notice**: its content is dropped rather than encrypted, nobody can read it, and the
 rest of the site deploys normally. The build log and the Actions run summary both
-list every affected page.
+list every affected page **and every group name the build could actually satisfy**,
+which is usually enough to spot a typo without opening anything else.
 
 ~~A named gate with no secret FAILS THE BUILD.~~ **Changed 2026-08-01, within the
 hour, after it froze the whole site over one page.** The intent was right — never
@@ -208,14 +222,11 @@ visible*, not *global and silent*.
 The replacement is strictly safer, not a relaxation: the protected content is dropped
 instead of shipped, and a frozen site pressures whoever is debugging it into reverting
 the gate to get the deploy back — which is exactly how a locked page ends up public.
-`URITP_GATE_STRICT=1` restores hard-fail for anyone who wants it in CI.
+`URITP_GATES_STRICT=1` restores hard-fail for anyone who wants it in CI.
 
-To fix it, in this order:
-
-1. Does the secret exist in **Settings → Secrets and variables → Actions**?
-2. Is it listed in the `env:` block of `deploy.yml`? (Step 2 of *Adding a key group*.)
-3. Do the two names match **exactly**? An unset secret interpolates to an empty string
-   rather than erroring, so a typo in the workflow looks exactly like a missing secret.
+To fix it: check the group name in `gates:` against the list of available groups the
+build printed, then confirm the secret exists in **Settings → Secrets and variables →
+Actions** with the exact name `URITP_GATE_<GROUP>`.
 
 ### Keeping the password out of the repo
 
@@ -227,41 +238,50 @@ the form to use for anything you would repeat out loud in a meeting.
 
 ## Adding a key group
 
-Three steps. Two of them are one line each.
+**Two steps. Neither one touches a file in this repository.**
 
-**1. Add the secret.** GitHub → **Settings → Secrets and variables → Actions → New
-repository secret**. Name it `URITP_GATE_` plus the group in capitals, so group `psm`
-is the secret `URITP_GATE_PSM`. Paste the password as the value.
+**1. Create the secret.** GitHub → **Settings → Secrets and variables → Actions →
+New repository secret**. Name it `URITP_GATE_` plus the group in capitals, so a group
+called `psm` is the secret `URITP_GATE_PSM`. Paste the password as the value.
 
 GitHub will never show you that value again. **Write it down wherever you keep
 passwords before you click Add.**
 
-**2. Pass it through to the build.** Secrets are *not* automatically visible to a
-workflow. In `.github/workflows/deploy.yml`, find the `env:` block under *Build site*:
-
-```yaml
-          URITP_GATE_PSM: ${{ secrets.URITP_GATE_PSM }}
-```
-
-⚠️ **This is the step everybody forgets.** A secret that exists but is not listed here
-is invisible to the build, and the symptom is identical to never having created it.
-
-**3. Use it.**
+**2. Use it.**
 
 ```markdown
 status: gated
 gates: [psm]
 ```
 
-Push. About ninety seconds later the page asks for that password. A page flipped to
-`gates:` **before** its secret exists is not a disaster: it shows the unavailable
-notice until the secret lands, and nothing else on the site is affected.
+Push. About ninety seconds later the page asks for that password.
+
+That is the entire procedure. The build finds every `URITP_GATE_*` secret by prefix,
+so a new group needs no workflow edit, no code change and no entry in a list.
+
+~~**3. Pass it through to the build.** Secrets are not automatically visible to a
+workflow; add a line to the `env:` block of `deploy.yml`.~~ **Removed 2026-08-01,
+same day it was written** (Michael: *"the gate invocation should be directly related
+to the key lookup so that i can add more keys and use the same identifier to unlock
+without adding in another mapping"*). He was right: a hand-maintained list of key
+names is a second place to keep in sync, and the step everybody forgets is the step
+that should not exist. The workflow now discovers keys by prefix.
+
+### Repository secret or environment secret?
+
+**Repository secret. An environment secret will silently not work here.**
+
+Environment secrets are only visible to a job that declares `environment:`. In
+`deploy.yml` the **build** job has no `environment:` — only the **deploy** job does,
+and deploy runs no build. A key stored on the `github-pages` environment would
+therefore never reach the encryption step, and the symptom is the *unavailable*
+notice with nothing obviously wrong.
 
 ### Secrets or variables?
 
-Both work. `${{ vars.URITP_GATE_PSM }}` reaches the build identically and the hook
-cannot tell the difference — it reads an environment variable either way. The
-temptation is real, because **a variable can be read back later and a secret cannot**.
+Both work. `${{ vars.URITP_GATE_PSM }}` would reach the build identically and the hook
+cannot tell the difference. The temptation is real, because **a variable can be read
+back later and a secret cannot**.
 
 **Use secrets anyway.** One difference decides it: **Actions logs on a public
 repository are world-readable, and secrets are masked in them while variables are
@@ -284,6 +304,17 @@ the Actions tab). Every page carrying that group rewraps on the next build. **No
 needs editing** and no other group is affected. Anyone mid-session keeps access until
 they close the tab; the keyring holds the old password and it stops working on the
 next page load after the rebuild.
+
+### ⚠️ One thing in the workflow that must not be tidied
+
+`deploy.yml` has a small **Collect gate keys** step that exists to keep
+`${{ toJSON(secrets) }}` away from the build. That expression hands the *entire*
+secrets context — `GITHUB_TOKEN` included — to whatever runs in the step, which
+security scanners flag and rightly so. Confining it to a few lines of standard-library
+Python means the only code that can see every secret is code we wrote, and the mkdocs
+build with its third-party plugin tree only ever receives the gate keys.
+
+**Never move `toJSON(secrets)` onto the Build step to save a few lines.**
 
 ---
 
@@ -598,7 +629,7 @@ over one page, and both now fail locally and loudly instead.
 | 1 | Callout or tab body not indented four spaces | No, renders wrong | Content falls out of the box. |
 | 2 | Link to a missing, moved, or `hidden` page | **No, as of 2026-08-01** | Dead-link marker + link report. |
 | 3 | `status: gated` with no password at all | **No, as of 2026-08-01** | Content is dropped; the page shows an unavailable notice. |
-| 4 | `gates:` naming a group whose secret is not in the build env | **No, as of 2026-08-01** | Same. Reported in the run summary. |
+| 4 | `gates:` naming a group whose secret is not in the build env | **No, as of 2026-08-01** | Same. Reported in the run summary with the list of groups that DO exist. |
 | 5 | No blank line before a table or list | No | Renders as one mashed paragraph. |
 | 6 | Two H1s on a page | No, renders wrong | Breaks the outline and the page title. |
 | 7 | Missing `status:` with no gated ancestor | No | The page silently will not build. |
@@ -631,7 +662,7 @@ If you change any file this document describes, **update this file in the same P
 |---|---|---|
 | `mkdocs.yml` | Theme, features, extensions, hook order | An extension, plugin, or hook is added or removed |
 | `requirements.txt` | Build dependency floors | A floor moves, or a pinned feature changes |
-| `.github/workflows/deploy.yml` | Which secrets reach the build | A key group is added, renamed, or retired |
+| `.github/workflows/deploy.yml` | How gate keys are discovered | The discovery mechanism changes. **Adding a key group does NOT touch this file.** |
 | `docs/.nav.yml` | Top-level sidebar order | The add-a-page procedure changes |
 | `docs/<folder>/.nav.yml` | That section's displayed title | The per-folder title mechanism changes |
 | `docs/stylesheets/uritp.css` | Palette, headings, `.tbc`, `.gate`, print | A custom class is added, renamed, or dropped |
