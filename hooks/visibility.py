@@ -1,12 +1,12 @@
 """
-Page visibility gate.
+Page visibility gate + inline span markers.
 
 Reads `status:` from each page's frontmatter and decides whether the page is
-built, listed, or encrypted. **A page with no `status:` is hidden.**
+built, listed, indexed, or encrypted. **A page with no `status:` is hidden.**
 
     status: public      listed in the sidebar, indexed, plaintext
     status: gated       listed, body AES-encrypted, needs a password
-    status: unlisted    built and reachable by direct link only
+    status: unlisted    direct link only: no nav, no search, no search engines
     status: hidden      never built                          (DEFAULT)
 
 NONE of these are access control while the repository is public. The markdown
@@ -14,14 +14,11 @@ source of every page, INCLUDING a gated page's plaintext and its password, is
 readable at github.com by anyone. `gated` is a deterrent and a signal, not a
 lock. See AUTHORING.md -> "What the gate actually does".
 
-The encryption is real (PBKDF2-SHA256 + AES-256-GCM, decrypted in the browser
-via Web Crypto), so the SERVED page contains no plaintext. That matters only
-once the repo is private.
-
 Wired in mkdocs.yml under `hooks:`. Documented in AUTHORING.md.
 """
 
 import base64
+import gzip
 import os
 import re
 import secrets
@@ -36,9 +33,24 @@ DEFAULT = "hidden"
 ALLOWED = {"public", "gated", "unlisted", "hidden"}
 ITERATIONS = 250000
 
+NOINDEX = '<meta name="robots" content="noindex, nofollow">'
+
 _FRONTMATTER = re.compile(rb"\A---\r?\n(.*?)\r?\n---\r?\n", re.DOTALL)
 
+# [To be confirmed]{.tbc} -> <span class="tbc">To be confirmed</span>
+#
+# Python-Markdown's attr_list does NOT reliably produce a span from the bare
+# bracket form, so the documented marker rendered as literal text on the live
+# site. Doing the substitution here is deterministic and independent of what
+# attr_list decides to support. The `\]\{` with no gap is what keeps ordinary
+# markdown links `[text](url)` out of the match.
+_SPAN = re.compile(r"\[([^\[\]\n]+)\]\{\s*\.([A-Za-z][\w-]*)\s*\}")
+
+# Fenced code blocks, so a page documenting the marker still shows it literally.
+_FENCE = re.compile(r"(^```.*?^```)", re.DOTALL | re.MULTILINE)
+
 _status = {}
+_noindex_paths = set()
 
 
 def _read_meta(abs_path):
@@ -79,6 +91,16 @@ def _password_for(page):
     return None
 
 
+def _expand_spans(markdown):
+    """Rewrite [text]{.class} outside fenced code blocks."""
+    parts = _FENCE.split(markdown)
+    for i, part in enumerate(parts):
+        if part.startswith("```"):
+            continue
+        parts[i] = _SPAN.sub(r'<span class="\2">\1</span>', part)
+    return "".join(parts)
+
+
 def _b64(raw):
     return base64.b64encode(raw).decode()
 
@@ -96,6 +118,7 @@ def _encrypt(plaintext, password):
 def on_files(files, config):
     """Drop hidden pages before anything can link to or index them."""
     _status.clear()
+    _noindex_paths.clear()
     kept = []
 
     for f in files:
@@ -157,7 +180,7 @@ def on_page_markdown(markdown, page, config, files):
         hide = page.meta.get("hide") or []
         page.meta["hide"] = sorted(set(list(hide) + ["toc"]))
 
-    return markdown
+    return _expand_spans(markdown)
 
 
 def on_page_content(html, page, config, files):
@@ -198,3 +221,53 @@ def on_page_content(html, page, config, files):
         '<p class="gate__error" hidden>That password did not work.</p>'
         '</form></div>'
     )
+
+
+def on_post_page(output, page, config):
+    """Tell crawlers to skip unlisted pages.
+
+    Site search and the sidebar were already handled, but MkDocs writes EVERY
+    built page into sitemap.xml, which hands unlisted pages straight to Google.
+    `noindex` asks them not to list it; on_post_build below stops us pointing
+    at it in the first place. Honest limits: this is a request, not a barrier,
+    and it does nothing about anyone who already has the URL.
+    """
+    if _status.get(page.file.src_uri) != "unlisted":
+        return output
+
+    _noindex_paths.add(page.file.dest_uri.replace("\\", "/"))
+    return output.replace("<head>", "<head>" + NOINDEX, 1)
+
+
+def on_post_build(config):
+    """Strip unlisted pages out of the generated sitemap (and its .gz twin)."""
+    if not _noindex_paths:
+        return
+
+    site_dir = config["site_dir"]
+    sitemap = os.path.join(site_dir, "sitemap.xml")
+    if not os.path.exists(sitemap):
+        return
+
+    with open(sitemap, encoding="utf-8") as fh:
+        xml = fh.read()
+
+    def drop(match):
+        block = match.group(0)
+        for path in _noindex_paths:
+            # dest_uri is like venues/rigging/index.html; the sitemap carries
+            # the pretty URL, so compare on the directory part.
+            pretty = path[: -len("index.html")] if path.endswith("index.html") else path
+            if pretty and pretty in block:
+                return ""
+        return block
+
+    cleaned = re.sub(r"<url>.*?</url>\s*", drop, xml, flags=re.DOTALL)
+
+    with open(sitemap, "w", encoding="utf-8") as fh:
+        fh.write(cleaned)
+
+    gz = sitemap + ".gz"
+    if os.path.exists(gz):
+        with gzip.open(gz, "wb") as fh:
+            fh.write(cleaned.encode("utf-8"))

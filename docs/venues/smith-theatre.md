@@ -25,6 +25,8 @@ Confirmed values only. Anything marked to be confirmed has not been re-measured 
 | Seating capacity | [To be confirmed]{.tbc} |
 | Stage floor finish | [To be confirmed]{.tbc} |
 
+Position-by-position detail lives in the [rigging detail sheet](smith-rigging-detail.md).
+
 ## Venue notes
 
 Every note here exists because it caught someone out. Pick your department.
