@@ -1,0 +1,236 @@
+{
+  "_README": [
+    "THE PAINT. One entry per palette. Each has a `dark` and a `light` block,",
+    "because the site has a scheme toggle and a one-mode palette would half-work.",
+    "",
+    "AN ABSENT KEY INHERITS. A PRESENT KEY WINS.",
+    "Leave a token out and it comes from the palette named in `inherits`, then",
+    "from `_base`. So a palette that only changes its neutrals lists only its",
+    "neutrals -- see `uritp-granite`, which keeps the house blue by not",
+    "mentioning it.",
+    "",
+    "`_base` is the safety net and must stay COMPLETE. Never point a theme at it.",
+    "",
+    "Values may be oklch() or hex; the contrast gate parses both. oklch is the",
+    "house default because it is the one you can nudge by hand: the three numbers",
+    "are lightness, chroma (0 = grey), hue angle (90 = warm, 250 = cool).",
+    "",
+    "Full reference: theme/README.md"
+  ],
+
+  "_base": {
+    "note": "The fallback every other palette lands on. Must be complete.",
+    "dark": {
+      "bg": "oklch(19% 0.008 250)",
+      "surface-1": "oklch(24% 0.008 250)",
+      "surface-2": "oklch(22% 0.008 250)",
+      "border": "oklch(46% 0.008 250)",
+      "hairline": "oklch(30% 0.008 250)",
+      "text": "oklch(80% 0.006 250)",
+      "text-strong": "oklch(95% 0.003 250)",
+      "text-soft": "oklch(64% 0.008 250)",
+      "accent": "oklch(74% 0.110 240)",
+      "accent-hover": "oklch(85% 0.095 240)",
+      "on-accent": "oklch(19% 0.020 240)",
+      "chrome": "oklch(19% 0.008 250)",
+      "on-chrome": "oklch(95% 0.003 250)",
+      "marker": "oklch(76% 0.100 70)",
+      "bad": "oklch(72% 0.150 25)"
+    },
+    "light": {
+      "bg": "oklch(99% 0.002 250)",
+      "surface-1": "oklch(96.5% 0.004 250)",
+      "surface-2": "oklch(97.3% 0.003 250)",
+      "border": "oklch(72% 0.006 250)",
+      "hairline": "oklch(90% 0.004 250)",
+      "text": "oklch(34% 0.008 250)",
+      "text-strong": "oklch(18% 0.010 250)",
+      "text-soft": "oklch(52% 0.008 250)",
+      "accent": "oklch(47% 0.150 250)",
+      "accent-hover": "oklch(37% 0.160 250)",
+      "on-accent": "oklch(99% 0.002 250)",
+      "chrome": "oklch(99% 0.002 250)",
+      "on-chrome": "oklch(18% 0.010 250)",
+      "marker": "oklch(48% 0.110 65)",
+      "bad": "oklch(56% 0.170 25)"
+    }
+  },
+
+  "uritp-prp": {
+    "note": "The house palette. Cool near-neutral slate, one owned blue.",
+    "dark": {
+      "bg": "oklch(19% 0.008 250)",
+      "surface-1": "oklch(24% 0.008 250)",
+      "surface-2": "oklch(22% 0.008 250)",
+      "border": "oklch(46% 0.008 250)",
+      "hairline": "oklch(30% 0.008 250)",
+      "text": "oklch(80% 0.006 250)",
+      "text-strong": "oklch(95% 0.003 250)",
+      "text-soft": "oklch(64% 0.008 250)",
+      "accent": "oklch(74% 0.110 240)",
+      "accent-hover": "oklch(85% 0.095 240)",
+      "on-accent": "oklch(19% 0.020 240)",
+      "chrome": "oklch(19% 0.008 250)",
+      "on-chrome": "oklch(95% 0.003 250)",
+      "marker": "oklch(76% 0.100 70)",
+      "bad": "oklch(72% 0.150 25)"
+    },
+    "light": {
+      "bg": "oklch(99% 0.002 250)",
+      "surface-1": "oklch(96.5% 0.004 250)",
+      "surface-2": "oklch(97.3% 0.003 250)",
+      "border": "oklch(72% 0.006 250)",
+      "hairline": "oklch(90% 0.004 250)",
+      "text": "oklch(34% 0.008 250)",
+      "text-strong": "oklch(18% 0.010 250)",
+      "text-soft": "oklch(52% 0.008 250)",
+      "accent": "oklch(47% 0.150 250)",
+      "accent-hover": "oklch(37% 0.160 250)",
+      "on-accent": "oklch(99% 0.002 250)",
+      "chrome": "oklch(99% 0.002 250)",
+      "on-chrome": "oklch(18% 0.010 250)",
+      "marker": "oklch(48% 0.110 65)",
+      "bad": "oklch(56% 0.170 25)"
+    }
+  },
+
+  "uritp-granite": {
+    "note": "Warmer stone ground, lifted off black. WORKED EXAMPLE of inheriting: it lists ten neutrals and no accents, so it keeps the house blue automatically.",
+    "inherits": "uritp-prp",
+    "dark": {
+      "bg": "oklch(24% 0.004 90)",
+      "surface-1": "oklch(29% 0.004 90)",
+      "surface-2": "oklch(27% 0.004 90)",
+      "border": "oklch(50% 0.005 90)",
+      "hairline": "oklch(35% 0.004 90)",
+      "text": "oklch(82% 0.004 90)",
+      "text-strong": "oklch(96% 0.002 90)",
+      "text-soft": "oklch(67% 0.005 90)",
+      "chrome": "oklch(24% 0.004 90)",
+      "on-chrome": "oklch(96% 0.002 90)"
+    },
+    "light": {
+      "bg": "oklch(97% 0.003 90)",
+      "surface-1": "oklch(94% 0.004 90)",
+      "surface-2": "oklch(95.5% 0.003 90)",
+      "border": "oklch(70% 0.005 90)",
+      "hairline": "oklch(88% 0.004 90)",
+      "text": "oklch(35% 0.005 90)",
+      "text-strong": "oklch(20% 0.006 90)",
+      "text-soft": "oklch(53% 0.005 90)",
+      "chrome": "oklch(97% 0.003 90)",
+      "on-chrome": "oklch(20% 0.006 90)"
+    }
+  },
+
+  "mclaren": {
+    "note": "McLaren papaya + teal, copied from mawizorek/ClickUp_apps. HEX ON PURPOSE: those are brand values and converting them by hand would mean typing numbers nobody could check against the source. The three marked (gate) were changed from the source because the contrast gate measured them as unreadable.",
+    "inherits": "uritp-prp",
+    "dark": {
+      "bg": "#292420",
+      "surface-1": "#231f1b",
+      "surface-2": "#2f2a25",
+      "border": "#5f5850",
+      "hairline": "#3a342e",
+      "text": "#f2f1ec",
+      "text-strong": "#fffdfa",
+      "text-soft": "#a09585",
+      "accent": "#f5842f",
+      "accent-hover": "#5fc9d8",
+      "on-accent": "#2a1d10",
+      "chrome": "#292420",
+      "on-chrome": "#fffdfa"
+    },
+    "light": {
+      "bg": "#faf6f1",
+      "surface-1": "#fffdfa",
+      "surface-2": "#f2ece3",
+      "border": "#d8cdbd",
+      "hairline": "#e8e0d4",
+      "text": "#2a2420",
+      "text-strong": "#2a1d10",
+      "text-soft": "#736759",
+      "accent": "#a84f14",
+      "accent-hover": "#2c8593",
+      "on-accent": "#fffdfa",
+      "chrome": "#faf6f1",
+      "on-chrome": "#2a1d10"
+    }
+  },
+
+  "maw-dark-utility": {
+    "note": "The ClickUp_apps anchor palette. Teal accent on cool slate.",
+    "dark": {
+      "bg": "oklch(20% 0.010 260)",
+      "surface-1": "oklch(24.5% 0.014 260)",
+      "surface-2": "oklch(28.5% 0.016 260)",
+      "border": "oklch(44% 0.020 260)",
+      "hairline": "oklch(31% 0.018 260)",
+      "text": "oklch(88% 0.008 260)",
+      "text-strong": "oklch(95% 0.008 260)",
+      "text-soft": "oklch(72% 0.012 260)",
+      "accent": "oklch(72% 0.110 205)",
+      "accent-hover": "oklch(80% 0.090 195)",
+      "on-accent": "oklch(20% 0.020 205)",
+      "chrome": "oklch(20% 0.010 260)",
+      "on-chrome": "oklch(95% 0.008 260)",
+      "marker": "oklch(80% 0.130 80)",
+      "bad": "oklch(62% 0.200 25)"
+    },
+    "light": {
+      "bg": "oklch(98.5% 0.003 260)",
+      "surface-1": "oklch(95.5% 0.006 260)",
+      "surface-2": "oklch(96.5% 0.005 260)",
+      "border": "oklch(70% 0.012 260)",
+      "hairline": "oklch(89% 0.006 260)",
+      "text": "oklch(33% 0.012 260)",
+      "text-strong": "oklch(17% 0.014 260)",
+      "text-soft": "oklch(51% 0.012 260)",
+      "accent": "oklch(45% 0.110 205)",
+      "accent-hover": "oklch(36% 0.115 205)",
+      "on-accent": "oklch(98.5% 0.003 260)",
+      "chrome": "oklch(98.5% 0.003 260)",
+      "on-chrome": "oklch(17% 0.014 260)",
+      "marker": "oklch(47% 0.120 75)",
+      "bad": "oklch(52% 0.190 25)"
+    }
+  },
+
+  "paper-mono": {
+    "note": "Greyscale, maximum contrast, no hue except the two signal colours. For long reading and anything that gets printed.",
+    "dark": {
+      "bg": "oklch(16% 0 0)",
+      "surface-1": "oklch(22% 0 0)",
+      "surface-2": "oklch(20% 0 0)",
+      "border": "oklch(50% 0 0)",
+      "hairline": "oklch(30% 0 0)",
+      "text": "oklch(86% 0 0)",
+      "text-strong": "oklch(98% 0 0)",
+      "text-soft": "oklch(66% 0 0)",
+      "accent": "oklch(88% 0 0)",
+      "accent-hover": "oklch(98% 0 0)",
+      "on-accent": "oklch(16% 0 0)",
+      "chrome": "oklch(16% 0 0)",
+      "on-chrome": "oklch(98% 0 0)",
+      "marker": "oklch(78% 0.110 70)",
+      "bad": "oklch(70% 0.150 25)"
+    },
+    "light": {
+      "bg": "oklch(100% 0 0)",
+      "surface-1": "oklch(95% 0 0)",
+      "surface-2": "oklch(97% 0 0)",
+      "border": "oklch(62% 0 0)",
+      "hairline": "oklch(88% 0 0)",
+      "text": "oklch(28% 0 0)",
+      "text-strong": "oklch(10% 0 0)",
+      "text-soft": "oklch(46% 0 0)",
+      "accent": "oklch(22% 0 0)",
+      "accent-hover": "oklch(10% 0 0)",
+      "on-accent": "oklch(100% 0 0)",
+      "chrome": "oklch(100% 0 0)",
+      "on-chrome": "oklch(10% 0 0)",
+      "marker": "oklch(46% 0.110 65)",
+      "bad": "oklch(50% 0.170 25)"
+    }
+  }
+}

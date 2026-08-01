@@ -1,0 +1,62 @@
+{
+  "_README": [
+    "THE DENSITY. Tap target, padding, gaps, line length.",
+    "",
+    "AN ABSENT KEY INHERITS. A PRESENT KEY WINS.",
+    "",
+    "`touch` is an ACCESSIBILITY FLOOR, not a taste dial. 44px minimum. The menu",
+    "rows, the password field and the Unlock button all read it.",
+    "`pad-row` is vertical then horizontal, like any CSS padding pair.",
+    "",
+    "Full reference: theme/README.md"
+  ],
+
+  "_base": {
+    "note": "The fallback every other row lands on. Must be complete.",
+    "touch": "44px",
+    "pad-cell": ".5rem",
+    "pad-block": ".7rem",
+    "pad-row": ".72rem .8rem",
+    "gap-xs": ".2rem",
+    "gap-md": ".85rem",
+    "gap-lg": "2.1rem",
+    "measure": "68ch"
+  },
+
+  "standard": {
+    "note": "The house density.",
+    "touch": "44px",
+    "pad-cell": ".5rem",
+    "pad-block": ".7rem",
+    "pad-row": ".72rem .8rem",
+    "gap-xs": ".2rem",
+    "gap-md": ".85rem",
+    "gap-lg": "2.1rem",
+    "measure": "68ch"
+  },
+
+  "dense": {
+    "note": "Tighter. More rows on screen, less air. Keeps the 44px tap floor.",
+    "inherits": "standard",
+    "pad-cell": ".34rem",
+    "pad-block": ".55rem",
+    "pad-row": ".5rem .7rem",
+    "gap-xs": ".14rem",
+    "gap-md": ".65rem",
+    "gap-lg": "1.6rem",
+    "measure": "76ch"
+  },
+
+  "roomy": {
+    "note": "More air. Easier at distance and on a phone in a dark theatre.",
+    "inherits": "standard",
+    "touch": "48px",
+    "pad-cell": ".68rem",
+    "pad-block": ".95rem",
+    "pad-row": ".95rem .9rem",
+    "gap-xs": ".28rem",
+    "gap-md": "1.05rem",
+    "gap-lg": "2.6rem",
+    "measure": "62ch"
+  }
+}
