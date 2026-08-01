@@ -32,8 +32,53 @@ jobs:
           cache-dependency-path: requirements.txt
       - name: Install MkDocs Material
         run: pip install -r requirements.txt
+
+      # ══ THE LAW THIS STEP ENFORCES ═════════════════════════════════════
+      #
+      #   A CONTENT EDIT MUST NEVER BE ABLE TO STOP THE DEPLOY.
+      #   Only a CONFIG or CODE error may.
+      #
+      # 🔴 `mkdocs build --strict` was removed on 2026-08-01 and MUST NOT come
+      #    back. It turned every MkDocs WARNING into a site-wide outage, and
+      #    the outage is invisible: a failed build means Pages keeps serving
+      #    the last successful one, for the whole site, with no signal beyond
+      #    a grey X on a commit list. It looks exactly like a cache problem.
+      #    It is not one, and no amount of hard-reloading touches it.
+      #
+      #    It froze this site THREE times in one day:
+      #      * a page moved and relative .md paths went stale
+      #      * ONE rename broke eight links across six files
+      #      * `status: hidden` on a page named in docs/.nav.yml
+      #
+      #    The third one is the whole argument. That edit was ONE WORD of
+      #    frontmatter, made by the only person who edits this site, doing
+      #    exactly what the documentation says `hidden` is for. It took the
+      #    entire reference site off the air for 24 minutes and the author
+      #    could not have known.
+      #
+      # ⚠️ THE REAL FINDING: this trade had already been REJECTED three times
+      #    in three separate places, and `--strict` survived every one of
+      #    them because each fix routed around it instead of removing it --
+      #      hooks/links.py    a dead link renders as a marker and continues
+      #      hooks/visibility.py  a missing gate key locks one page, not the site
+      #      AUTHORING-GATES.md   "local and visible beats global and silent"
+      #    Every escape hatch in this repo was built around a flag nobody had
+      #    thought to delete. Building an exception is not the same as fixing
+      #    the rule.
+      #
+      # WHAT STILL FAILS THE BUILD, deliberately and unchanged:
+      #   * mkdocs itself erroring (bad YAML, a plugin that will not load)
+      #   * hooks/theme.py    unknown theme, missing token, inherits loop
+      #   * hooks/contrast.py the ACTIVE palette failing a contrast floor
+      #   * URITP_LINKS_STRICT=1 / URITP_GATES_STRICT=1 if ever set
+      # Those are all CODE and CONFIG. None can be caused by writing a page.
+      #
+      # pipefail is load-bearing: without it the exit code comes from `tee`
+      # and this step would pass no matter what mkdocs did.
       - name: Build site
-        run: mkdocs build --strict
+        run: |
+          set -o pipefail
+          mkdocs build 2>&1 | tee build.log
         env:
           # Read by hooks/buildstamp.py to render the footer stamp. Passed as an
           # environment variable rather than interpolated into `run:`, so a
@@ -65,6 +110,29 @@ jobs:
           #
           # Uncomment/copy per group, and only when the rotation cost is real.
           # The container wins if a name appears in both, and the build warns.
+
+      # Not failing the build only works if the problem does not become
+      # invisible instead. Warnings that used to kill the deploy now land in
+      # the run summary, where they can be read without stopping anyone's day.
+      # `if: always()` so they still surface when the build DID fail -- that is
+      # exactly when you most want to see them.
+      - name: Surface build warnings
+        if: always()
+        run: |
+          if [ -f build.log ] && grep -q 'WARNING' build.log; then
+            {
+              echo '### ⚠️ Build warnings'
+              echo
+              echo 'These did **not** stop the deploy, and they are not supposed to.'
+              echo 'Read them anyway: a warning here is usually a link, a nav entry'
+              echo 'or a status value that no longer points at anything.'
+              echo
+              echo '```'
+              grep 'WARNING' build.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
