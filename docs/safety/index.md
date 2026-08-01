@@ -1,6 +1,7 @@
 ---
-title: Safety and health
-status: public
+title: Safety
+status: gated
+password: pmgate
 ---
 
 # Safety and health
