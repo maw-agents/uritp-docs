@@ -10,12 +10,12 @@ aliases:
 
 Primary performance space in the Sloan Performing Arts Center. URITP produces Mainstage productions here.
 
-!!! warning "Before you design"
-    Smith is a blackbox with real constraints that will bite a design late if you learn them late. The non-dimmable relays and the absent west crossover are the two that most often force a redesign in week three.
-
 ## Technical specifications {#technical-specifications}
 
-Confirmed values only. Anything marked to be confirmed has not been re-measured and should be verified on site before it lands in your paperwork.
+Technical Drawings [(Box Folder)](https://rochester.box.com/s/x5582igjbvnkani85u8ix9ikudwjdl7p)  
+Reference Images [(Box Folder)](https://rochester.box.com/s/gxvofxzak8uq6xudrloacmmrfdn5gki1)
+Example Images [(Box Folder)](https://rochester.box.com/s/dxuk04y6qfdyqb5clsj5r4eeb4cm7tfe)
+Base Show Files [(Box Folder)](https://rochester.box.com/s/h8eh6cuigbpd6fso4gziljc87rqdr3tz)
 
 | Item | Value |
 |---|---|
@@ -25,10 +25,12 @@ Confirmed values only. Anything marked to be confirmed has not been re-measured 
 | Permanent rigging | Traveller track under catwalk 6 (curtain removable, track is not) |
 | House speakers | 2 × Fulcrum, under catwalk 3, refocusable |
 | Grid height | [To be confirmed]{.tbc} |
-| Seating capacity | [To be confirmed]{.tbc} |
-| Stage floor finish | [To be confirmed]{.tbc} |
+| Seating capacity | depends on arrangement; 80-160 |
+| Stage floor finish | Black masonite. !!! note "Cannot be directly painted" |
 
+<!--
 Position-by-position detail lives in the [rigging detail sheet](@smith-rigging-detail).
+ -->
 
 ## Venue notes {#venue-notes}
 
