@@ -1,0 +1,5 @@
+slug	inherits	font-body	font-mono	fs-body	fs-lead	fs-sm	fs-xs	fs-h1-min	fs-h1-fluid	fs-h1-max	fs-h2	fs-h3	lh-body	lh-tight	track-body	track-tight	track-caps
+_base		'IBM Plex Sans', system-ui, -apple-system, sans-serif	'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace	.78rem	.84rem	.75rem	.62rem	1.35rem	1.05rem + 1.4vw	1.72rem	1.02rem	.8rem	1.62	1.2	0	-.014em	.09em
+plex-docs		'IBM Plex Sans', system-ui, -apple-system, sans-serif	'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace	.78rem	.84rem	.75rem	.62rem	1.35rem	1.05rem + 1.4vw	1.72rem	1.02rem	.8rem	1.62	1.2	0	-.014em	.09em
+plex-large	plex-docs			.88rem	.95rem	.84rem	.68rem	1.5rem	1.15rem + 1.6vw	2rem	1.14rem	.9rem	1.66	1.22		-.012em	.08em
+system-quick	plex-docs	system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif	ui-monospace, SFMono-Regular, Menlo, monospace	.8rem	.86rem	.76rem	.63rem						1.6				
