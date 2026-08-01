@@ -15,7 +15,7 @@ build time.
 WHY IT EXISTS
 On 2026-08-01 the live site froze twice inside forty minutes, the same way both
 times: a page moved, relative `.md` paths went stale, and because the workflow
-runs `mkdocs build --strict` the whole deploy died while Pages kept serving an
+ran `mkdocs build --strict` the whole deploy died while Pages kept serving an
 older commit with no visible signal. The second incident was ONE rename (Smith
 Theatre into SPAC/) breaking EIGHT links across six files in both directions --
 inbound links to the moved page, and the moved page's own outbound links. Two
@@ -31,6 +31,38 @@ One typo must never again freeze an entire reference site that somebody is
 trying to load a show from. The failure becomes local and visible instead of
 global and silent. Set URITP_LINKS_STRICT=1 to restore hard-fail behaviour.
 
+(`--strict` itself was finally removed from deploy.yml later the same day,
+after it froze the site a THIRD time -- over one word of frontmatter. This
+hook's stance was right and the pipeline had been quietly overruling it.)
+
+HIDDEN IS NOT BROKEN  (added 2026-08-01, Michael)
+There are two completely different reasons a link can fail to resolve, and
+until now this hook could not tell them apart:
+
+    @usnig-these-docs      a typo. Nobody meant this. Show the marker.
+    @using-these-docs      the target is `status: hidden`. Somebody meant it.
+
+hooks/visibility.py drops hidden pages from the file list BEFORE this hook
+runs, so a link to one used to look exactly like a misspelling. It now hands
+over what it refused to build, on the config as `_uritp_hidden`, and a link to
+a known-hidden page renders as PLAIN TEXT: the words stay readable in the
+sentence, nothing pretends to be clickable, and it is reported as
+`hidden-target` rather than `dead-link`.
+
+    ⚠️ DELIBERATELY NOT A REDIRECT TO HOME. That was considered and rejected:
+    a redirect takes a reader somewhere they did not ask to go and hides that
+    anything is missing -- a guest designer clicks "Using these docs", lands
+    on the homepage, and concludes the site is broken or that they misclicked.
+    Redirects are the right tool for a page that MOVED, which is why this hook
+    already writes them for `aliases:`. A hidden page has not moved. It is not
+    there, and the honest render says so by not being a link.
+
+And because hiding a page should tell you what you just did, the build now
+prints a HIDE IMPACT report: every hidden page, every page that still links to
+it, and whether any `.nav.yml` still names it by filename. That last one is the
+exact defect that froze the site -- a nav entry pointing at a page that is
+never built -- caught by name, in the same build, instead of as a red X.
+
 BACKLINKS (added 2026-08-01)
 The id registry already knows every link on the site, so the reverse map is
 free: each page renders a `Linked from` section naming every page that points
@@ -39,9 +71,7 @@ relationship is mutual, so both ends should show it.
 
 Why this and not only hover previews: previews fire on HOVER, and this site is
 read on a phone at least as often as on a desktop. A backlink is a rendered
-list. It works on a touch screen, in print, and in the search index. Instant
-previews are enabled too (mkdocs.yml), but they are the desktop bonus, not the
-mechanism.
+list. It works on a touch screen, in print, and in the search index.
 
 Two rules the backlink index must not break:
 
@@ -78,6 +108,12 @@ STRICT = os.environ.get("URITP_LINKS_STRICT") == "1"
 # Set URITP_BACKLINKS=0 to turn the Linked-from sections off without unwiring
 # the hook, which would take id resolution down with it.
 BACKLINKS = os.environ.get("URITP_BACKLINKS", "1") != "0"
+
+# Written by hooks/visibility.py in its on_files, which runs BEFORE this one
+# (see the hook order in mkdocs.yml). src_uri -> declared `id:` or None.
+# A plain config key rather than an import: unwire that hook and this reads an
+# empty dict and behaves exactly as it did before.
+HANDOFF = "_uritp_hidden"
 
 BACKLINK_HEADING = "Linked from"
 BACKLINK_ANCHOR = "linked-from"
@@ -120,6 +156,10 @@ _titles = {}     # src_uri        -> display title
 _nameable = {}   # src_uri        -> may this be NAMED as a backlink source?
 _backlinks = {}  # target src_uri -> set of source src_uri
 _issues = []
+
+_hidden_by_id = {}   # page id -> src_uri, for pages visibility.py did not build
+_hidden_src = set()  # those same pages, by src_uri
+_hits = {}           # hidden src_uri -> set of pages still linking to it
 
 
 def _slug(text):
@@ -177,6 +217,25 @@ def _note(kind, page_src, link, detail):
     _issues.append(
         {"kind": kind, "page": page_src, "link": link, "detail": detail}
     )
+
+
+def _index_hidden(config):
+    """Register the pages visibility.py refused to build, so a link to one can
+    say `hidden` instead of `broken`.
+
+    A LIVE page always wins the id: if something else has since claimed the
+    name, the link should resolve to the live page, not report a ghost.
+    """
+    _hidden_by_id.clear()
+    _hidden_src.clear()
+    _hits.clear()
+
+    handed = config.get(HANDOFF) or {}
+    for src_uri, declared_id in handed.items():
+        _hidden_src.add(src_uri)
+        page_id = str(declared_id).strip() if declared_id else _fallback_id(src_uri)
+        if page_id and page_id not in _by_id:
+            _hidden_by_id[page_id] = src_uri
 
 
 def _prose_parts(body):
@@ -289,6 +348,9 @@ def on_files(files, config):
             if key:
                 _alias[key] = f.src_uri
 
+    # AFTER the live registry, so a live page always wins a contested id.
+    _index_hidden(config)
+
     if BACKLINKS:
         _index_backlinks()
 
@@ -303,6 +365,24 @@ def _dead(text, shown, why, page):
         '<span class="deadlink" title="' + why.replace('"', "'") + '">'
         + text + "</span>"
     )
+
+
+def _hidden_target(text, shown, target_src, page):
+    """The target exists in the tree and was deliberately not published.
+
+    Renders as PLAIN TEXT, not a marker and not a redirect: the sentence still
+    reads, and nothing invites a click that cannot go anywhere. Never raises,
+    even under URITP_LINKS_STRICT -- somebody meant to do this, so it is not an
+    error, it is a consequence, and the report below names it.
+    """
+    _note(
+        "hidden-target", page.file.src_uri, shown,
+        "target " + target_src + " is `status: hidden`, so it is not built; "
+        "this link rendered as plain text. Set that page to `unlisted` if you "
+        "want it linkable but out of the sidebar.",
+    )
+    _hits.setdefault(target_src, set()).add(page.file.src_uri)
+    return text
 
 
 def _check_anchor(target_src, anchor, shown, page):
@@ -332,6 +412,10 @@ def _resolve_id(match, page):
 
     target_src = _by_id.get(page_id)
     if target_src is None:
+        # Deliberately hidden, or genuinely a typo? Two different sentences.
+        hidden = _hidden_by_id.get(page_id)
+        if hidden:
+            return _hidden_target(text, shown, hidden, page)
         near = difflib.get_close_matches(page_id, list(_by_id), n=2, cutoff=0.6)
         why = "no page carries id '" + page_id + "'"
         if near:
@@ -355,9 +439,11 @@ def _resolve_md(match, page):
     target = _files.get(target_src)
 
     if target is None:
+        if target_src in _hidden_src:
+            return _hidden_target(text, shown, target_src, page)
         return _dead(
             text, shown,
-            "no page at " + target_src + " (moved, renamed, or status: hidden)",
+            "no page at " + target_src + " (moved or renamed)",
             page,
         )
 
@@ -431,6 +517,106 @@ def _orphans():
     )
 
 
+def _nav_files(docs_dir):
+    """Every .nav.yml under docs/, as (path relative to docs_dir, text)."""
+    out = []
+    for root, _dirs, names in os.walk(docs_dir):
+        for name in names:
+            if name != ".nav.yml":
+                continue
+            full = os.path.join(root, name)
+            try:
+                with open(full, encoding="utf-8") as fh:
+                    out.append((os.path.relpath(full, docs_dir), fh.read()))
+            except OSError:
+                continue
+    return out
+
+
+def _nav_claims(docs_dir):
+    """Which hidden pages are still named BY FILENAME in a .nav.yml.
+
+    THIS IS THE ONE THAT FROZE THE SITE. A folder entry in .nav.yml is a
+    container and shrinks harmlessly when a page inside it is hidden. A
+    FILENAME entry is a hard reference, and hiding that page leaves the nav
+    pointing at something that is never built.
+
+    Deliberately a text scan and not a YAML parse: a commented-out line is NOT
+    a claim, and the comment form is exactly how a filename entry gets parked
+    while its page is hidden. Parsing would silently ignore both.
+    """
+    claims = {}
+    if not _hidden_src:
+        return claims
+
+    navs = _nav_files(docs_dir)
+    for src_uri in _hidden_src:
+        basename = posixpath.basename(src_uri)
+        for rel, text in navs:
+            for line in text.splitlines():
+                bare = line.strip()
+                if bare.startswith("#") or basename not in bare:
+                    continue
+                claims.setdefault(src_uri, []).append(rel)
+                break
+    return claims
+
+
+def _hide_report(docs_dir):
+    """Hiding a page should say what it just orphaned, in the same build."""
+    if not _hidden_src:
+        return []
+
+    claims = _nav_claims(docs_dir)
+    loud = bool(claims)
+
+    for src_uri, navs in sorted(claims.items()):
+        print(
+            "::warning::" + src_uri + " is `status: hidden` but is still named "
+            "by filename in " + ", ".join(sorted(set(navs))) + " -- that nav "
+            "entry points at a page which is never built. Comment the line "
+            "out, or set the page to `unlisted` instead."
+        )
+
+    linked = sum(len(v) for v in _hits.values())
+    print(
+        "links: hide impact -- " + str(len(_hidden_src)) + " hidden page(s), "
+        + str(linked) + " inbound link(s) rendered as plain text, "
+        + str(len(claims)) + " still named in a .nav.yml"
+    )
+
+    lines = [
+        "### " + ("\u26a0\ufe0f" if loud else "\U0001f648") + " Hide impact",
+        "",
+        "What is not published, and what still points at it. A hidden page is "
+        "never built, so an inbound link renders as plain text rather than a "
+        "dead click. **`unlisted` is the status you want if a page should stay "
+        "linkable but out of the sidebar.**",
+        "",
+        "| Hidden page | Linked from | Named in a .nav.yml |",
+        "|---|---|---|",
+    ]
+    for src_uri in sorted(_hidden_src):
+        sources = sorted(_hits.get(src_uri, ()))
+        where = ", ".join("`" + s + "`" for s in sources) if sources else "--"
+        navs = claims.get(src_uri)
+        flag = (
+            "🔴 " + ", ".join("`" + n + "`" for n in sorted(set(navs)))
+            if navs else "no"
+        )
+        lines.append("| `" + src_uri + "` | " + where + " | " + flag + " |")
+
+    if loud:
+        lines += [
+            "",
+            "🔴 **A nav entry naming a page that is never built is what froze "
+            "this site on 2026-08-01.** It no longer fails the build -- "
+            "`--strict` is gone -- but it will leave a gap in the sidebar. "
+            "Fix it by commenting the line out or by using `unlisted`.",
+        ]
+    return lines + [""]
+
+
 def on_post_build(config):
     site_dir = config["site_dir"]
     redirects = _write_aliases(site_dir)
@@ -442,6 +628,8 @@ def on_post_build(config):
         "redirects_written": redirects,
         "backlinks_enabled": BACKLINKS,
         "pages_with_backlinks": len(_backlinks),
+        "hidden_pages": sorted(_hidden_src),
+        "hidden_inbound": {k: sorted(v) for k, v in sorted(_hits.items())},
         "orphans": orphans,
         "issues": _issues,
     }
@@ -462,6 +650,8 @@ def on_post_build(config):
             k + " x" + str(v) for k, v in sorted(counts.items())
         )
     print(headline)
+
+    hide_lines = _hide_report(config["docs_dir"])
 
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if not summary:
@@ -487,6 +677,8 @@ def on_post_build(config):
         ]
         lines += ["- `" + src + "`" for src in orphans]
         lines += ["", "</details>"]
+
+    lines += [""] + hide_lines
 
     with open(summary, "a", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
