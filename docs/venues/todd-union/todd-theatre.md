@@ -1,6 +1,6 @@
 ---
 title: Todd Union
-status: unlisted
+status: public
 ---
 
 # Todd Union
