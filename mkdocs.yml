@@ -1,6 +1,7 @@
 # THEME SWAP: change theme.name. Nothing in docs/*.md is affected by a swap.
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml, not here.
 # VISIBILITY: every page needs `status:` in its frontmatter or it will not build.
+# THEME LAB: add ?lab to any page URL for the live retuning dock (see README.md).
 #
 # POINTER: adding or removing a markdown_extension changes what page authors can
 #   write, and changing hooks/visibility.py changes what publishes. Update
@@ -24,9 +25,15 @@ theme:
     - content.action.edit    # pencil icon on every page
     - content.tabs.link      # picking "Lighting" holds across the whole page
 
-extra_css: [stylesheets/uritp.css]
-extra_javascript: [javascripts/gate.js]   # client half of `status: gated`
-extra: {generator: false}                 # hides the "Made with Material" footer line
+extra_css:
+  - stylesheets/uritp.css
+  - stylesheets/theme-lab.css     # dock chrome; deliberately not themed
+
+extra_javascript:
+  - javascripts/gate.js           # client half of `status: gated`
+  - javascripts/theme-lab.js      # live theme dock, opt-in via ?lab
+
+extra: {generator: false}         # hides the "Made with Material" footer line
 
 plugins:
   - search        # must be listed: declaring plugins replaces the defaults
