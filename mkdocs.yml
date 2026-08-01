@@ -23,10 +23,10 @@ theme:
   font: {text: IBM Plex Sans, code: IBM Plex Mono}
 
   # First entry is the default, so the site opens DARK.
-  # Chrome is deliberately NEUTRAL: `black` header, one blue accent carried only
-  # by links and focus. Reference material should not have a brand color
-  # shouting over the data. Valid primary names include black, white, grey,
-  # blue grey, and the standard Material hues.
+  # Chrome is deliberately NEUTRAL: `black` header, one accent carried only by
+  # links and focus. Reference material should not have a brand color shouting
+  # over the data. Valid primary names include black, white, grey, blue grey,
+  # and the standard Material hues.
   palette:
     - scheme: slate
       primary: black
@@ -64,8 +64,8 @@ plugins:
 # these two and a link to a hidden page would resolve to a URL that 404s.
 hooks:
   - hooks/visibility.py   # frontmatter `status:` gate, hidden by default
-  - hooks/links.py        # @page-id link resolution + retired-URL redirects
-  - hooks/buildstamp.py   # deploy time + commit SHA in the footer
+  - hooks/links.py        # @page-id resolution, backlinks, retired-URL redirects
+  - hooks/buildstamp.py   # PR number in the footer
 
 # Each line below enables authoring syntax documented in AUTHORING.md.
 markdown_extensions:
@@ -75,3 +75,18 @@ markdown_extensions:
   - pymdownx.superfences                       # safe nesting inside tabs
   - pymdownx.tabbed: {alternate_style: true}   # === "Lighting"
   - toc: {permalink: true}
+
+  # Instant previews: hovering an internal link shows a card of the target page.
+  # DESKTOP ONLY BY NATURE -- it fires on hover and focus, and there is no hover
+  # on a phone. The mechanism that works everywhere is the `Linked from` section
+  # rendered by hooks/links.py; this is the bonus on top of it. Requires
+  # mkdocs-material >= 9.7 (see requirements.txt).
+  #
+  # Safe over a `gated` page, and that was checked rather than assumed: the
+  # preview fetches the BUILT page, and a built gated page contains only the
+  # unlock form plus ciphertext (verified against the live site 2026-08-01).
+  # There is no plaintext in the file for a preview card to surface.
+  - material.extensions.preview:
+      targets:
+        include:
+          - "*"

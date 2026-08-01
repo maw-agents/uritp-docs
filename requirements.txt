@@ -1,5 +1,11 @@
 # Build dependencies for the docs site.
 # Also the file actions/setup-python hashes for its pip cache.
-mkdocs-material>=9.5,<10
+
+# 9.7 (Nov 2025) released every former Insiders feature to everyone and put the
+# project into maintenance mode. `material.extensions.preview` (instant
+# previews, mkdocs.yml) DOES NOT EXIST below 9.7, and an unknown markdown
+# extension is a hard build failure, so this floor is load-bearing rather than
+# housekeeping. Do not lower it without removing that extension first.
+mkdocs-material>=9.7,<10
 mkdocs-awesome-nav>=3.3,<4
 cryptography>=42                 # AES-GCM for hooks/visibility.py (status: gated)
