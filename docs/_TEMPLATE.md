@@ -1,6 +1,7 @@
 ---
 title: Page title here
-status: hidden
+status: gated | hidden | unlisted | public
+password: 
 ---
 
 <!-- ─────────────────────────────────────────────────────────
