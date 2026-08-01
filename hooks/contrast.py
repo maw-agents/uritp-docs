@@ -73,6 +73,7 @@ if _HOOKS not in sys.path:
 import theme as _theme       # noqa: E402  (path set above, deliberately)
 
 PAIRS = "contrast.tsv"
+KEY = "fg"                   # the column that makes a row real in THIS grid
 STRICT = os.environ.get("URITP_CONTRAST_STRICT") == "1"
 
 _HEX = re.compile(r"\A#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\Z")
@@ -139,12 +140,11 @@ def _ratio(fg, bg):
 
 
 def _pairs():
-    rows = _theme._read(PAIRS)
     checks = []
-    for row in rows:
+    for row in _theme._read(PAIRS, key=KEY):
         fg, bg = row.get("fg", ""), row.get("bg", "")
-        if not fg or not bg:
-            _theme._fail(PAIRS, "a row is missing `fg` or `bg`")
+        if not bg:
+            _theme._fail(PAIRS, "`" + fg + "` has no `bg` to sit on")
         try:
             minimum = float(row.get("min") or 0)
         except ValueError:
@@ -168,20 +168,14 @@ def _pairs():
     return checks
 
 
-def _rows_needed(checks):
-    """Every token named anywhere in the pairs file, so a typo is caught once
-    rather than once per palette."""
-    names = set()
-    for fg, bg, _min, _level in checks:
-        names.add(fg)
-        names.add(bg)
-    return names
-
-
 def on_config(config):
     checks = _pairs()
 
-    unknown = sorted(_rows_needed(checks) - set(_theme.REQUIRED["color"]))
+    named = set()
+    for fg, bg, _min, _level in checks:
+        named.add(fg)
+        named.add(bg)
+    unknown = sorted(named - set(_theme.REQUIRED["color"]))
     if unknown:
         _theme._fail(
             PAIRS,
@@ -247,7 +241,7 @@ def on_config(config):
     for note in warnings:
         print("::warning::contrast: " + note)
 
-    _summary(checks, palettes, live, failures, warnings, worst)
+    _summary(live, failures, warnings, worst)
 
     if failures:
         raise ValueError(
@@ -259,7 +253,7 @@ def on_config(config):
     return config
 
 
-def _summary(checks, palettes, live, failures, warnings, worst):
+def _summary(live, failures, warnings, worst):
     path = os.environ.get("GITHUB_STEP_SUMMARY")
     if not path:
         return
