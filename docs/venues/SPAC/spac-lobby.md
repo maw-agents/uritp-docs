@@ -1,6 +1,6 @@
 ---
 title: SPAC Lobby
-status: unlisted
+status: public
 ---
 
 # SPAC Lobby
