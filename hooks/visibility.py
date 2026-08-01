@@ -12,6 +12,12 @@ Page visibility. Reads `status:` from frontmatter and decides what publishes.
                         found); this separates them. `unlisted` is the
                         shorthand for public + not-listed.
 
+A gated page's KEY MATERIAL can be written six ways -- `gates` `gate` `keys`
+`key` `password` `passwords` -- each taking one value or a list, all merging,
+any one opening the page. A value matching a keystore group resolves to that
+group's secret; anything else is the password itself. hooks/gate/keystore.py
+owns that rule and the reasoning behind it.
+
 ⚠️ `hidden` IS NOT ACCESS CONTROL, IT IS NOT-PUBLISHED. This repository is
 public, so the markdown source of every page -- including a `hidden` page and a
 `gated` page's plaintext -- is readable at github.com by anyone. `hidden` keeps
@@ -28,7 +34,7 @@ FOUR FILES, ONE HOOK
 
     hooks/visibility.py      THIS FILE. MkDocs events, the status decision,
                              the folder waterfall, and ALL build state.
-    hooks/gate/keystore.py   group name -> password. Two tiers.
+    hooks/gate/keystore.py   frontmatter -> passwords, with provenance.
     hooks/gate/envelope.py   AES-GCM + PBKDF2 + the unlock markup.
                              ⚠️ PAIRED WITH docs/javascripts/gate.js.
     hooks/gate/report.py     every warning and run-summary table.
@@ -53,25 +59,15 @@ meant is worse than not publishing -- but it used to do that WITHOUT SAYING SO.
 `status: publi` and the page vanished, green build, no signal. That is worse
 than a broken build: a build that breaks screams, a page that quietly stops
 existing does not, and this site's promise is "assume the PDF is stale, check
-here instead." Four things are now reported BY NAME every build and none of
-them fail it: an unrecognised status, pages hidden only by default, a
-`password:` holding a list, and groups/pages that do not match up.
+here instead."
 
-🔴 `password:` WITH A LIST IS THE ONE THAT COST US. Frontmatter takes either
+Reported BY NAME every build, none of it fatal: an unrecognised status, pages
+hidden only by default, every key each gated page resolved and whether it came
+from the keystore or the page, groups nothing names, and pages naming nothing
+that exists.
 
-    password: rehearsal26        ONE literal value, this page only
-    gates: [psm, admin]          NAMES of keystore groups, any one opens it
-
-and `password: [dev, admin, pm]` looks like the second while being the first.
-It used to be str()'d, so the page's real password became the characters of a
-Python list repr -- which no human would type -- and NOTHING WARNED, because a
-password had technically been supplied. Encrypted correctly, reported clean,
-openable by nobody, and it takes the whole subtree with it under the waterfall.
-Now it lands in the unconfigured path: content dropped, page says it is
-unavailable, build names it.
-
-⚠️ It does NOT fail the build, deliberately. Failing here took the site stale
-over one page's config on 2026-08-01 -- the same trade `--strict` used to make,
+⚠️ NOTHING HERE FAILS THE BUILD, deliberately. Failing took the site stale over
+one page's config on 2026-08-01 -- the same trade `--strict` used to make,
 rejected for the same reason and removed from deploy.yml the same day. Local
 and visible beats global and silent. URITP_GATES_STRICT=1 restores hard-fail.
 
@@ -103,10 +99,10 @@ CONSEQUENCE, not symmetry: a skin is a preference, a lock is not. Both fire off
 index.md and walk the same ancestors, so merging them will look like tidying.
 That is the day a locked page publishes. Do not.
 
-KEYS UNDER THE WATERFALL: a locked child KEEPS its own `password:`/`gates:` and
-GAINS the parent's. Any one opens the page, which the envelope already
-supported, so a one-page password stays a one-line thing to add and delete
-without disturbing the folder key.
+KEYS UNDER THE WATERFALL: a locked child KEEPS its own keys and GAINS the
+parent's. Any one opens the page, which the envelope already supported, so a
+one-page password stays a one-line thing to add and delete without disturbing
+the folder key.
 
 A MISSING KEY LOCKS THE PAGE, IT DOES NOT FREEZE THE SITE: content DROPPED,
 page says so, build reports it, everything else deploys.
@@ -161,6 +157,7 @@ _unknown = {}       # src_uri -> the unrecognised status, exactly as written
 _defaulted = set()  # src_uri -> no `status:` key at all
 _hidden = {}        # src_uri -> declared `id:` or None. Handed to links.py.
 _named_groups = {}  # group name -> set of pages that asked for it
+_trace = {}         # src_uri -> [Resolved]. The per-page key trace.
 
 
 def _read_meta(abs_path):
@@ -209,101 +206,60 @@ def _is_unlisted(meta, status):
     return listed is False or str(listed).strip().lower() == "false"
 
 
-def _gate_names(meta):
-    """`gates: [psm, admin]`, or the singular `gate: psm`."""
-    names = meta.get("gates")
-    if names is None:
-        names = meta.get("gate")
-    if names is None:
-        return []
-    if isinstance(names, str):
-        names = [names]
-    return [str(n).strip().lower() for n in names if str(n).strip()]
-
-
-def _has_own_keys(meta):
-    """Did this page bring key material of its own to the party?"""
-    return meta.get("password") is not None or bool(_gate_names(meta))
-
-
-def _literal_password(meta, problems):
-    """The page's own `password:`, or None.
-
-    🔴 A LIST HERE IS ALWAYS A MISTAKE and it used to be a silent one -- see
-    the module docstring. Refused by name now rather than str()'d into a
-    password nobody could type.
-    """
-    literal = meta.get("password")
-    if literal is None:
-        return None
-    if isinstance(literal, (list, tuple, set, dict)):
-        problems.append(
-            "`password:` was given a list, but it takes ONE literal value. A "
-            "list of GROUP NAMES belongs in `gates:` -- change `password: "
-            "[...]` to `gates: [...]` and the names resolve against the "
-            + keystore.CONTAINER + " keystore"
-        )
-        return None
-    return str(literal)
-
-
 def _resolve_keys(metas, src_uri):
     """Return (passwords, problems) for a LIST of key sources, nearest first.
 
     More than one source is the normal case under the waterfall: a locked child
-    contributes its own password and the locking index contributes the folder
-    key, and either opens the page. Never raises unless URITP_GATES_STRICT=1.
+    contributes its own keys and the locking index contributes the folder's,
+    and any of them opens the page. Never raises unless URITP_GATES_STRICT=1.
 
     `problems` non-empty means the page cannot be published at all: it renders
     as an unopenable notice rather than ciphertext, and is reported.
+
+    keystore.resolve() does the interpreting. This function only merges,
+    dedupes across sources, and records the trace.
     """
     found = []
-    missing = []
-    problems = []
+    seen = set()
+    resolved = []
+    refused = []
 
     for meta in metas:
-        literal = _literal_password(meta, problems)
-        if literal:
-            found.append(literal)
+        for item in _store.resolve(meta):
+            if item.note and item.note not in _store_notes:
+                _store_notes.append(item.note)
+            if item.kind == "refused":
+                refused.append(item)
+                continue
+            if item.kind == "group":
+                _named_groups.setdefault(item.name.lower(), set()).add(src_uri)
+            if item.password in seen:
+                continue
+            seen.add(item.password)
+            found.append(item.password)
+            resolved.append(item)
 
-        for name in _gate_names(meta):
-            _named_groups.setdefault(name, set()).add(src_uri)
-            password, note = _store.password_for(name)
-            if note and note not in _store_notes:
-                _store_notes.append(note)
-            if password:
-                found.append(password)
-            elif name not in missing:
-                missing.append(name)
+    _trace[src_uri] = resolved + refused
 
-    if missing:
-        have = _store.available()
-        detail = "no password for group(s): " + ", ".join(missing)
-        detail += (
-            "; groups available right now: " + ", ".join(have)
-            if have else
-            "; the keystore is empty -- is " + keystore.CONTAINER + " set?"
-        )
-        problems.append(detail)
+    problems = []
+    for item in refused:
+        problems.append(item.note)
 
     if not found and not problems:
+        have = _store.available()
         problems.append(
-            "status is 'gated' but no `gates:` and no `password:` was given"
+            "status is 'gated' but no key was given. Add one of "
+            + "/".join(keystore.FIELDS)
+            + " with either a group name or a literal password"
+            + ("; groups available right now: " + ", ".join(have)
+               if have else
+               "; the keystore is empty -- is " + keystore.CONTAINER + " set?")
         )
 
     if problems and STRICT:
         raise ValueError(src_uri + ": " + "; ".join(problems))
 
-    # Two groups sharing one password would ship two wraps that both open,
-    # which leaks that they are the same secret. Deduping also means a child
-    # repeating its parent's password costs nothing.
-    seen = set()
-    unique = []
-    for value in found:
-        if value not in seen:
-            seen.add(value)
-            unique.append(value)
-    return unique, problems
+    return found, problems
 
 
 def _ancestors(src_uri):
@@ -359,7 +315,7 @@ def on_files(files, config):
 
     for store in (
         _status, _keys, _unconfigured, _overridden, _unknown, _hidden,
-        _named_groups,
+        _named_groups, _trace,
     ):
         store.clear()
     _nolist.clear()
@@ -395,8 +351,8 @@ def on_files(files, config):
         source_uri = f.src_uri
 
         # A page's own key material always counts, even when a parent locks it.
-        # That is what keeps a one-page local password a one-line thing.
-        key_metas = [meta] if _has_own_keys(meta) else []
+        # That is what keeps a one-page password a one-line thing.
+        key_metas = [meta] if keystore.declares_keys(meta) else []
 
         # THE WATERFALL. The nearest gated index.md wins over whatever this page
         # declared -- see the module docstring for why that precedence flipped.
@@ -427,7 +383,7 @@ def on_files(files, config):
             continue
 
         if status == "gated":
-            passwords, problems = _resolve_keys(key_metas or [meta], source_uri)
+            passwords, problems = _resolve_keys(key_metas or [meta], f.src_uri)
             if problems:
                 _unconfigured[f.src_uri] = problems
             else:
@@ -492,6 +448,17 @@ def on_page_markdown(markdown, page, config, files):
     return _expand_spans(markdown)
 
 
+def _scrub(page):
+    """Every key spelling out of page.meta before anything can render it.
+
+    🔒 A literal password is a real secret sitting in page metadata. Material
+    does not print it today, but a future template or plugin that iterates meta
+    would, and the page it would print it on is the locked one.
+    """
+    for field in keystore.FIELDS:
+        page.meta.pop(field, None)
+
+
 def on_page_content(html, page, config, files):
     """Replace a gated page's rendered body with ciphertext plus an unlock form.
 
@@ -502,14 +469,14 @@ def on_page_content(html, page, config, files):
     src = page.file.src_uri
 
     if src in _unconfigured:
-        page.meta.pop("password", None)
+        _scrub(page)
         return envelope.notice(_unconfigured[src])
 
     if _status.get(src) != "gated":
         return html
 
     nonce, ciphertext, wraps = envelope.encrypt(html, _keys[src])
-    page.meta.pop("password", None)
+    _scrub(page)
     return envelope.form(nonce, ciphertext, wraps)
 
 
@@ -534,7 +501,9 @@ def on_post_build(config):
             "inherited": _inherited,
             "overridden": _overridden,
             "unconfigured": _unconfigured,
+            "trace": _trace,
             "allowed": ALLOWED,
+            "fields": keystore.FIELDS,
         },
         keystore.CONTAINER,
     )
