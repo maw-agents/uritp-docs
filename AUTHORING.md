@@ -409,17 +409,27 @@ lists, headings, tables). That one rule prevents most formatting surprises.
 
 ## The footer build stamp
 
-Every page's footer carries the PR (or short SHA) the live site was built from, plus
-the deploy time:
+Every page's footer carries the PR (or short SHA) the live site was built from:
 
 ```
-University of Rochester International Theatre Program · PR #19 · 1 Aug 2026, 12:19 AM ET
+University of Rochester International Theatre Program · PR #19
 ```
 
 **This is the only signal that a build failed.** When one does, GitHub Pages keeps
 serving the previous commit: no banner, no error page, the site simply stops changing.
-A footer showing a time well before your edit means your change is not live and the
+A footer showing a PR older than your edit means your change is not live and the
 Actions log is where to look.
+
+The **deploy time** is still there, in the stamp's `title` attribute: hover it on a
+desktop, or read the page source. ~~It used to sit on the face of the footer~~ and was
+moved on 2026-08-01 at Michael's instruction. The reasoning it replaced was real — both
+of that night's frozen-deploy diagnoses came off the clock, not the number — but a
+clock in front of every reader of every page is furniture for everyone except the two
+or three people debugging a deploy.
+
+⚠️ **A PR number only reads as stale if you know the current one.** When a build looks
+suspicious, check the [Actions runs](https://github.com/maw-agents/uritp-docs/actions)
+rather than squinting at the footer.
 
 ---
 
