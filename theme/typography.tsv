@@ -1,5 +1,9 @@
-slug	inherits	webfont-text	webfont-code	font-body	font-mono	fs-body	fs-lead	fs-sm	fs-xs	fs-micro	fs-nav	fs-nav-mobile	fs-h1-min	fs-h1-fluid	fs-h1-max	fs-h2	fs-h3	lh-body	lh-tight	track-body	track-tight	track-caps
-_base		IBM Plex Sans	IBM Plex Mono	'IBM Plex Sans', system-ui, -apple-system, sans-serif	'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace	.78rem	.84rem	.75rem	.62rem	.68rem	.72rem	.78rem	1.35rem	1.05rem + 1.4vw	1.72rem	1.02rem	.8rem	1.62	1.2	0	-.014em	.09em
-plex-docs		IBM Plex Sans	IBM Plex Mono	'IBM Plex Sans', system-ui, -apple-system, sans-serif	'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace	.78rem	.84rem	.75rem	.62rem	.68rem	.72rem	.78rem	1.35rem	1.05rem + 1.4vw	1.72rem	1.02rem	.8rem	1.62	1.2	0	-.014em	.09em
-plex-large	plex-docs					.88rem	.95rem	.84rem	.68rem	.74rem	.8rem	.86rem	1.5rem	1.15rem + 1.6vw	2rem	1.14rem	.9rem	1.66	1.22		-.012em	.08em
-system-quick	plex-docs	none	none	system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif	ui-monospace, SFMono-Regular, Menlo, monospace	.8rem	.86rem	.76rem	.63rem									1.6				
+RETIRED 2026-08-01 — this file is read by nothing.
+
+The typography vector moved to  theme/typography.json
+
+Twenty-two columns is the worst case for a grid in an editor: by the time you
+scroll to `track-caps` the header is long gone. JSON puts the name on the line.
+See theme/colors.tsv for the full reasoning and theme/README.md for how to edit.
+
+🚫 Do not put values back in this file.
