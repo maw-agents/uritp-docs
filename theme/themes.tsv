@@ -1,6 +1,6 @@
 slug	name	color	typography	forms	spacing	note
 _default	Defaults	uritp-prp	plex-docs	hairline	standard	An empty cell in any row below takes its value from this row. Never point active.txt at this row.
-uritp-prp	URITP PRP	mclaren	plex-docs	hairline	standard	The house layout wearing the McLaren palette (papaya + teal) as of 2026-08-01. Put `uritp-prp` back in the colour cell for the original slate and blue.
+uritp-prp	URITP PRP	mclaren	plex-docs	hairline	dense	The house layout wearing the McLaren palette (papaya + teal) as of 2026-08-01. Put `uritp-prp` back in the colour cell for the original slate and blue.
 uritp-prp-large	URITP PRP Large	uritp-prp	plex-large	soft	roomy	Same skin, bigger type and more air. A callboard screen, or reading at arm's length.
 uritp-granite	URITP Granite	uritp-granite				Warmer stone ground, lifted off black. Same blue accent. Everything but colour is the default.
 utility	Utility	maw-dark-utility	plex-docs	hairline	standard	The ClickUp_apps anchor palette, teal accent. Proves the vocabulary transfers.
