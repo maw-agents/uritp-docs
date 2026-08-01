@@ -12,6 +12,16 @@
 # so a brand new folder shows up on its own. Move its name into the list when
 # you want it somewhere specific.
 #
+# ⚠️ NAMING A SINGLE PAGE HERE IS THE ONE THING THAT CAN BREAK A BUILD.
+#    A folder entry is a container: hide a page inside it and the section just
+#    gets shorter. A FILENAME entry is a hard reference: set that page's
+#    `status:` to `hidden` and this list points at a file that no longer
+#    exists. That is exactly what took the site stale on 2026-08-01.
+#    So: name FOLDERS here, and let `append_unmatched` place loose pages.
+#    Name a single page only when its position genuinely matters, and know
+#    that you have tied its visibility to this file. hooks/visibility.py now
+#    reports the collision by name instead of leaving you to guess.
+#
 # ⚠️ POINTER: if the add-a-page procedure changes, update ../../AUTHORING.md
 #    in the SAME PR.
 
@@ -19,7 +29,15 @@ append_unmatched: true
 
 nav:
   - index.md
-  - using-these-docs.md
+  # - using-these-docs.md
+  #   ^ COMMENTED, NOT DELETED, 2026-08-01. Michael set this page to
+  #     `status: hidden`, which means it is never built, which left this line
+  #     pointing at nothing. Restoring it is uncommenting one line -- and it
+  #     must be uncommented in the SAME change that sets the page back to
+  #     `public` or `unlisted`, or the build warns again.
+  #     (`unlisted` also keeps it out of the sidebar, so if hiding it from the
+  #     nav was the whole goal, that is the status you want and this line
+  #     stays commented.)
   - Venues: venues
   - Production: production
   - Safety: safety
