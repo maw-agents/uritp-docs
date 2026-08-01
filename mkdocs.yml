@@ -144,15 +144,22 @@ plugins:
   - search        # must be listed: declaring plugins replaces the defaults
   - awesome-nav   # builds the sidebar from docs/, steered by docs/.nav.yml
 
-# ORDER MATTERS for visibility -> links -> pagefoot. visibility.py drops
-# `hidden` pages from the file list first, so links.py builds its id registry
-# from pages that will actually exist; reverse those two and a link to a hidden
-# page resolves to a 404. pagefoot.py appends after links.py so the edit link
-# lands BELOW the `Linked from` section rather than between the body and it.
-# theme.py runs FIRST because it writes theme.font into the config, which
-# Material reads when it renders; buildstamp.py is order-independent.
+# ORDER MATTERS in two places.
+#
+# theme.py FIRST: it writes theme.font into the config, which Material reads
+# when it renders. contrast.py imports theme.py and reuses its grid reading, so
+# it must come after -- and it measures what theme.py composed rather than
+# re-deriving it, which is the only way the numbers can be trusted.
+#
+# visibility -> links -> pagefoot: visibility.py drops `hidden` pages from the
+# file list first, so links.py builds its id registry from pages that will
+# actually exist; reverse those two and a link to a hidden page resolves to a
+# 404. pagefoot.py appends after links.py so the edit link lands BELOW the
+# `Linked from` section rather than between the body and it. buildstamp.py is
+# order-independent.
 hooks:
   - hooks/theme.py        # composes theme/*.tsv into --u-* tokens + theme.font
+  - hooks/contrast.py     # measures theme/contrast.tsv against every palette
   - hooks/visibility.py   # frontmatter `status:` gate, hidden by default
   - hooks/links.py        # @page-id resolution, backlinks, retired-URL redirects
   - hooks/pagefoot.py     # "Edit this page on GitHub" at the page foot

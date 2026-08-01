@@ -1,0 +1,14 @@
+fg	bg	min	level	note
+text	bg	4.5	fail	Body copy on the page. The single most important pair on the site.
+text	surface-1	4.5	fail	Body copy inside a code block or inset panel.
+text	surface-2	4.5	fail	Body copy inside a callout, and a table row under the cursor.
+text-strong	bg	4.5	fail	Headings and the first cell of every table row.
+text-soft	bg	4.5	fail	Ledes and captions. Real prose despite the name -- it is the search-result text.
+text-soft	surface-2	4.5	fail	The same soft text where a callout or hovered row sits behind it.
+accent	bg	4.5	fail	Links. Colour is not the only signal (they are underlined) but they must still be read.
+accent	surface-2	4.5	fail	A link inside a callout.
+on-accent	accent	4.5	fail	The Unlock button's label on its own fill.
+on-chrome	chrome	4.5	fail	The site title and header icons on the banner.
+marker	bg	4.5	warn	The [To be confirmed] pill and the gate label. WARN pending a measured run -- promote to fail once a build has printed a real number.
+bad	bg	4.5	warn	Dead-link markers and error text. WARN for the same reason as marker.
+border	bg	3.0	warn	Input outlines and the table header rule. 3.0 is the WCAG floor for non-text UI. ⚠️ EVERY palette we ship currently fails this -- the hairline look trades it away deliberately. WARN so the shortfall stays visible instead of being deleted; see theme/README.md.

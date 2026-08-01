@@ -1,6 +1,6 @@
 # The theme
 
-Everything about how this site looks is in this folder, in six files you read
+Everything about how this site looks is in this folder, in seven files you read
 as tables. **No CSS. No code. No YAML.**
 
 | File | What it is |
@@ -11,6 +11,7 @@ as tables. **No CSS. No code. No YAML.**
 | [`typography.tsv`](typography.tsv) | Vector 2 — the voice |
 | [`forms.tsv`](forms.tsv) | Vector 3 — the edges |
 | [`spacing.tsv`](spacing.tsv) | Vector 4 — the density |
+| [`contrast.tsv`](contrast.tsv) | **The gate.** Which pairs must be readable, and how readable. |
 
 Every `.tsv` opens as a **grid** on GitHub, in Numbers, in Excel, anywhere.
 Edit a cell, commit, wait ninety seconds, check the footer stamp.
@@ -85,6 +86,68 @@ instead of breaking the site.
 
 ---
 
+## Is it readable? — `contrast.tsv`
+
+**Every build measures every palette, in both modes, and reports anything that
+cannot be read.** The pairs are data, so the policy is yours to edit:
+
+| Column | Means |
+|---|---|
+| `fg` | The colour of the thing |
+| `bg` | What it sits on |
+| `min` | The ratio it must reach. **4.5** for text, **3.0** for non-text UI. |
+| `level` | `fail` stops the build. `warn` only reports. |
+| `note` | Why the row exists. Write one. |
+
+**Only the ACTIVE palette can fail the build.** A parked palette cannot hurt a
+reader today, and one nobody uses should not be able to hold the site hostage
+— but every palette is still measured, so **you find out `uritp-granite` is
+broken before you switch to it**, not after.
+
+To grant an exemption, change `level` to `warn` **and say why in the note.**
+To remove a check, delete the row. Both show up in a diff, which is the whole
+reason this is a file and not a list inside the code.
+
+**The build log prints the tightest pair in every palette**, so you can watch a
+number get worse over time instead of only hearing about it when it breaks.
+
+### What the gate found on its first run
+
+Three real failures in `mclaren`, the palette that was live at the time:
+
+| Pair | Was | Now |
+|---|---|---|
+| dark `text-soft` on `bg` | 3.91:1 | **5.21:1** |
+| light `text-soft` on `surface-2` | 4.26:1 | **4.73:1** |
+| light `accent` on `bg` | 4.02:1 | **5.14:1** |
+
+The middle one is the argument for the whole gate: that colour had been
+corrected by hand an hour earlier, checked against the page, and **passed** —
+but nobody thought to check it against a *callout*, where it failed. Pairs you
+think to check are not the problem. The pairs you do not think of are.
+
+### Two rows ship as `warn` on purpose
+
+- **`border` at 3.0.** ⚠️ **Every palette here fails it.** The hairline look
+  trades away the WCAG non-text floor deliberately. It is a `warn` rather than
+  a deleted row so the shortfall stays visible and countable — if these ever
+  become real form borders rather than quiet rules, promote it.
+- **`marker` and `bad`.** Honest placeholders: these were not hand-verifiable
+  when the gate was written. **Read the build log for their real numbers and
+  promote both to `fail`.**
+
+**`hairline` is absent, not exempted.** It is designed to be barely visible.
+A row for it would only invite someone to "fix" the design, and a gate that
+flags intentional choices teaches people to ignore the gate.
+
+⚠️ **The gate measures colour, not design.** It cannot tell you a palette is
+ugly, that two links are indistinguishable from each other, or that an amber
+warning reads as decorative. Passing is a floor, not an opinion.
+
+`URITP_CONTRAST_STRICT=1` promotes every warning to a failure.
+
+---
+
 ## How light and dark work
 
 **Light and dark belong to the PALETTE, not to the theme.** A palette is two
@@ -93,7 +156,7 @@ rows in `colors.tsv` with the same `slug` and different `mode`:
 ```
 slug       mode    bg          text        accent      ...
 mclaren    dark    #292420     #f2f1ec     #f5842f
-mclaren    light   #faf6f1     #2a2420     #c05e18
+mclaren    light   #faf6f1     #2a2420     #a84f14
 ```
 
 The theme names `mclaren` once. The toggle in the header decides which of the
@@ -117,7 +180,8 @@ switches which block applies. Nothing is recomputed and nothing is fetched.
 ⚠️ **They are not automatic inversions and must not be treated as one.** The
 same hue that reads well on near-black is often unreadable on near-white:
 `mclaren` uses papaya for links in dark mode and a **deeper orange** in light,
-because papaya on near-white measures about 2.5:1. Each mode is authored.
+because papaya on near-white measures about 2.5:1. Each mode is authored, and
+the contrast gate checks both.
 
 **If you ever genuinely need one theme's dark with another's light**, the
 escape is a `color-light` column in `themes.tsv`, empty meaning "use the
@@ -161,11 +225,11 @@ opened light mode and found dark text on a black bar.
 | `marker` | `[To be confirmed]` pills and the gate label |
 | `bad` | Dead links, errors |
 
-**Any CSS colour works.** Most rows use `oklch(lightness chroma hue)` because
-it is the easiest thing to nudge by hand: lightness is the percentage, chroma
-is how saturated it is (`0` is pure grey), hue is the angle. Warmer means
-moving hue toward 90. Greyer means dropping chroma. Less black means raising
-the lightness on `bg`.
+**Any CSS colour works** — the contrast gate parses hex and `oklch()`. Most
+rows use `oklch(lightness chroma hue)` because it is the easiest thing to nudge
+by hand: lightness is the percentage, chroma is how saturated it is (`0` is
+pure grey), hue is the angle. Warmer means moving hue toward 90. Greyer means
+dropping chroma. Less black means raising the lightness on `bg`.
 
 ⚠️ **The `mclaren` row is hex, deliberately.** Those values are copied verbatim
 from `mawizorek/ClickUp_apps` → `shared/themes/colors.tsv`, which is a hex
@@ -257,7 +321,10 @@ menu rows, the password field and the Unlock button all read it.
    differs.
 3. Either point an existing theme's `color` cell at it, or add a new row to
    `themes.tsv` if you also want different type, edges or density.
-4. Point `active.txt` at that theme when you want to see it.
+4. Push. **The contrast gate measures it immediately, even before you switch to
+   it** — read the warnings in the run summary and fix them while the palette
+   is still parked.
+5. Point `active.txt` at that theme when it is clean.
 
 A token still missing after the whole fallback chain **fails the build and
 names the token**. A theme name that does not exist fails and lists the names
@@ -265,15 +332,9 @@ that do. Both are deliberate: a theme has no single page to fail on, so a
 theme that quietly fell back to something else would be invisible.
 
 **The build log prints what resolved**, including which cells came from a
-fallback and which fonts were requested — so an inherited value is something
-you can see, not something you have to remember.
-
-⚠️ **Nothing yet checks that a palette is READABLE.** The build proves every
-token exists; it does not prove the text can be seen against its background.
-The `mclaren` light row had to be corrected by hand for exactly this — its
-first `text-soft` measured about 3.65:1 against the page, under the 4.5 floor,
-and every check we have passed it green. **This is the next thing worth
-building.**
+fallback, which fonts were requested, and the tightest contrast pair in every
+palette — so an inherited value is something you can see, not something you
+have to remember.
 
 ---
 
@@ -327,6 +388,6 @@ translations, and they are worth knowing about if you edit that row:
 - **Their teal lives in `accent-hover`**, so links go papaya → teal on hover.
   Upstream calls `accent` → `accent-2` "a two-hue sweep"; this is that sweep,
   spent on the one interaction a docs site has.
-- **Light mode uses their `accent-deep`** (`#c05e18`), not papaya. Papaya on
-  near-white is around 2.5:1 — unreadable as link text. That call is exactly
-  the kind a contrast gate should be making instead of a person.
+- **Light mode does not use papaya at all.** Papaya on near-white is around
+  2.5:1. It uses a deeper orange, and the contrast gate is what settled the
+  exact value rather than an eye.
