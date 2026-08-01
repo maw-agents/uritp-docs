@@ -1,5 +1,5 @@
 /* Client half of the `status: gated` page gate.
-   Server half is hooks/visibility.py. Documented in AUTHORING.md.
+   Server half is hooks/visibility.py. Documented in AUTHORING-GATES.md.
 
    THESE TWO FILES SHARE THE CIPHER, THE KDF AND THE ITERATION COUNT.
    Change one without the other and every gated page fails to unlock with no
@@ -28,8 +28,8 @@
    Note what this does NOT require: the page never learns which GROUP a key
    belongs to. The wraps are deliberately unlabelled, so the keyring just
    re-attempts the same trial decryption it would do anyway. Access is proven
-   by decryption every single time, never by a remembered "I am PSM" flag that
-   a reader could set in devtools.
+   by decryption every single time, never by a remembered I-am-PSM flag that a
+   reader could set in devtools.
 
    Storage is sessionStorage: closing the tab re-locks everything. Deliberately
    NOT localStorage, because a shared machine in a shop or a lab is the normal
@@ -38,7 +38,15 @@
    Cost: one PBKDF2 derivation (250k iterations, ~100-200ms on a phone) per
    candidate key per wrap, worst case, stopping at the first success. Three
    groups and two remembered keys is imperceptible. Dozens would not be, which
-   is the practical ceiling on both numbers. */
+   is the practical ceiling on both numbers.
+
+   -- PRESENTATION, NOT SECURITY -------------------------------------------
+   Two behaviours below touch the DOM and nothing else: the duplicate-heading
+   repair in reveal(), and the role=alert on the error line. Neither touches
+   the cipher, the KDF, the iteration count or the keystore, so both are
+   documented in AUTHORING-LOOK.md rather than AUTHORING-GATES.md. A 14KB
+   canonical file is not re-emitted whole to record a DOM tidy-up; that is the
+   churn the split exists to avoid. Added 2026-08-01. */
 
 (function () {
   var STORE = 'uritp.gate.keyring';
@@ -51,6 +59,10 @@
   var input = gate.querySelector('.gate__input');
   var button = gate.querySelector('.gate__btn');
   var error = gate.querySelector('.gate__error');
+
+  /* The failure message appears by un-hiding an element that was already in
+     the DOM, and a screen reader does not announce that on its own. */
+  if (error) error.setAttribute('role', 'alert');
 
   function b64(s) {
     return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); });
@@ -143,11 +155,41 @@
     return attempt(0);
   }
 
+  /* THE DUPLICATE TITLE, and why it only ever appeared after unlocking.
+
+     A gated page is built with its body ALREADY replaced by the lock box, so
+     Material finds no h1 in the content and injects one from frontmatter
+     title:. That is correct, and it is the only heading on the built page.
+     Then this file decrypts the real body -- which carries the page own h1 --
+     and inserts it. Two headings, identical text, one under the other.
+
+     It survived a day because the built page is right and the live page is
+     right, until the moment somebody types the password. Any check that did
+     not include unlocking could not have found it.
+
+     Drop the INJECTED heading, never the authored one, and identify it by what
+     it structurally lacks rather than by where it sits: Material injects a
+     bare h1 with no id, while an authored heading is given an id and a
+     .headerlink permalink by the toc extension. Position would break the first
+     time anything else was rendered above the content. */
+  function dropInjectedHeading(host) {
+    if (!host.querySelector('h1')) return;
+    var scope = host.closest('.md-content__inner');
+    if (!scope) return;
+    var headings = scope.querySelectorAll('h1');
+    for (var i = 0; i < headings.length; i++) {
+      if (!host.contains(headings[i]) && !headings[i].id) {
+        headings[i].remove();
+      }
+    }
+  }
+
   function reveal(html) {
     var host = document.createElement('div');
     host.className = 'gate__revealed';
     host.innerHTML = html;
     gate.replaceWith(host);
+    dropInjectedHeading(host);
   }
 
   form.addEventListener('submit', function (e) {

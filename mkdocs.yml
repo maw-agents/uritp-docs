@@ -11,6 +11,11 @@
 
 site_name: URITP PRP
 site_url: https://maw-agents.github.io/uritp-docs/
+
+# repo_url STAYS even though the GitHub block is hidden in the chrome (see
+# uritp.css -> CHROME). MkDocs builds `page.edit_url` from repo_url + edit_uri,
+# and hooks/pagefoot.py renders that at the bottom of every page. Delete this
+# line and the edit link silently disappears from the whole site.
 repo_url: https://github.com/maw-agents/uritp-docs
 edit_uri: edit/main/docs/
 copyright: URITP | MAW
@@ -18,13 +23,13 @@ copyright: URITP | MAW
 theme:
   name: material
 
-  # ⚠️ THE WEBFONT LOADER, NOT THE TYPE CHOICE. This tells Material which
-  # family to DOWNLOAD. Which family the CSS asks for is the typography vector
-  # in theme.yml. Point the vector at something not requested here and you get
-  # a silent fallback. The seam is named in theme.yml -> VECTOR 2.
+  # THE WEBFONT LOADER, NOT THE TYPE CHOICE. This tells Material which family
+  # to DOWNLOAD. Which family the CSS asks for is the typography vector in
+  # theme.yml. Point the vector at something not requested here and you get a
+  # silent fallback. The seam is named in theme.yml -> VECTOR 2.
   font: {text: IBM Plex Sans, code: IBM Plex Mono}
 
-  # ⚠️ FIRST-PAINT FLOOR, NOT THE DESIGN. The real chrome colour is the colour
+  # FIRST-PAINT FLOOR, NOT THE DESIGN. The real chrome colour is the colour
   # vector in theme.yml, applied over the top. These two entries exist so the
   # scheme toggle works and so the mobile browser chrome (<meta theme-color>,
   # which Material derives from `primary`) is not bright indigo. Mirror the
@@ -49,8 +54,14 @@ theme:
     - navigation.top         # back-to-top button
     - toc.follow             # right rail tracks the scroll position
     - search.suggest         # autocomplete in the search box
-    - content.action.edit    # pencil icon on every page
     - content.tabs.link      # picking "Lighting" holds across the whole page
+
+  # NOT here on purpose, do not add it back without reading why:
+  #   content.action.edit -- puts a pencil at the TOP RIGHT of every page. It
+  #   reads as an invitation to edit on a site whose job is to be the settled
+  #   answer, and it renders as an anchor with NO TEXT, which a screen reader
+  #   announces as a raw URL. hooks/pagefoot.py renders a worded link at the
+  #   foot of the page instead. Removed 2026-08-01, Michael.
 
 extra_css: [stylesheets/uritp.css, stylesheets/links.css]
 extra_javascript: [javascripts/gate.js]   # client half of `status: gated`
@@ -60,16 +71,19 @@ plugins:
   - search        # must be listed: declaring plugins replaces the defaults
   - awesome-nav   # builds the sidebar from docs/, steered by docs/.nav.yml
 
-# ORDER MATTERS for the middle two. visibility.py drops `hidden` pages from the
-# file list first, so links.py builds its id registry from pages that will
-# actually exist. Reverse them and a link to a hidden page resolves to a 404.
+# ORDER MATTERS for visibility -> links -> pagefoot. visibility.py drops
+# `hidden` pages from the file list first, so links.py builds its id registry
+# from pages that will actually exist; reverse those two and a link to a hidden
+# page resolves to a 404. pagefoot.py appends after links.py so the edit link
+# lands BELOW the `Linked from` section rather than between the body and it.
 # theme.py and buildstamp.py are order-independent: neither touches the file
-# list, and both only write into finished output.
+# list or the page body.
 hooks:
   - hooks/theme.py        # composes theme.yml into --u-* tokens
   - hooks/visibility.py   # frontmatter `status:` gate, hidden by default
   - hooks/links.py        # @page-id resolution, backlinks, retired-URL redirects
-  - hooks/buildstamp.py   # PR number in the footer
+  - hooks/pagefoot.py     # "Edit this page on GitHub" at the page foot
+  - hooks/buildstamp.py   # PR number in the site footer
 
 # Each line below enables authoring syntax documented in AUTHORING.md.
 markdown_extensions:
@@ -80,17 +94,12 @@ markdown_extensions:
   - pymdownx.tabbed: {alternate_style: true}   # === "Lighting"
   - toc: {permalink: true}
 
-  # Instant previews: hovering an internal link shows a card of the target page.
-  # DESKTOP ONLY BY NATURE -- it fires on hover and focus, and there is no hover
-  # on a phone. The mechanism that works everywhere is the `Linked from` section
-  # rendered by hooks/links.py; this is the bonus on top of it. Requires
-  # mkdocs-material >= 9.7 (see requirements.txt).
-  #
-  # Safe over a `gated` page, and that was checked rather than assumed: the
-  # preview fetches the BUILT page, and a built gated page contains only the
-  # unlock form plus ciphertext (verified against the live site 2026-08-01).
-  # There is no plaintext in the file for a preview card to surface.
-  - material.extensions.preview:
-      targets:
-        include:
-          - "*"
+  # material.extensions.preview (instant previews) was REMOVED 2026-08-01.
+  # It attaches to EVERY internal link, navigation included, and marks each one
+  # with a small icon. On a phone -- the primary reading surface here -- the
+  # preview itself can never fire, because it needs hover, so the site was
+  # carrying a row of icons advertising a feature that surface cannot use.
+  # The mechanism that works everywhere is `Linked from`, rendered by
+  # hooks/links.py. This reverses the same-day decision to ship previews as a
+  # desktop bonus; that call was right about desktop and wrong about the cost
+  # on mobile. Adding it back means accepting the nav icons.

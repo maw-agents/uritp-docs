@@ -1,11 +1,12 @@
 # Look and feel reference
 
-How this site is themed, and how to change it. Companion to
-[AUTHORING.md](AUTHORING.md) (writing pages) and
+How this site is themed, how its chrome behaves, and how search decides what to
+show. Companion to [AUTHORING.md](AUTHORING.md) (writing pages) and
 [AUTHORING-GATES.md](AUTHORING-GATES.md) (visibility and keys).
 
-**Describes:** `theme.yml` · `hooks/theme.py` · `docs/stylesheets/uritp.css` ·
-`docs/stylesheets/links.css` · the `theme:` block in `mkdocs.yml`
+**Describes:** `theme.yml` · `hooks/theme.py` · `hooks/pagefoot.py` ·
+`docs/stylesheets/uritp.css` · `docs/stylesheets/links.css` · the `theme:` block
+in `mkdocs.yml`
 
 > ⚠️ **Split out 2026-08-01, for the reason the gate reference was.** There is no
 > partial-edit path through this toolchain, so every change re-emits the whole
@@ -118,8 +119,9 @@ Typography sets the family, the four-step size ramp (`fs-lead`, `fs-body`, `fs-s
 cell and block padding, the three gap sizes, and `measure` (maximum line length for
 prose).
 
-⚠️ **`touch` is an accessibility floor, not a taste dial.** 44px minimum. A vector
-that goes under it is a bug even if it looks tidier.
+⚠️ **`touch` is an accessibility floor, not a taste dial.** 44px minimum, and the
+mobile nav rows, the password field and the Unlock button all read it. A vector that
+goes under it is a bug even if it looks tidier.
 
 ---
 
@@ -160,6 +162,11 @@ the whole site or nothing — and a theme that quietly fell back to something el
 exactly the invisible failure that rule exists to prevent. Every PR runs a build
 check, so a typo dies on the branch.
 
+⚠️ **A `note:` in `theme.yml` may not contain a colon followed by a space.** It is a
+plain YAML scalar; `set theme.font: false` reads as a nested mapping and kills the
+whole parse, pointing at the wrong line. Quote it or reword it. Cost one build on
+2026-08-01.
+
 ---
 
 ## Editing the stylesheet
@@ -180,6 +187,94 @@ The file has one **bridge** block at the top mapping `--u-*` onto Material's own
 Material sets its scheme colours from those attribute selectors; an unscoped rule
 loses the specificity contest and the dark toggle breaks in a way that only shows
 up in one mode.
+
+---
+
+## The chrome
+
+What is deliberately **not** on this site, and why. Every one of these is a
+reversal of a Material default; none of them should be restored without reading
+the reason.
+
+| Removed | Was | Why |
+|---|---|---|
+| The GitHub repo block | Name, star count and fork count in the header and at the top of the mobile drawer | It reported **0 stars, 0 forks** on a venue reference nobody stars. `repo_url` stays in `mkdocs.yml` — this hides the display, not the config, and `page.edit_url` is built from it. |
+| `content.action.edit` | A pencil icon top-right of every page | It reads as an invitation to edit a document whose job is to be the settled answer, and it rendered as an anchor with **no text at all** — a screen reader announced the raw URL. Replaced by `hooks/pagefoot.py`. |
+| `material.extensions.preview` | Hover card previewing a link's target | It attaches to **every** internal link including the navigation, and marks each one with a small icon. Previews need hover. Phones have no hover. So the primary reading surface was carrying a row of icons for a feature it can never use. `Linked from` is the mechanism that works everywhere. |
+
+### The edit link
+
+`hooks/pagefoot.py` renders one worded line at the bottom of every page, below
+`Linked from`:
+
+```
+────────────────────────────
+Edit this page on GitHub
+```
+
+Words rather than an icon, on purpose: it is self-describing, it survives being
+read aloud, and it works if the icon font never loads. Kill switch
+`URITP_EDITLINK=0`. A page with no `edit_url` — a redirect stub, anything generated
+— gets no link rather than a broken one.
+
+### 🔴 The blocked chevron, and how one fix broke another
+
+Michael's screenshot showed the mobile drawer's back arrow sitting **on top of the
+first letter** of the section title: a chevron through the V of `VENUES`.
+
+Material positions that arrow **absolutely**, at top `.4rem` / left `.4rem`, because
+its own drawer title is a tall block with the text pushed to the bottom. The
+dark-mode drawer repair — which was necessary, the panels render white-on-white
+without it — flattened that title to a single line and moved the text **up, into
+the arrow's corner.** Neither change was wrong on its own.
+
+The repair is to stop fighting the absolute position and lay the row out honestly:
+a flex row, arrow first, title second, real space between them. They now cannot
+overlap whatever the title height becomes.
+
+**The general lesson, worth more than the fix:** overriding a component's *layout*
+while leaving its *absolutely positioned children* alone is a collision waiting to
+happen. Absolute positioning is a contract with a box you just changed the shape of.
+
+### Focus and tap targets
+
+One `:focus-visible` ring for the whole site, in `accent`, at `focus-w`. It appears
+for keyboard and assistive navigation and never for a mouse click.
+
+⚠️ **Never write `outline: none` on a control here.** The gate password field used
+to do exactly that and signal focus with a border colour alone — invisible to anyone
+who cannot distinguish two greys, and gone entirely in forced-colours mode.
+
+Mobile nav rows, the password field and the Unlock button all take their minimum
+height from the spacing vector's `touch`, so density stays a theme decision and
+never quietly drops below the 44px floor.
+
+### Two `gate.js` behaviours documented here, not in AUTHORING-GATES
+
+Both are DOM presentation. Neither touches the cipher, the KDF, the iteration count
+or the keystore, so the same-PR rule that binds `visibility.py` to `gate.js` does
+not fire, and a 14KB canonical file is not re-emitted whole to record a tidy-up.
+
+1. **`role="alert"` on the failure line.** It appears by un-hiding an element that
+   was already in the DOM, which a screen reader does not announce on its own.
+2. **🔴 The duplicate title after unlocking.** A gated page is built with its body
+   already replaced by the lock box, so Material finds no `<h1>` and injects one
+   from `title:`. Then `gate.js` decrypts the real body — carrying the page's own
+   `<h1>` — and inserts it. Two identical headings, stacked.
+
+   It survived a day because **the built page is right and the live page is right,
+   until the moment somebody types the password.** No check that stopped short of
+   unlocking could have found it.
+
+   `reveal()` now drops the injected heading and keeps the authored one, identified
+   by what it structurally lacks: Material injects a bare `<h1>` with no `id`, while
+   an authored heading gets an `id` and a `.headerlink` permalink from the `toc`
+   extension. Position would break the first time anything else rendered above the
+   content.
+
+   ⚠️ **Still open:** before unlocking, *Skip to content* on a gated page points at
+   an anchor built from an H1 that is not in the DOM yet. Cosmetic, keyboard-only,
+   logged in `next-build-spec.md`.
 
 ---
 
@@ -242,6 +337,9 @@ This heading and everything under it stays out of the index.
 - **A `gated` page indexes its unlock box, never its content.** The gate replaces the
   body *before* the search plugin sees it, so the real text was never in the index to
   leak. That is a property of hook order, not a filter.
+- **`Linked from` and the edit link are in the index.** They are rendered content, so
+  the plugin sees them. They sit at the bottom of a page, after the last heading, so
+  they only surface as a teaser on a search that matched nothing better.
 
 ---
 
@@ -251,6 +349,8 @@ This heading and everything under it stays out of the index.
 |---|---|---|
 | `theme.yml` | The four vectors + the join table | A palette, vector row, or token is added or changed |
 | `hooks/theme.py` | Composition, validation, `REQUIRED` | A token is added or the injection changes |
+| `hooks/pagefoot.py` | The page-foot edit link | Its label, placement, or condition changes |
 | `docs/stylesheets/uritp.css` | Every rule on the site | A custom class is added, renamed, or dropped — **and [AUTHORING.md](AUTHORING.md) too**, since authors type `.tbc` by hand |
 | `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
 | `mkdocs.yml` → `theme.font` | Which webfont is downloaded | The typography vector points at a new family |
+| `mkdocs.yml` → `theme.features` | Which Material chrome is on | Anything in *The chrome* table above is restored or removed |
