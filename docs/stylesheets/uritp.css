@@ -40,19 +40,27 @@
   --md-default-fg-color--lightest: var(--u-hairline);
   --md-code-bg-color:              var(--u-surface-1);
 
-  /* ⭐ THE HEADER BANNER. `chrome` is its own colour token, so "change the
-     top bar everywhere" is ONE line in theme.yml instead of a hunt through
-     Material's variable names. Every palette we ship sets chrome = bg, which
-     is the deliberate flat house look: the header is the same ground as the
-     page, separated by a rule and not a block of colour. Give chrome its own
-     value and the banner detaches -- header, tab strip and the mobile drawer
-     header all follow it, because all three read this token.
-     `primary` in mkdocs.yml stays the first-paint floor and the source of the
-     phone browser's <meta theme-color>; mirror it there if chrome moves far
-     from a dark neutral. */
+  /* ⭐ THE HEADER BANNER. One token, `chrome`, in the active palette in
+     theme.yml. Change that line and the strip across the top of every page
+     repaints, without touching the page behind it.
+
+     ⚠️ Material's naming is backwards and it catches everyone:
+        --md-primary-FG-color is the header's BACKGROUND
+        --md-primary-BG-color is the TEXT sitting on it
+     Which is why they are wired to `chrome` and `on-chrome` respectively.
+
+     The house palettes set chrome EQUAL to bg on purpose: flat, banner and
+     page on one ground, separated by a hairline rather than a block of
+     colour. That is now a choice a palette makes rather than a hard-wire --
+     this used to read `var(--u-bg)` and there was no way to have a coloured
+     banner without repainting the whole site.
+
+     `primary` in mkdocs.yml is only the first-paint floor and the source of
+     the mobile browser chrome; mirror it if chrome moves far from a dark
+     neutral. */
   --md-primary-fg-color:           var(--u-chrome);
   --md-primary-bg-color:           var(--u-on-chrome);
-  --md-primary-bg-color--light:    color-mix(in oklab, var(--u-on-chrome) 62%, transparent);
+  --md-primary-bg-color--light:    color-mix(in oklab, var(--u-on-chrome) 72%, transparent);
 
   /* Links and the active nav item. Previously this was whatever Material
      defaults to under `primary: black` -- a blue nobody chose. It is a token
@@ -131,8 +139,8 @@
 }
 
 /* ══ CHROME. Flat, quiet, no shadow. ═════════════════════════════════════
-   The colour comes from the bridge above (--u-chrome). These rules are the
-   SHAPE of the chrome, which is not a theme decision. */
+   The banner's COLOUR is not here -- it is the `chrome` token, wired in the
+   BRIDGE above. This block owns its SHAPE. */
 .md-header {
   box-shadow: var(--u-shadow);
   border-bottom: var(--u-rule-w) solid var(--u-hairline);
@@ -183,25 +191,30 @@
       out honestly: a flex row, arrow first, text second, real space between
       them. Now the two cannot overlap no matter what the title height becomes.
 
-   3. THE TALL SECTION ROW (fixed 2026-08-01). Michael: "nav menu has weird
-      spacing for safety". Safety was the only TOP-LEVEL section carrying an
-      index.md, and under `navigation.indexes` Material renders that case
-      differently: it wraps the row in a `.md-nav__container` which ALSO
-      carries `.md-nav__link`, then nests the page link and the expand label
-      inside it. Three elements, same class -- so repair 2's row padding and
-      the 44px tap floor were being applied at every level and the row grew.
-      The container is a layout box and gets neither.
+   3. THE DOUBLE-PADDED SECTION ROW (fixed 2026-08-01). Michael: "nav menu has
+      weird spacing for safety". Safety was the only top-level section with an
+      index.md, and that is the entire cause. With navigation.indexes, a
+      section that HAS an index.md renders Material's section-index variant:
 
-      The general lesson is repair 2's, again: a blanket rule on a component
-      class is a bet that the component only ever renders one shape. */
+          li.md-nav__item--nested
+            div.md-nav__link.md-nav__container      <- outer, IS a nav link
+              a.md-nav__link.md-nav__link--index    <- inner
+              label.md-nav__link                    <- the chevron toggle
+
+      The outer container carries the .md-nav__link class too, so the rules
+      below applied their padding and min-height at BOTH levels and the row
+      came out roughly one padding taller than every sibling. The fix is to
+      strip the container back to a bare flex row and let its children -- which
+      are the real controls -- carry the spacing and the tap target.
+
+      Same lesson as repair 2, one layer up: a rule written for a leaf applies
+      to the wrapper as well when the wrapper wears the leaf's class. */
 @media screen and (max-width: 76.1875em) {
   .md-nav--primary,
   .md-nav--primary .md-nav {
     background-color: var(--u-bg);
     color: var(--u-text);
   }
-  /* The drawer header IS the header banner on a phone, so it reads the same
-     token. Change chrome once and both move together. */
   .md-nav--primary .md-nav__title {
     display: flex;
     align-items: center;
@@ -210,8 +223,8 @@
     line-height: 1.25;
     height: auto;
     padding: 0 .8rem;
-    background-color: var(--u-chrome);
-    color: var(--u-on-chrome);
+    background-color: var(--u-surface-2);
+    color: var(--u-text-strong);
     box-shadow: none;
     border-bottom: var(--u-rule-w) solid var(--u-hairline);
   }
@@ -239,19 +252,24 @@
     padding: .72rem .8rem;
     min-height: var(--u-touch);
   }
-  /* Repair 3. A section that owns an index.md. The container is layout only:
-     no padding, no floor, no second helping of either. Harmless on a build
-     where Material never emits it -- the selector simply matches nothing. */
+  /* Repair 3. The wrapper wears .md-nav__link, so it must give the spacing
+     back: bare flex row, no padding of its own, no second minimum height. */
   .md-nav--primary .md-nav__container {
     display: flex;
     align-items: stretch;
     padding: 0;
     min-height: 0;
   }
-  .md-nav--primary .md-nav__container > .md-nav__link { flex: 1 1 auto; }
+  /* The page link takes the row; the chevron toggle takes only itself. */
+  .md-nav--primary .md-nav__container > .md-nav__link {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
   .md-nav--primary .md-nav__container > label.md-nav__link {
     flex: 0 0 auto;
-    padding-left: .2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   /* Which row am I on. A file tree marks the branch you are standing in. */
   .md-nav--primary .md-nav__link--active {
