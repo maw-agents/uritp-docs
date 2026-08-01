@@ -2,7 +2,7 @@
 title: Overview 2.0
 ---
 
-# URITP Production Resources
+# _URITP Production Resource Portal_
 
 Venue information, technical standards, and production reference for designers, guest artists, and students working with the University of Rochester International Theatre Program.
 
