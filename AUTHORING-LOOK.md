@@ -5,8 +5,8 @@ show. Companion to [AUTHORING.md](AUTHORING.md) (writing pages) and
 [AUTHORING-GATES.md](AUTHORING-GATES.md) (visibility and keys).
 
 **Describes:** `theme.yml` · `hooks/theme.py` · `hooks/pagefoot.py` ·
-`docs/stylesheets/uritp.css` · `docs/stylesheets/links.css` · the `theme:` block
-in `mkdocs.yml`
+`docs/stylesheets/uritp.css` · `docs/stylesheets/links.css` · the `theme:` and
+`extra:` blocks in `mkdocs.yml`
 
 > ⚠️ **Split out 2026-08-01, for the reason the gate reference was.** There is no
 > partial-edit path through this toolchain, so every change re-emits the whole
@@ -15,9 +15,47 @@ in `mkdocs.yml`
 
 ---
 
+## Everything about the look lives in ONE file
+
+`theme.yml`, at the repo root. Not in `docs/`, not in a stylesheet, not split
+across palettes. **The four vectors, every palette, and the join table that names
+their combinations are all in that one file**, in this order:
+
+| Section | What is in it |
+|---|---|
+| `active:` | The one line that picks a theme |
+| `themes:` | The join table — `uritp-prp`, `uritp-prp-large`, `utility`, `paper` |
+| `color:` | Palettes — `uritp-prp`, `maw-dark-utility`, `paper-mono` |
+| `typography:` | `plex-docs`, `plex-large`, `system-quick` |
+| `forms:` | `hairline`, `square`, `soft` |
+| `spacing:` | `standard`, `dense`, `roomy` |
+
+⚠️ **A theme NAME and a palette NAME are not the same thing**, and this catches
+people. `paper` and `utility` are rows in the **join table** — each one is four
+pointers, not values. The values they point at are palettes with different names:
+
+```yaml
+themes:
+  paper:
+    color: paper-mono      # <- edit the colours HERE, under `color:`
+    typography: plex-docs
+    forms: square
+    spacing: roomy
+```
+
+So **to change how `paper` looks, edit `paper-mono` under `color:`** (or point the
+`paper` row at a different vector). To change how `utility` looks, edit
+`maw-dark-utility`. The indirection is the point: `utility` and `paper` share
+`plex-docs`, so fixing a font size once fixes it in both.
+
+**`chrome` is not a vector.** It is one of the fifteen colour tokens, so it lives
+inside each palette, twice — once under `dark:` and once under `light:`.
+
+---
+
 ## Changing how the whole site looks
 
-**One line, in `theme.yml` at the repo root.**
+**One line, in `theme.yml`.**
 
 ```yaml
 active: uritp-prp
@@ -104,7 +142,7 @@ hiding in the stylesheet.
 | `hairline` | A line you are meant to barely notice — row rules, dividers |
 | `text` | Body copy |
 | `text-strong` | Headings, the first cell of a table row |
-| `text-soft` | Ledes, captions, the small uppercase labels |
+| `text-soft` | Ledes, captions, the small uppercase labels, the sidebar badges |
 | `accent` | Links, the active nav item, focus rings |
 | `accent-hover` | Its hover and press state |
 | `on-accent` | Text sitting **on** an accent fill (the Unlock button) |
@@ -230,9 +268,11 @@ the reason.
 | The GitHub repo block | Name, star count and fork count in the header and at the top of the mobile drawer | It reported **0 stars, 0 forks** on a venue reference nobody stars. `repo_url` stays in `mkdocs.yml` — this hides the display, not the config, and `page.edit_url` is built from it. |
 | `content.action.edit` | A pencil icon top-right of every page | It reads as an invitation to edit a document whose job is to be the settled answer, and it rendered as an anchor with **no text at all** — a screen reader announced the raw URL. Replaced by `hooks/pagefoot.py`. |
 | `material.extensions.preview` | Hover card previewing a link's target | Previews need hover and this site is read on a phone. **⚠️ The second reason once given — that it iconised every nav row — was WRONG; see below.** The removal stands on the hover argument alone, and adding it back now costs nothing in icons. |
-| The `status:` nav badge (hidden in CSS, not removed) | An ⓘ beside every page title in the sidebar | It was **our own frontmatter**. See below. |
 
-### 🔴 The ⓘ on every nav row — a reserved key we did not know we were using
+And one thing that is deliberately **kept**, which is rarer and therefore worth more
+words: **the sidebar status badge.**
+
+### ⓘ / 🔒 The sidebar badge — a reserved key we did not know we were using
 
 **`status:` is a Material key. We also use it. Both at once.**
 
@@ -249,26 +289,44 @@ It knows three values — `new`, `deprecated`, `encrypted` — and falls back to
 are all "anything else". So every page carried an ⓘ, and `Venues` / `Production` /
 `Reference` did not, **because a folder with no `index.md` has no page meta to read.**
 
-That is the whole pattern, and it is *also* exactly what instant previews would have
-looked like — which is how it got misdiagnosed on 2026-08-01 and cost a working
-feature. The icons outlived the removal untouched. Two clues were sitting there:
-removing the extension changed nothing, and the icons kept appearing on precisely
-the set of rows that have frontmatter.
+That is *also* exactly what instant previews would have looked like — which is how it
+got misdiagnosed on 2026-08-01 and cost a working feature. Two clues were sitting
+there: removing the extension changed nothing, and the icons kept appearing on
+precisely the set of rows that have frontmatter.
 
-**Hidden, not renamed.** `status:` is the right word for what it does here and it is
-written in every page, in `_TEMPLATE.md`, and across three reference files. One CSS
-rule in `uritp.css` → NAV beats a rename touching everything.
+**It is now deliberate, and it is load-bearing.** The badge was hidden for about two
+hours the same morning and Michael asked for it back immediately (*"lost the info
+icon which i want back"*). Do not tidy it away as leftover Material chrome.
 
-**Two live consequences:**
+**Only two values can ever reach the sidebar.** `hidden` is never built and `unlisted`
+is pruned from the nav, so the badge is a **two-state legend**, not decoration:
 
-- **Do not write `status: new` or `status: deprecated`** expecting the gate to
-  understand it. `hooks/visibility.py` treats an unrecognised value as `hidden`, so
-  the page vanishes.
-- **If a badge is ever wanted**, delete that CSS rule and add `extra.status` entries
-  in `mkdocs.yml` for the tooltips. Material ships a shield-lock glyph
-  (`--md-status--encrypted`) that would suit `gated` exactly — a padlock beside every
-  locked page in the sidebar. Offered, not taken: the standing instruction is less
-  chrome, not more.
+| Rendered | Status | Glyph |
+|---|---|---|
+| ⓘ | `public` | Material's default, `information-outline` |
+| 🔒 | `gated` | `--md-status--encrypted`, re-pointed in `uritp.css` → NAV |
+
+The padlock is the reason the badge earns its place: a locked page stays visible in
+the sidebar on purpose, so a reader can see it exists and go ask for the password.
+Before, that row looked identical to every other one until you tapped it.
+
+**Hidden meaning, made explicit:** the two marks are explained to readers in
+`docs/using-these-docs.md` → *The icons in the sidebar*. That page is the only place
+a guest designer will ever learn what 🔒 means, so it changes whenever this does.
+
+**Tooltips** come from `extra.status` in `mkdocs.yml`. They render as `title=`, so
+they are hover text on a desktop and an accessible name for a screen reader — and
+**nothing at all on a phone**, which is the same limitation that killed instant
+previews. The glyph has to carry the meaning on its own.
+
+⚠️ **Do not write `status: new` or `status: deprecated`** to get a different icon.
+`hooks/visibility.py` treats an unrecognised value as `hidden` and the page vanishes
+from the site.
+
+⚠️ **The `gated` rule uses a fallback on purpose:**
+`mask-image: var(--md-status--encrypted, var(--md-status))`. If a future Material
+drops that variable, the row degrades to the plain ⓘ instead of rendering an empty
+box where an icon should be.
 
 **The transferable lesson:** a plausible cause that explains the symptom is not the
 cause. Two independent things here produce an identical icon on an identical set of
@@ -445,12 +503,14 @@ This heading and everything under it stays out of the index.
 | `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
 | `mkdocs.yml` → `theme.font` | Which webfont is downloaded | The typography vector points at a new family |
 | `mkdocs.yml` → `theme.palette` → `primary` | First paint + `<meta theme-color>` | The `chrome` token moves far from a dark neutral |
+| `mkdocs.yml` → `extra.status` | Sidebar badge tooltips | A `status:` value is added or renamed — **and `docs/using-these-docs.md`** |
 | `mkdocs.yml` → `theme.features` | Which Material chrome is on | Anything in *The chrome* table above is restored or removed — **and grep `docs/` for pages that describe it** |
-| `requirements.txt` → the 9.x floor | Which Material template ships | Never casually. `partials/nav-item.html` is behaviour we suppress. |
+| `requirements.txt` → the 9.x floor | Which Material template ships | Never casually. `partials/nav-item.html` is behaviour we depend on. |
 
 ⚠️ **Anything that describes the chrome to READERS lives in `docs/`, and nothing
 points at it.** Removing the pencil left `docs/using-these-docs.md` telling guest
 designers to click an icon that no longer existed, and the repo's pointer discipline
 did not catch it because every pointer runs *code → AUTHORING\*.md*. `mkdocs.yml` has
 no idea an orientation page documents its feature flags. **Turning a chrome feature
-on or off means grepping `docs/` for it too.**
+on or off means grepping `docs/` for it too.** The sidebar-badge legend on that page
+is the first thing written under this rule rather than in spite of it.

@@ -63,30 +63,46 @@ theme:
   #   announces as a raw URL. hooks/pagefoot.py renders a worded link at the
   #   foot of the page instead. Removed 2026-08-01, Michael.
 
-# ⚠️⚠️ `status:` IS A RESERVED MATERIAL KEY AND WE ALSO USE IT. READ THIS.
-#
-# hooks/visibility.py reads `status:` from page frontmatter to decide what
-# publishes. Material ALSO reads it, in partials/nav-item.html, and renders a
-# badge beside that page's title in the navigation:
-#
-#     {% if nav_item.meta and nav_item.meta.status %}
-#       {{ render_status(nav_item, nav_item.meta.status) }}
-#
-# It knows `new`, `deprecated` and `encrypted`; anything else gets the default
-# `information-outline` glyph. Our four values are all "anything else", so every
-# page carried an ⓘ and every index-less folder did not -- because a bare
-# section has no page meta to read.
-#
-# The badge is hidden in uritp.css (NAV). Two live consequences:
-#   * Do not name a page `status: new` or `status: deprecated` expecting our
-#     gate to understand it -- visibility.py treats an unknown value as `hidden`.
-#   * If a badge is ever WANTED, delete that CSS rule and add `extra.status`
-#     entries below for the tooltips. Material's shield-lock glyph
-#     (`--md-status--encrypted`) would fit `gated` exactly.
+extra:
+  generator: false          # hides the "Made with Material" footer line
+
+  # ⚠️⚠️ `status:` IS A RESERVED MATERIAL KEY AND WE ALSO USE IT. READ THIS.
+  #
+  # hooks/visibility.py reads `status:` from page frontmatter to decide what
+  # publishes. Material ALSO reads it, in partials/nav-item.html, and renders a
+  # badge beside that page's title in the navigation:
+  #
+  #     {% if nav_item.meta and nav_item.meta.status %}
+  #       {{ render_status(nav_item, nav_item.meta.status) }}
+  #
+  # It knows `new`, `deprecated` and `encrypted`; anything else gets the default
+  # `information-outline` glyph. That collision was misdiagnosed as instant
+  # previews on 2026-08-01 and cost a working feature -- see the markdown
+  # extensions block at the bottom of this file.
+  #
+  # The badge is KEPT (Michael, 2026-08-01: "lost the info icon which i want
+  # back"), and uritp.css -> NAV re-points `gated` at Material's shield-lock so
+  # a locked page reads as locked from the sidebar.
+  #
+  # Only `public` and `gated` can ever appear here: `hidden` is never built and
+  # `unlisted` is pruned from the nav. The other two are listed anyway so this
+  # block stays a complete legend of our vocabulary rather than a partial one.
+  #
+  # ⚠️ Do NOT name a page `status: new` or `status: deprecated` to get a
+  # different icon -- visibility.py treats an unrecognised value as `hidden`
+  # and the page vanishes from the site entirely.
+  #
+  # These strings are the badge's `title=`, so they are hover text on a desktop
+  # and an accessible name for a screen reader. A phone gets neither: there,
+  # the glyph carries the whole meaning.
+  status:
+    public: Open to anyone with the link
+    gated: Locked. Asks for a password
+    unlisted: Not listed in navigation or search
+    hidden: Not published
 
 extra_css: [stylesheets/uritp.css, stylesheets/links.css]
 extra_javascript: [javascripts/gate.js]   # client half of `status: gated`
-extra: {generator: false}                 # hides the "Made with Material" footer line
 
 plugins:
   - search        # must be listed: declaring plugins replaces the defaults
@@ -121,8 +137,9 @@ markdown_extensions:
   # argued on two grounds: (a) previews need hover and phones have none, and
   # (b) the extension was putting an icon on every nav row. (b) IS FALSE. The
   # icons survived the removal untouched, and they were Material's `status:`
-  # badge reading OUR OWN frontmatter -- see the block above. Recorded because
-  # a wrong reason left in a config file is how the next person re-derives it.
+  # badge reading OUR OWN frontmatter -- see the `extra.status` block above.
+  # Recorded because a wrong reason left in a config file is how the next
+  # person re-derives it.
   #
   # (a) still stands on its own, so the removal STANDS: the primary reading
   # surface here is a phone, and a desktop-only hover card is not worth a
