@@ -28,6 +28,13 @@ jobs:
         run: pip install -r requirements.txt
       - name: Build site
         run: mkdocs build --strict
+        env:
+          # Read by hooks/buildstamp.py to render the footer stamp. Passed as an
+          # environment variable rather than interpolated into `run:`, so a
+          # commit message containing shell metacharacters cannot execute.
+          # Empty on workflow_dispatch (no head commit); the hook falls back to
+          # the short SHA.
+          BUILD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

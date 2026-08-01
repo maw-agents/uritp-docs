@@ -1,8 +1,12 @@
-# Sidebar order. This is the ONLY navigation file.
+# Sidebar ORDER for the top level. Section TITLES for nested folders live in a
+# `.nav.yml` inside that folder (see docs/venues/SPAC/.nav.yml).
 #
 # A folder name here becomes a sidebar section containing every page inside it,
 # sorted alphabetically by filename. Adding a page means dropping a .md file in
 # a folder: nothing to register here.
+#
+# A folder's index.md becomes its section landing page (navigation.indexes),
+# so clicking the section name opens that page instead of doing nothing.
 #
 # append_unmatched puts anything not named below at the bottom of the sidebar,
 # so a brand new folder shows up on its own. Move its name into the list when

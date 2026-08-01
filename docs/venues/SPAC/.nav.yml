@@ -1,0 +1,7 @@
+# Section title for this folder. Without it the sidebar title-cases the folder
+# name and renders "Spac", which is wrong for an acronym.
+#
+# ⚠️ POINTER: the per-folder title mechanism is documented in ../../../AUTHORING.md
+#    under "Adding a page". Change how this works and update it in the SAME PR.
+
+title: SPAC
