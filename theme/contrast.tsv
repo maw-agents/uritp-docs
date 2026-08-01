@@ -1,0 +1,15 @@
+fg	bg	min	note
+text	bg	4.5	Body copy on the page. The most important row here.
+text	surface-1	4.5	Code blocks and inset panels.
+text	surface-2	4.5	Callout bodies and the hovered table row.
+text-strong	bg	4.5	Headings and the first cell of a table row.
+text-soft	bg	4.5	Ledes and captions. Soft still has to be readable.
+text-soft	surface-2	4.5	Small caps labels on a callout header.
+accent	bg	4.5	Links. Link text is text.
+accent	surface-2	4.5	A link inside a callout.
+accent-hover	bg	4.5	The hover state is still text being read.
+on-accent	accent	4.5	The Unlock button label on its fill.
+on-chrome	chrome	4.5	The site title and icons in the header bar.
+marker	bg	4.5	The [To be confirmed] pill.
+marker	surface-2	4.5	The gate label, which sits on surface-2.
+bad	bg	4.5	Dead-link markers and error text.
