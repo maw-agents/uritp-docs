@@ -1,5 +1,6 @@
 ---
 title: Page title here
+id: page-id-here
 status: gated | hidden | unlisted | public
 password: 
 ---
@@ -9,8 +10,13 @@ password:
 
      1. Copy this file. Rename it kebab-case: rehearsal-studio.md
      2. Drop it in the right folder under docs/. That registers it.
-     3. Set `title:` above. Leave `status: hidden` until it is worth reading.
+     3. Set `title:` and `id:` above. Leave `status: hidden` until it
+        is worth reading.
      4. Delete every block you do not use, including this comment.
+
+     ID          The permanent name other pages link to. Usually the
+                 filename without .md. SET IT ONCE AND NEVER CHANGE IT:
+                 that promise is what makes links survive a move.
 
      STATUS      hidden -> not built at all, URL 404s        (start here)
                  unlisted -> live URL, no sidebar, no search
@@ -66,7 +72,7 @@ wants splitting into two.
      [To be confirmed]{.tbc} is the amber pill. Use it instead of
      guessing, and instead of leaving the row out entirely. -->
 
-## Technical specifications
+## Technical specifications {#technical-specifications}
 
 | Item | Value |
 |---|---|
@@ -78,7 +84,7 @@ wants splitting into two.
      between tabs. Keep these five labels spelled EXACTLY like this
      across every page or the reader's choice stops carrying over. -->
 
-## Venue notes
+## Venue notes {#venue-notes}
 
 Every note here exists because it caught someone out. Pick your
 department.
@@ -121,24 +127,19 @@ Hosted in Box. Access follows your University of Rochester account.
 
 ## Related
 
-<!-- ⚠️ INTERNAL LINKS ARE RELATIVE TO *THIS FILE*, not to docs/.
-     They are commented out on purpose: a live example link here would
-     break the moment you copy this file into a subfolder, and --strict
-     fails the whole deploy on one bad target.
+<!-- INTERNAL LINKS ARE IDS, NOT PATHS. Nothing to count, nothing that
+     breaks when this file is copied into a subfolder or moved later:
 
-     Uncomment and fix the path for wherever your page ended up:
+       a page      [Smith Theatre](@smith-theatre)
+       a heading   [the notes](@smith-theatre#venue-notes)
 
-       same folder      [Safety and health](index.md)
-       one level up     [Smith Theatre](../venues/smith-theatre.md)
-       to a heading     [the notes](../venues/smith-theatre.md#venue-notes)
+     A heading you link to needs an explicit {#anchor}, as above, or
+     the link is riding on the heading TEXT and dies when someone
+     rewords it. Never use a full https:// URL for an internal page.
+     Full reference: AUTHORING.md -> Links. -->
 
-     Count the folders between your file and the target. From
-     docs/safety/yours.md to docs/venues/smith-theatre.md that is
-     ../venues/. Never use a full https:// URL for an internal page:
-     it works, which means it dodges the broken-link check and rots. -->
-
-- Related page one
-- Related page two
+- [Smith Theatre](@smith-theatre)
+- [Safety and health](@safety)
 
 ---
 
