@@ -1,249 +1,45 @@
-:root {
-  --u-hue: 258;
+@import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600&display=swap");
+/* ^ MUST stay line 1. CSS silently drops any @import that follows another rule. */
 
-  --md-primary-fg-color:        oklch(48% 0.145 282);
-  --md-primary-fg-color--light: oklch(58% 0.13 282);
-  --md-primary-fg-color--dark:  oklch(38% 0.14 282);
-  --md-primary-bg-color:        oklch(99% 0.003 282);
-  --md-primary-bg-color--light: oklch(97% 0.008 282);
+/* ── PALETTE. Change these six values and the whole site follows. ─────────── */
+:root, [data-md-color-primary=custom], [data-md-color-accent=custom] {
+  --md-primary-fg-color: oklch(48% 0.145 282);    /* header bar, active nav item */
+  --md-accent-fg-color:  oklch(44% 0.155 282);    /* link hover, focus ring */
+  --md-primary-bg-color: oklch(99% 0.003 282);    /* text sitting on the header */
+  --md-typeset-a-color:  oklch(48% 0.145 282);    /* links in body copy */
+  --md-default-bg-color: oklch(98.4% 0.006 258);  /* page background */
+  --md-typeset-color:    oklch(41% 0.014 258);    /* body text */
 
-  --md-accent-fg-color:         oklch(44% 0.155 282);
-  --md-accent-fg-color--transparent: oklch(48% 0.145 282 / 0.1);
-  --md-accent-bg-color:         oklch(99% 0.003 282);
-
-  --md-default-bg-color:        oklch(98.4% 0.006 var(--u-hue));
-  --md-typeset-color:           oklch(41% 0.014 var(--u-hue));
-  --md-default-fg-color:        oklch(21% 0.018 var(--u-hue));
-  --md-default-fg-color--light: oklch(56% 0.011 var(--u-hue));
-  --md-default-fg-color--lighter: oklch(68% 0.009 var(--u-hue));
-  --md-default-fg-color--lightest: oklch(91.5% 0.008 var(--u-hue));
-
-  --md-typeset-a-color:         oklch(48% 0.145 282);
-
-  --u-surface: oklch(100% 0.002 var(--u-hue));
-  --u-sunk:    oklch(96.2% 0.009 var(--u-hue));
-  --u-rule:    oklch(91.5% 0.008 var(--u-hue));
-  --u-rule-2:  oklch(85% 0.012 var(--u-hue));
-  --u-ink:     oklch(21% 0.018 var(--u-hue));
-  --u-ink-3:   oklch(56% 0.011 var(--u-hue));
-  --u-ink-4:   oklch(68% 0.009 var(--u-hue));
-
-  --md-text-font: "DM Sans";
-  --md-code-font: "IBM Plex Mono";
+  --serif: "Crimson Pro", Georgia, serif;
+  --amber: oklch(52% 0.12 62);                    /* the unconfirmed marker */
 }
 
-/* ── typography ─────────────────────────────────────────── */
+/* ── HEADINGS. Serif, tight, hairline rule above each section. ────────────── */
+.md-typeset h1, .md-typeset h2 { font-family: var(--serif); font-weight: 500; letter-spacing: -.015em; }
+.md-typeset h1 { font-size: 2.55rem; line-height: 1.06; }
+.md-typeset h2 { font-size: 1.72rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--md-default-fg-color--lightest); }
+.md-typeset h3 { font-size: 1rem; font-weight: 600; }
 
-@import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap");
+/* First paragraph after the page title becomes the lede automatically. */
+.md-typeset h1 + p { font-size: 1.06rem; font-weight: 300; color: var(--md-default-fg-color--light); }
 
-.md-typeset {
-  font-size: 0.79rem;
-  line-height: 1.68;
-}
+/* ── TABLES. No outer box, uppercase heads, digits that line up. ──────────── */
+.md-typeset table:not([class]) { border: 0; font-variant-numeric: tabular-nums; }
+.md-typeset table:not([class]) th { background: none; padding-left: 0; font-size: .62rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--md-default-fg-color--light); }
+.md-typeset table:not([class]) td { padding-left: 0; border-top: 0; border-bottom: 1px solid var(--md-default-fg-color--lightest); }
 
-.md-typeset h1,
-.md-typeset h2,
-.md-typeset h3 {
-  font-family: "Crimson Pro", Georgia, serif;
-  color: var(--u-ink);
-  text-wrap: balance;
-  letter-spacing: -0.015em;
-}
+/* ── [To be confirmed]{.tbc} ──────────────────────────────────────────────── */
+.md-typeset .tbc { padding: 1px 7px; border: 1px solid var(--amber); border-radius: 5px; font-size: .62rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--amber); }
 
-.md-typeset h1 {
-  font-size: 2.55rem;
-  font-weight: 500;
-  line-height: 1.06;
-  margin-bottom: 0.5rem;
-}
+/* ── CALLOUTS. Drop Material's thick left stripe for an even hairline box. ── */
+.md-typeset .admonition, .md-typeset details { border: 1px solid var(--md-default-fg-color--lightest); border-radius: 10px; box-shadow: none; }
 
-.md-typeset h2 {
-  font-size: 1.72rem;
-  font-weight: 500;
-  line-height: 1.2;
-  margin-top: 3rem;
-  border-top: 1px solid var(--u-rule);
-  padding-top: 1.5rem;
-}
-
-.md-typeset h3 {
-  font-family: var(--md-text-font), system-ui, sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  margin-top: 1.75rem;
-}
-
-.md-typeset p {
-  text-wrap: pretty;
-  max-width: 72ch;
-}
-
-.md-typeset strong { color: var(--u-ink); font-weight: 600; }
-
-/* lede: first paragraph after the page title */
-.md-typeset h1 + p {
-  font-size: 1.06rem;
-  font-weight: 300;
-  line-height: 1.6;
-  color: var(--md-default-fg-color--light);
-  max-width: 66ch;
-}
-
-/* ── chrome ─────────────────────────────────────────────── */
-
-.md-header {
-  background: oklch(99.5% 0.004 var(--u-hue));
-  color: var(--u-ink);
-  box-shadow: none;
-  border-bottom: 1px solid var(--u-rule);
-}
-
-.md-header__title { font-family: "Crimson Pro", Georgia, serif; font-size: 1.15rem; font-weight: 600; }
-.md-header__button { color: var(--u-ink); }
-
-.md-search__form {
-  background: var(--u-surface);
-  border: 1px solid var(--u-rule-2);
-  border-radius: 7px;
-  box-shadow: none;
-}
-.md-search__form:hover { background: var(--u-surface); border-color: var(--u-ink-4); }
-.md-search__input { color: var(--u-ink); }
-.md-search__input::placeholder { color: var(--u-ink-4); }
-.md-search__icon { color: var(--u-ink-4); }
-
-.md-tabs { background: transparent; border-bottom: 1px solid var(--u-rule); }
-
-/* nav */
-.md-nav { font-size: 0.72rem; }
-.md-nav__title { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--u-ink-4); }
-.md-nav__link { color: var(--md-typeset-color); border-radius: 6px; padding: 3px 8px; transition: background 0.13s cubic-bezier(0.22,1,0.36,1); }
-.md-nav__link:hover { background: var(--u-sunk); color: var(--u-ink); }
-.md-nav__link--active,
-.md-nav__item .md-nav__link--active {
-  color: var(--md-primary-fg-color);
-  font-weight: 600;
-  background: oklch(95.5% 0.022 282);
-}
-.md-sidebar--secondary .md-nav__link { background: none; padding-left: 0; }
-.md-sidebar--secondary .md-nav__link:hover { background: none; }
-
-/* ── tables ─────────────────────────────────────────────── */
-
-.md-typeset table:not([class]) {
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-}
-.md-typeset table:not([class]) th {
-  background: transparent;
-  color: var(--u-ink-4);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  padding: 0 0.9rem 0.55rem 0;
-  border-bottom: 1px solid var(--u-rule-2);
-}
-.md-typeset table:not([class]) td {
-  padding: 0.7rem 0.9rem 0.7rem 0;
-  border-top: none;
-  border-bottom: 1px solid var(--u-rule);
-  vertical-align: top;
-}
-.md-typeset table:not([class]) tr:hover { background: transparent; }
-.md-typeset table:not([class]) td:first-child { color: var(--u-ink); font-weight: 500; }
-
-/* "to be confirmed" marker: use {.tbc} on inline text */
-.md-typeset .tbc {
-  display: inline-block;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: oklch(52% 0.12 62);
-  background: oklch(96.5% 0.028 62);
-  border: 1px solid oklch(88% 0.045 62);
-  padding: 1px 7px;
-  border-radius: 5px;
-}
-
-/* ── admonitions ────────────────────────────────────────── */
-
-.md-typeset .admonition,
-.md-typeset details {
-  border: 1px solid var(--u-rule-2);
-  border-left-width: 1px;
-  border-radius: 10px;
-  box-shadow: none;
-  font-size: 0.75rem;
-}
-.md-typeset .admonition-title,
-.md-typeset summary {
-  background: var(--u-sunk);
-  border: none;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.md-typeset .admonition-title::before,
-.md-typeset summary::before { top: 0.5rem; }
-
-.md-typeset .admonition.warning,
-.md-typeset .admonition.danger {
-  border-color: oklch(88% 0.045 62);
-  background: oklch(98.6% 0.012 62);
-}
-.md-typeset .warning > .admonition-title { background: oklch(96.5% 0.028 62); color: oklch(45% 0.12 62); }
-
-.md-typeset .admonition.note,
-.md-typeset .admonition.info {
-  border-color: oklch(86% 0.05 282);
-  background: oklch(98.6% 0.011 282);
-}
-.md-typeset .note > .admonition-title,
-.md-typeset .info > .admonition-title { background: oklch(95.5% 0.022 282); color: var(--md-primary-fg-color); }
-
-/* ── content tabs (department notes) ────────────────────── */
-
-.md-typeset .tabbed-labels { box-shadow: none; border-bottom: 1px solid var(--u-rule); gap: 0.3rem; }
-.md-typeset .tabbed-labels > label {
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: var(--md-default-fg-color--light);
-  padding: 0.5rem 0.75rem;
-}
-.md-typeset .tabbed-labels > label:hover { color: var(--u-ink); }
-.md-typeset .tabbed-set > input:checked + label { color: var(--md-primary-fg-color); font-weight: 600; }
-.md-typeset .tabbed-content { padding-top: 0.9rem; }
-
-/* ── links, code, footer ────────────────────────────────── */
-
-.md-typeset a { text-underline-offset: 2.5px; }
-.md-typeset code { background: var(--u-sunk); font-variant-ligatures: none; border-radius: 4px; }
-
-.md-footer { background: var(--u-ink); }
-.md-footer-meta { background: oklch(17% 0.016 var(--u-hue)); }
-.md-source__repository { font-size: 0.65rem; }
-
-/* ── print: clean PDF export ────────────────────────────── */
-
+/* ── PRINT. Strip chrome; unstack department tabs so paper loses nothing. ─── */
 @media print {
-  .md-header, .md-sidebar, .md-footer, .md-tabs,
-  .md-content__button, .md-typeset .tabbed-labels { display: none !important; }
+  .md-header, .md-sidebar, .md-footer, .md-content__button, .md-typeset .tabbed-labels { display: none !important; }
   .md-main__inner, .md-content { margin: 0 !important; }
-  .md-typeset { font-size: 10.5pt; }
-  .md-typeset p { max-width: none; }
-  .md-typeset h2 { break-after: avoid; }
-  .md-typeset .admonition, .md-typeset table { break-inside: avoid; }
-  /* content tabs collapse to stacked sections so nothing is lost on paper */
   .md-typeset .tabbed-content { display: block !important; }
+  .md-typeset h2, .md-typeset .admonition, .md-typeset table { break-inside: avoid; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; transition: none !important; }
-}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

@@ -1,77 +1,33 @@
-# ─────────────────────────────────────────────────────────────
-# URITP Production Resources
-# THEME SWAP: change `theme.name` below. Everything else survives.
-# Content lives in docs/*.md and never needs to change.
-# ─────────────────────────────────────────────────────────────
+# THEME SWAP: change theme.name. Nothing in docs/*.md is affected by a swap.
 
 site_name: URITP Production Resources
-site_description: >-
-  Venue information, technical drawings, and production standards for the
-  University of Rochester International Theatre Program.
 site_url: https://maw-agents.github.io/uritp-docs/
+repo_url: https://github.com/maw-agents/uritp-docs
+edit_uri: edit/main/docs/
 copyright: University of Rochester International Theatre Program
 
-repo_url: https://github.com/maw-agents/uritp-docs
-repo_name: uritp-docs
-edit_uri: edit/main/docs/
-
 theme:
-  name: material          # <-- THE SWAP POINT
-  language: en
-  font:
-    text: DM Sans
-    code: IBM Plex Mono
-  palette:
-    scheme: default
-    primary: custom
-    accent: custom
-  icon:
-    repo: fontawesome/brands/github
-    edit: material/pencil
+  name: material
+  font: {text: DM Sans, code: IBM Plex Mono}
+  palette: {primary: custom, accent: custom}   # colors defined in uritp.css
   features:
-    - navigation.sections
-    - navigation.tracking
-    - navigation.top
-    - navigation.footer
-    - toc.follow
-    - search.suggest
-    - search.highlight
-    - search.share
-    - content.action.edit
-    - content.tabs.link
-    - content.code.copy
+    - navigation.sections    # sidebar groups instead of one flat list
+    - navigation.top         # back-to-top button
+    - toc.follow             # right rail tracks the scroll position
+    - search.suggest         # autocomplete in the search box
+    - content.action.edit    # pencil icon on every page
+    - content.tabs.link      # picking "Lighting" holds across the whole page
 
-extra_css:
-  - stylesheets/uritp.css
+extra_css: [stylesheets/uritp.css]
+extra: {generator: false}    # hides the "Made with Material" footer line
 
 markdown_extensions:
-  - abbr
-  - admonition
-  - attr_list
-  - md_in_html
   - tables
-  - footnotes
-  - toc:
-      permalink: true
-      toc_depth: 3
-  - pymdownx.details
-  - pymdownx.superfences
-  - pymdownx.tabbed:
-      alternate_style: true
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - pymdownx.inlinehilite
-  - pymdownx.smartsymbols
-
-plugins:
-  - search
-
-extra:
-  generator: false
-  social:
-    - icon: material/email
-      link: mailto:mawizorek@gmail.com
-      name: Contact production management
+  - admonition                                 # !!! warning "Title"
+  - attr_list                                  # [To be confirmed]{.tbc}
+  - pymdownx.superfences                       # safe nesting inside tabs
+  - pymdownx.tabbed: {alternate_style: true}   # === "Lighting"
+  - toc: {permalink: true}
 
 nav:
   - Start here:
