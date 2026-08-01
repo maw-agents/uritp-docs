@@ -8,9 +8,10 @@ as a reader-facing page: it documents the machine, not the theatre.
 > describes carries a pointer back here, so a standards change and a doc change
 > land in one PR or the pointer has failed.
 
-**Describes:** `mkdocs.yml` · `docs/.nav.yml` and per-folder `.nav.yml` ·
-`docs/stylesheets/uritp.css` · `docs/stylesheets/links.css` · `hooks/visibility.py` ·
-`hooks/links.py` · `hooks/buildstamp.py` · `docs/javascripts/gate.js`
+**Describes:** `mkdocs.yml` · `requirements.txt` · `.github/workflows/deploy.yml` ·
+`docs/.nav.yml` and per-folder `.nav.yml` · `docs/stylesheets/uritp.css` ·
+`docs/stylesheets/links.css` · `hooks/visibility.py` · `hooks/links.py` ·
+`hooks/buildstamp.py` · `docs/javascripts/gate.js`
 
 ---
 
@@ -24,6 +25,12 @@ as a reader-facing page: it documents the machine, not the theatre.
 | `gated` | **Yes** | Works, shows a password box | Title only | Ciphertext |
 | `unlisted` | No | **Works** | No | The real text |
 | `hidden` | No | **404** | No | Nothing. Page is never built. |
+
+Plus one independent switch that composes with any of them:
+
+```markdown
+listed: false      # keep this page out of the nav, search and sitemap
+```
 
 ### The two questions that separate them
 
@@ -43,6 +50,28 @@ without a signpost*. An unlisted URL forwarded in one email is public from then 
   password. Use it when the existence of the page is not the secret.
 - `unlisted` → **no.** Nobody discovers it; you hand out the link.
 
+### Gated AND unlisted, together
+
+Those two questions are independent, and the single-value `status:` used to force you
+to answer only one. `listed: false` fixes that:
+
+```markdown
+---
+title: Todd Lock-up
+id: todd-lockup-procedure
+status: gated
+listed: false
+gates: [psm]
+---
+```
+
+Encrypted **and** undiscoverable: no sidebar entry, no search result, no sitemap, and
+the body is ciphertext even for someone holding the URL. Use it when neither the
+content nor the existence of the page should be casually visible.
+
+`status: unlisted` is now just shorthand for *public + `listed: false`*, and is kept
+because it reads better than the pair.
+
 ### Choosing
 
 | Situation | Use |
@@ -50,6 +79,7 @@ without a signpost*. An unlisted URL forwarded in one email is public from then 
 | Finished, gatekept, safe to design from | `public` |
 | Draft you are circulating to named people for comment | `gated` |
 | One-off you want to send to a single person, no password ceremony | `unlisted` |
+| Locked *and* not advertised | `gated` + `listed: false` |
 | Half-written, not for anyone yet | `hidden` |
 
 ### A status change only exists once it deploys
@@ -88,9 +118,10 @@ nothing.** A plain reload is exactly that check.
 
 ```markdown
 ---
-title: Paperwork standards
+title: Todd Lock-up
+id: todd-lockup-procedure
 status: gated
-password: theatre2026
+gates: [psm, admin]
 ---
 ```
 
@@ -105,33 +136,117 @@ ciphertext. The browser decrypts with Web Crypto when the password is entered.
 - The right-hand outline is suppressed on gated pages, or it would list the section
   headings of a locked page.
 - Gated pages **never print**. The lock box is hidden, so nobody prints an empty page.
+- A gated page's visible H1 comes from `title:`, not from the `# Heading` in the body —
+  the gate replaces the body, so no H1 survives and Material substitutes the title.
+  Two pages written identically will show different headings if one is gated.
+
+### Key groups
+
+**`gates:` is a list, and ANY ONE of the named groups' passwords opens the page.**
+
+```markdown
+gates: [psm]                 # one group
+gates: [psm, admin]          # either password works
+gate: psm                    # singular, still valid, same as [psm]
+```
+
+Each name reads `URITP_GATE_<NAME>` from the build environment, uppercased with
+hyphens turned into underscores (`front-of-house` → `URITP_GATE_FRONT_OF_HOUSE`).
+
+The groups in use:
+
+| Group | Secret | Roughly |
+|---|---|---|
+| `admin` | `URITP_GATE_ADMIN` | Program leadership |
+| `dev` | `URITP_GATE_DEV` | Whoever is building this site |
+| `psm` | `URITP_GATE_PSM` | Production stage management |
+
+More groups as they are needed. Adding one is three steps and no code — see below.
+
+**How it works, because the shape matters if you ever debug it.** The body is
+encrypted **once** with a random content key. That content key is then encrypted
+separately for each group. A wrapped key is about 100 bytes, so:
+
+- Page weight barely moves as you add groups. It is not N copies of the page.
+- Rotating one group's key rewraps ~100 bytes. The body and every other group are
+  untouched.
+- Revoking a group from a page is deleting one word from `gates:`.
+
+The wrapped keys ship shuffled and unlabelled. **Which desk can open a document is
+itself information**, and an ordered, named list would hand it over to anyone reading
+the built HTML.
 
 ### Keeping the password out of the repo
 
-`password:` in frontmatter is convenient and **publishes the password**. The better
-form names a gate and reads the secret from the build environment:
+`password: theatre2026` in frontmatter still works and is fine for a throwaway draft.
+It also **publishes the password**, since the markdown is world-readable. `gates:` is
+the form to use for anything you would repeat out loud in a meeting.
+
+---
+
+## Adding a key group
+
+Three steps. Two of them are one line each.
+
+**1. Add the secret.** In GitHub: **Settings → Secrets and variables → Actions →
+New repository secret**. Name it `URITP_GATE_` plus the group in capitals, so a
+group called `psm` is the secret `URITP_GATE_PSM`. Paste the password as the value.
+
+GitHub will never show you that value again. Write it wherever you keep passwords
+**before** you click Add.
+
+**2. Pass it through to the build.** Secrets are *not* automatically visible to a
+workflow. Open `.github/workflows/deploy.yml`, find the `env:` block under
+*Build site*, and add a line:
+
+```yaml
+          URITP_GATE_PSM: ${{ secrets.URITP_GATE_PSM }}
+```
+
+⚠️ **This step is the one everybody forgets.** A secret that exists but is not listed
+here is invisible to the build, and the symptom is identical to not having created it.
+
+**3. Use it.** In any page's frontmatter:
 
 ```markdown
 status: gated
-gate: designers      # reads URITP_GATE_DESIGNERS from a GitHub Actions secret
+gates: [psm]
 ```
 
-Same gate, secret never committed. Use this the moment a password protects anything
-that actually matters.
+Push. About ninety seconds later the page asks for that password.
+
+### Rotating a password
+
+Update the secret's value in Settings, then push anything (or re-run the workflow from
+the Actions tab). Every page carrying that group re-wraps on the next build. **No page
+needs editing** and no other group is affected.
+
+### If the build fails with "the environment carries no URITP_GATE_…"
+
+That error is deliberate and it is doing its job: a gated page named a group whose
+secret the build cannot see, and refusing to deploy is better than publishing a page
+everyone believes is locked. Check, in this order:
+
+1. Does the secret exist in **Settings → Secrets and variables → Actions**?
+2. Is it listed in the `env:` block of `deploy.yml`? (Step 2 above.)
+3. Do the two names match **exactly**? An unset secret interpolates to an empty
+   string rather than erroring, so a typo in `deploy.yml` looks exactly like a missing
+   secret.
 
 ---
 
 ## ⚠️ What the gate actually does (and does not)
 
-**While this repository is public, none of the four states are access control.**
+**While this repository is public, none of this is access control.**
 
-The site is only one copy of the content. The other copy is the markdown in the repo,
-and that copy is world-readable at `github.com/maw-agents/uritp-docs`:
+Secrets fix the **password** leak. They do nothing about the **content** leak. The site
+is only one copy of the content; the other is the markdown in the repo, world-readable
+at `github.com/maw-agents/uritp-docs`:
 
 | | On the site | In the public repo |
 |---|---|---|
 | A `hidden` page | Not there at all | **Fully readable** |
-| A `gated` page | Encrypted | **Fully readable, password included** |
+| A `gated` page | Encrypted | **Fully readable** |
 | An `unlisted` page | Readable by URL | **Fully readable** |
 
 And git never forgets: deleting a page tomorrow leaves it in the commit history
@@ -142,28 +257,21 @@ So be honest about what each one buys you **today**:
 - **`hidden`** stops a half-written page reaching a student by accident. That is a
   real and worthwhile job and it does it perfectly.
 - **`gated`** signals "this is not for casual circulation" and stops a forwarded link
-  from being instantly readable. Deterrence and framing, not security.
+  from being instantly readable. **Deterrence and framing, which is the job it was
+  chosen for** (Michael, 2026-08-01: *"don't circulate this is enough"*).
 - **Nothing here protects anything from someone who thinks to look at the repo.**
 
 Never put student data, personal contact details, credentials, medical or disciplinary
 information, or contract terms in a page and rely on `hidden` or `gated` to hold it.
 If it must not be read, it does not belong in this repo.
 
-### Making the gate real
+### If that ever needs to change
 
-The gate becomes genuine protection the moment the markdown stops being public. That
-needs two changes:
-
-1. **Make the repo private.** GitHub Pages from a private repository requires **GitHub
-   Pro** (about $4/month). On the Free plan the repo must be public, full stop.
-2. **Move passwords to Actions secrets** using the `gate:` form above.
-
-With both done, the site stays public, the source is not, the served page holds only
-ciphertext, and the password lives in a secret store. That is a real lock.
-
-A fully private *site* (readers must be logged-in GitHub users with repo access) is
-Enterprise Cloud only, and would be wrong here anyway: guest designers and students
-do not have GitHub accounts.
+The gate becomes genuine protection the moment the markdown stops being public:
+**make the repo private** (GitHub Pages from a private repo requires GitHub Pro, about
+$4/month). The `gates:` plumbing is already in place, so that is the only remaining
+step. Until then the group keys are organisational, not protective, and that is a
+deliberate choice rather than an oversight.
 
 ### Linking to a hidden page
 
@@ -171,8 +279,7 @@ do not have GitHub accounts.
 kills the deploy.~~ **Changed 2026-08-01.** That rule made one unpublished target
 capable of freezing the entire site. A link to a hidden or missing page now renders as
 a visible dead-link marker on that page only, is listed in the link report, and the
-build continues. You still cannot publish a working dead end; you can no longer take
-the whole site down with one.
+build continues.
 
 ---
 
@@ -217,6 +324,11 @@ A folder's `index.md` becomes the page you land on when you click the section na
 (`navigation.indexes`), instead of the name doing nothing. Give it an `id:` like any
 other page.
 
+⚠️ **Gating a folder's `index.md` does NOT gate the pages inside it.** Each page carries
+its own `status:`, and a locked section landing page sits above a sidebar full of
+unlocked children. If the whole section is restricted, every page in it needs its own
+`gates:` line.
+
 ---
 
 ## Page anatomy
@@ -243,6 +355,22 @@ level, the page wants splitting.
 
 The theme styles the **first paragraph after the H1** as large light lede text
 automatically. Do not try to make it big yourself.
+
+### Which title shows where
+
+Three surfaces read three different sources, which is why two pages can look
+inconsistent without either being wrong:
+
+| Surface | Reads |
+|---|---|
+| Sidebar entry, browser tab | frontmatter `title:` |
+| The big heading on the page | the `# H1` in the body |
+| Search result heading | the H1, falling back to `title:` |
+
+So `title: safety test page` with `# Safety test page` gives you a lowercase sidebar
+entry and a capitalised page heading. **Keep them the same unless you mean it.**
+
+The exception is a **gated** page, which has no H1 to show (see *The gate*).
 
 ---
 
@@ -274,14 +402,6 @@ change.
 
 Add `id:` to frontmatter. **Set it once and never change it** — that promise is the
 entire mechanism.
-
-```markdown
----
-title: Smith Theatre
-id: smith-theatre
-status: public
----
-```
 
 No `id:` is fine for a page nothing links to yet: the filename stands in, and a
 folder's `index.md` takes the folder's name. Declare one properly the moment anything
@@ -331,27 +451,20 @@ Because `hooks/links.py` already resolves every internal link, it also knows eve
 link in reverse. Link Safety → Smith Theatre once, and Smith Theatre gains a link back
 to Safety on its own. The relationship is mutual, so both ends show it.
 
-```markdown
-## Linked from
-
-- [Safety and health](…)
-- [Todd Theatre](…)
-```
-
 Things worth knowing:
 
 - **It is built from the source files, not from the page you are on**, so a link added
   on a page later in the build still registers. Order does not matter.
-- **`unlisted` pages are never named as a source.** Unlisted means nobody discovers the
-  page; listing it on a public one is exactly discovery. This is deliberate and it is
-  the one rule in the backlink index you should not "fix".
+- **Undiscoverable pages are never named as a source.** If a page is `unlisted` or
+  carries `listed: false`, nobody is meant to find it — and listing it on a public page
+  is exactly discovery. This is deliberate and it is the one rule in the backlink index
+  you should not "fix".
 - **Self-links are dropped**, so a page's own Related section never cites itself.
 - The heading carries a stable `{#linked-from}` anchor, so you can deep-link to it.
-- A page nothing links to simply has no section. Those pages are listed as `orphans`
-  in the link report — **not an error**, since a section landing page is reached from
-  the sidebar, but useful to glance at.
-- Kill switch: set `URITP_BACKLINKS=0` in the build environment. Unwiring the whole
-  hook would take id resolution down with it, which is not what you want.
+- A page nothing links to simply has no section. Those are listed as `orphans` in the
+  link report — **not an error**, since a section landing page is reached from the
+  sidebar, but useful to glance at.
+- Kill switch: set `URITP_BACKLINKS=0` in the build environment.
 
 ### Instant previews (desktop)
 
@@ -370,13 +483,10 @@ only the form plus ciphertext.
 ### What a broken link looks like now
 
 It does **not** fail the build. The link text renders in red with a dashed underline
-and a ⚠, on that page only, and the reason appears in the build's link report. One
-typo can no longer freeze a site people are trying to load a show from.
+and a ⚠, on that page only, and the reason appears in the build's link report.
 
-Every build writes:
-
-- a **Link report** table in the Actions run summary, and
-- `/link-report.json` on the live site, listing every issue with its page and reason.
+Every build writes a **Link report** table in the Actions run summary, and
+`/link-report.json` on the live site.
 
 | Report kind | Means |
 |---|---|
@@ -386,9 +496,6 @@ Every build writes:
 | `missing-anchor` | The anchor does not exist; the link lands at the top of the page. |
 | `duplicate-id` | Two pages claim one id. The second is unreachable by id. |
 | `alias-collision` | A retired URL is already a real page. Redirect skipped. |
-
-The report also carries `pages_with_backlinks` and an `orphans` list. Neither is a
-failure; both are there to be glanced at.
 
 **Never use a full `https://` URL for an internal page.** It works, which is the
 problem: it dodges every check above and rots silently.
@@ -404,9 +511,6 @@ spaces.** That indent is the whole trick and it is the thing people get wrong.
 !!! warning "Before you design"
     Smith is a blackbox with real constraints that will bite
     a design late if you learn them late.
-
-!!! note "Not yet documented"
-    This page is a placeholder.
 ```
 
 | Type | Use for | Reads as |
@@ -426,8 +530,7 @@ wrong after a phone edit, check the indent first.
 
 ## Department tabs
 
-How venue notes split by department. `===` then a quoted label, **body indented four
-spaces**, blank line between tabs.
+`===` then a quoted label, **body indented four spaces**, blank line between tabs.
 
 ```markdown
 === "Lighting"
@@ -470,18 +573,6 @@ here." An unconfirmed row reads as "measure this before you draft it," which is 
 Standard markdown, nothing exotic. **Blank line between every block** (paragraphs,
 lists, headings, tables). That one rule prevents most formatting surprises.
 
-```markdown
-**Bold** for the thing that matters.
-*Italic* for emphasis, sparingly.
-`Code` for filenames and exact values.
-
-- Bulleted item
-- Another item
-
-1. Numbered step
-2. Next step
-```
-
 ---
 
 ## The footer build stamp
@@ -499,10 +590,7 @@ Actions log is where to look.
 
 The **deploy time** is still there, in the stamp's `title` attribute: hover it on a
 desktop, or read the page source. ~~It used to sit on the face of the footer~~ and was
-moved on 2026-08-01 at Michael's instruction. The reasoning it replaced was real — both
-of that night's frozen-deploy diagnoses came off the clock, not the number — but a
-clock in front of every reader of every page is furniture for everyone except the two
-or three people debugging a deploy.
+moved on 2026-08-01 at Michael's instruction.
 
 ⚠️ **A PR number only reads as stale if you know the current one.** When a build looks
 suspicious, check the [Actions runs](https://github.com/maw-agents/uritp-docs/actions)
@@ -513,22 +601,22 @@ see the cache-buster note under *Publication status*.
 
 ## What breaks the build
 
-The site builds with `--strict`. The list of things that can take the whole deploy down
-is deliberately short, and **links are no longer on it**.
+The site builds with `--strict`. The list is deliberately short, and **links are no
+longer on it**.
 
 | # | Failure | Fails the deploy? | Why |
 |---|---|---|---|
 | 1 | Callout or tab body not indented four spaces | No, renders wrong | Content falls out of the box. Four spaces, not a tab, not two. |
 | 2 | Link to a missing, moved, or `hidden` page | **No, as of 2026-08-01** | Renders as a dead-link marker and appears in the link report. |
-| 3 | `status: gated` with no password | **Yes** | The build refuses rather than shipping the page wide open. |
-| 4 | No blank line before a table or list | No | Renders as one mashed paragraph, which makes it easier to miss. |
-| 5 | Two H1s on a page | No, renders wrong | Breaks the outline and the page title. |
-| 6 | Missing or misspelled `status:` | No | The page silently will not build. Nothing errors: it just is not there. |
-| 7 | Lowering `mkdocs-material` below 9.7 | **Yes** | `material.extensions.preview` does not exist there, and an unknown extension is fatal. |
+| 3 | `status: gated` with no password at all | **Yes** | The build refuses rather than shipping the page wide open. |
+| 4 | `gates:` naming a group whose secret is not in the build env | **Yes** | Same reason as 3, and the more likely one. See *Adding a key group*. |
+| 5 | No blank line before a table or list | No | Renders as one mashed paragraph. |
+| 6 | Two H1s on a page | No, renders wrong | Breaks the outline and the page title. |
+| 7 | Missing or misspelled `status:` | No | The page silently will not build. Nothing errors: it just is not there. |
+| 8 | Lowering `mkdocs-material` below 9.7 | **Yes** | `material.extensions.preview` does not exist there, and an unknown extension is fatal. |
 
-**When a build does fail, the live site keeps serving the previous commit.** There is
-no banner and no error page: it simply stops updating. The footer build stamp is the
-only signal, which is why it exists. Check it before concluding a change did not work.
+**When a build does fail, the live site keeps serving the previous commit.** No banner,
+no error page: it simply stops updating.
 
 ---
 
@@ -554,12 +642,13 @@ Each carries a pointer comment at the top saying so.
 |---|---|---|
 | `mkdocs.yml` | Theme, features, markdown extensions, hook order | An extension, plugin, or hook is added or removed |
 | `requirements.txt` | Build dependency floors | A floor moves, or a pinned feature is added or dropped |
+| `.github/workflows/deploy.yml` | Which secrets reach the build | A key group is added, renamed, or retired |
 | `docs/.nav.yml` | Top-level sidebar order | The add-a-page procedure changes |
 | `docs/<folder>/.nav.yml` | That section's displayed title | The per-folder title mechanism changes |
 | `docs/stylesheets/uritp.css` | Palette, headings, `.tbc`, `.gate`, print rules | A custom class is added, renamed, or dropped |
 | `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
-| `hooks/visibility.py` | The `status:` gate and the encryption | A status value is added or renamed, or its behaviour changes |
-| `hooks/links.py` | `@id` resolution, backlinks, aliases, the link report | The link syntax, a report kind, the backlink rules, or the fail-vs-report stance changes |
+| `hooks/visibility.py` | `status:`, `listed:`, `gates:`, the encryption | A status or gate behaviour changes |
+| `hooks/links.py` | `@id` resolution, backlinks, aliases, the link report | The link syntax, a report kind, or the backlink rules change |
 | `hooks/buildstamp.py` | The footer stamp | What the stamp shows changes |
 | `docs/javascripts/gate.js` | Browser-side unlock | The crypto parameters or the unlock flow change |
 
