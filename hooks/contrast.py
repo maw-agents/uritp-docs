@@ -32,6 +32,13 @@ parked palette cannot hurt a reader today, and failing on it would mean a
 palette nobody uses could hold the site hostage. You still learn it is broken
 BEFORE you switch to it, which was the whole point of measuring all of them.
 
+⚠️ SINCE PER-PAGE THEMING SHIPPED, "PARKED" IS A WEAKER WORD THAN IT WAS. A
+palette no theme points at is genuinely unused, but a palette behind a theme
+that some page names in its frontmatter IS on the site. This gate still only
+hard-fails the palette in ``active.txt``. Read the warnings before pointing a
+page at a parked theme -- and if per-page themes become common, promote this
+to measuring "every theme any page can reach" instead.
+
 ``level`` in the TSV is the ceiling, not the floor: a ``warn`` row never fails,
 even on the active palette.  ``URITP_CONTRAST_STRICT=1`` promotes every warning
 to a failure, for when someone wants the whole house clean.
@@ -184,7 +191,7 @@ def on_config(config):
         )
 
     # The palette the site is actually wearing. Only this one can fail.
-    active = _theme._active()
+    active = _theme._read_active()
     joins = {row["slug"]: row for row in _theme._read(_theme.JOIN)}
     fallback = joins.get(_theme.DEFAULT) or {}
     live = (joins.get(active) or {}).get("color") or fallback.get("color")
