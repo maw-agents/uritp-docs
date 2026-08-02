@@ -1,6 +1,6 @@
 ---
-title: URITP Incident Reporting
-id: uritp-incident-reporting
+title: URITP Incident Report
+id: uritp-incident-report
 status: gated
 password: [admin, dev, pm]
 ---
