@@ -25,6 +25,14 @@
    are relative, and turning them into dials would mean fifty columns nobody
    will ever set. Two named exceptions below: BREAKPOINTS and PRINT.
 
+   ⚠️ ONE MORE, AND IT IS NOT OURS: SYNTAX HIGHLIGHTING. A fenced code block is
+   coloured by Pygments through Material's own `_codehilite.scss` -- dozens of
+   literal hues for keywords, strings and comments, none of them tokens, none
+   of them measured by the contrast gate. It does not show today because no
+   page here has a code block. The moment one lands it will be the most
+   off-palette thing on the screen. Same class as the callout flavours below,
+   an order of magnitude more values.
+
    POINTER: adding, renaming, or dropping a custom class (.tbc, .gate) means
    updating ../../AUTHORING.md in the SAME PR. Authors write .tbc by hand and
    the visibility hook emits .gate, so a renamed class breaks silently.
@@ -91,7 +99,13 @@
 [data-md-color-scheme=slate] .md-typeset { letter-spacing: .006em; }
 [data-md-color-scheme=slate] .md-typeset strong { font-weight: 600; }
 
-/* ══ TYPE. One family. Hierarchy from weight and space, not size alone. ══ */
+/* ══ TYPE. One family. Hierarchy from weight and space, not size alone. ══
+   ⚠️ `font-weight` IS A LITERAL IN EVERY RULE BELOW AND ARGUABLY SHOULD NOT
+   BE. It is the one "proportion" claim in this file that does not survive
+   scrutiny: weight is a style decision, and a typography vector that cannot
+   set it is missing a real dial -- `plex-large` would plausibly want lighter
+   headings at its larger sizes. Not changed here because it is eight rules
+   and its own PR; named so it stops being invisible. */
 .md-typeset {
   font-size: var(--u-fs-body);
   line-height: var(--u-lh-body);
@@ -453,6 +467,117 @@
   padding-bottom: var(--u-pad-block);
 }
 
+/* ══ CALLOUT FLAVOURS. The colour comes from the palette now. ════════════
+
+   🔴 UNTIL 2026-08-01 THIS WAS THE LAST PLACE ON THE SITE WEARING COLOURS
+   NOBODY CHOSE. Material ships twelve admonition flavours, each with a
+   hardcoded Material-Design tint, in extensions/markdown/_admonition.scss:
+
+       $admonitions: ( "note": pencil-circle $clr-blue-a200, ... )
+       .md-typeset .admonition.#{$name}     { border-color: $tint; }
+       .md-typeset .#{$name} > .admonition-title {
+         background-color: color.adjust($tint, $alpha: -0.9);
+         &::before { background-color: $tint; }
+       }
+
+   So the callout's SHAPE was ours and its COLOUR was Material's -- two owners
+   on one component, and a theme swap moved only one of them. Michael spotted
+   it the honest way: a blue note callout on a site whose palette has no blue
+   in it at all (McLaren is papaya and teal).
+
+   ⚠️ THIRD TIME THIS EXACT PATTERN HAS BITTEN. `primary: black` wrote a
+   literal onto .md-header where we expected a variable; the drawer chevron's
+   absolute position depended on a height we had changed; now this. The rule
+   that keeps emerging: MATERIAL WRITES LITERALS, NOT VARIABLES, WHENEVER A
+   VALUE CAME FROM ITS OWN CONFIG RATHER THAN A SCHEME. Assume a literal and
+   go and look.
+
+   ⚠️ SPECIFICITY: Material's flavour rules are (0,3,0) and ours would tie at
+   (0,3,0), winning only on load order. Order is real but invisible, and a
+   tie that depends on it is a trap for whoever reorders extra_css. The
+   `[data-md-color-scheme]` prefix -- always present, it is what the whole
+   BRIDGE block above keys on -- takes these to (0,4,0) and they win outright.
+
+   THE MAP. Twelve flavours, five tokens, and the collapse is deliberate:
+
+       note abstract info    ->  accent      the theme's own voice
+       tip success question  ->  good        the positive one
+       warning caution       ->  marker      already the "unconfirmed" amber
+       failure danger bug    ->  bad         already the error red
+       example quote         ->  text-soft   neutral, not a signal
+
+   Michael's call, 2026-08-01: "danger is the only one that should stay red,
+   note and warning could align with the chosen theme colors". DANGER STAYS
+   RED because red means stop, and on a site whose subject includes rigging
+   and lock-up that is worth more than palette purity -- but it stays red as a
+   TOKEN, so each palette tunes its own red and none of them can drift into
+   something illegible. `bad` and `marker` already existed and already did
+   exactly this job; adding `danger` and `warning` columns beside them would
+   have been two names for one truth, which is the defect this repo has spent
+   the day deleting.
+
+   ⚠️ `good` IS THE ONE GENUINELY NEW COLOUR, added in the same PR. No palette
+   had a positive hue -- success and question were briefly collapsed onto
+   `accent-hover`, which was a placeholder and read as one. Every value was
+   derived rather than invented: each palette's OWN `bad` supplied the
+   lightness and chroma, and only the hue swung to 150. ⚠️ THAT IS DERIVED,
+   NOT MEASURED. OKLCH lightness is not perceptually flat across hue, so a
+   lightness that works at red may not at green. theme/contrast.tsv now
+   carries `good` against both `bg` and `surface-2`, as WARN, and the first
+   build's printed numbers are the thing to read before trusting any of them.
+
+   The ICONS are still Material's and that is correct: a pencil, an alert
+   triangle, a lightning bolt. Those are semantics, not style. Only the tint
+   changes. */
+
+[data-md-color-scheme] .md-typeset :is(.admonition, details).note,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).abstract,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).info {
+  --u-callout: var(--u-accent);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).tip,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).success,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).question {
+  --u-callout: var(--u-good);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).warning,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).caution {
+  --u-callout: var(--u-marker);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).failure,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).danger,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).bug {
+  --u-callout: var(--u-bad);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).example,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).quote {
+  --u-callout: var(--u-text-soft);
+}
+
+/* Then paint from that one variable. The `[class]` is what carries these past
+   Material's own flavour rules; an unflavoured callout matches nothing above,
+   so --u-callout is unset and the fallback keeps the plain hairline box. */
+[data-md-color-scheme] .md-typeset :is(.admonition, details)[class] {
+  border-color: var(--u-callout, var(--u-hairline));
+}
+[data-md-color-scheme] .md-typeset [class] > :is(.admonition-title, summary) {
+  /* 12% of the tint over the panel surface, rather than over whatever is
+     behind it. Material mixes toward transparency, which lands differently on
+     a callout nested inside another one. */
+  background-color: color-mix(
+    in oklab, var(--u-callout, transparent) 12%, var(--u-surface-2)
+  );
+  border-bottom-color: var(--u-callout, var(--u-hairline));
+}
+[data-md-color-scheme] .md-typeset [class] > :is(.admonition-title, summary)::before {
+  background-color: var(--u-callout, var(--u-text-soft));
+}
+/* The open/closed chevron on a collapsible. Material colours it with the same
+   tint, so it has to move with the rest or one glyph stays Material blue. */
+[data-md-color-scheme] .md-typeset [class] > summary::after {
+  color: var(--u-callout, var(--u-text-soft));
+}
+
 /* ══ CONTENT TABS (department notes). Underline, not pills. ══════════════ */
 .md-typeset .tabbed-labels {
   box-shadow: none;
@@ -598,7 +723,13 @@
    it is a physical constraint: ink on white, at maximum contrast, whichever
    skin was on screen. A themeable print palette would let a swap produce an
    unreadable printout, and a venue page taken into a production meeting is
-   exactly the case that must never break. */
+   exactly the case that must never break.
+
+   ⚠️ THE CALLOUT TINTS COME THROUGH HERE TOO, now that they are tokens. On
+   paper they collapse toward ink: a printed callout is told apart by its rule
+   and its title, not by a wash of colour that costs toner and reads as grey
+   anyway. `marker` and `bad` keep a little hue because caution and danger are
+   worth distinguishing on a page somebody is holding in a theatre. */
 @media print {
   :root, [data-md-color-scheme=slate], [data-md-color-scheme=default] {
     --u-bg: #fff;
@@ -613,6 +744,8 @@
     --u-chrome: #fff;
     --u-on-chrome: #000;
     --u-marker: #7a4f00;
+    --u-bad: #8a1010;
+    --u-good: #14532d;
     --u-shadow: none;
   }
   [data-md-color-scheme=slate] .md-typeset { letter-spacing: normal; }
