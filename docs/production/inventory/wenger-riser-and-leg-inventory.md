@@ -11,8 +11,9 @@ The original Todd Theatre risers. Wenger versatile platforms, 4' x 8'.
 ## Platforms
 
 Wenger Versatile Platforms - Black  
+<!---
 [Link](www.wengercorp.com/web/images/lit/prod/Wenger%20Versalite-SellSheet.pdf): www.wengercorp.com/web/images/lit/prod/Wenger%20Versalite-SellSheet.pdf
-
+--->
 | Count | Platform Size |
 |---|---|
 | 26 | 4'x8' |
