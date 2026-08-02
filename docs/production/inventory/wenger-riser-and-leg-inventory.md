@@ -40,6 +40,9 @@ Wenger Versatile Platforms - Black
 | 64" | 18 | 3 |
 | 72" | 12 | 2 |
 
+## Re-ordering parts  
+You can still purchase new legs and decking for these platforms. Additional sizes and shapes exist.
+
 <!---
 ## Related
 
