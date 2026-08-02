@@ -10,6 +10,9 @@ Venue information, technical standards, and production reference for designers, 
 
 This site is the current version. If you are reading a PDF or a slide deck someone emailed you, assume it is out of date and check here instead.
 
+!!! success "Welcome!"  
+    Welcome to the *Production Resource Portal*
+
 <!-- The "Where to start" table that used to sit here moved into the sidebar as
      the Quick Links section, 2026-08-01, Michael. Edit that list in
      quick-links.yml at the repo root.
