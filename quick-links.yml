@@ -24,9 +24,16 @@
 #    site deploys. Read the run summary -- "🔗 Quick links" -- after any page
 #    rename. That table IS the answer to "what did I just break".
 #
+# ⚠️ A HIDDEN PAGE HAS NO SLUG. `status: hidden` means never built, so it is
+#    not in the registry and a quick link to it is dropped and reported like
+#    any other miss. `using-these-docs` is hidden right now, which is why it is
+#    not in the list below even though it is an obvious candidate. Set it
+#    `unlisted` and it becomes linkable while staying out of the main sidebar
+#    -- which is exactly what a quick link wants.
+#
 # 🔴 DO NOT ADD THESE PAGES TO docs/.nav.yml AS PAGE ENTRIES. awesome-nav's own
 #    rule: a glob never matches something already named in the nav, so listing
-#    Smith Theatre as a page here would REMOVE it from Venues rather than
+#    Smith Theatre as a page there would REMOVE it from Venues rather than
 #    shortcut to it. These are LINKS to pages that stay where they live. That
 #    distinction is the whole reason this feature is a hook and not four lines
 #    of .nav.yml.
@@ -41,4 +48,3 @@ links:
   Todd Theatre: todd-theatre
   Safety and health: safety
   Paperwork standards: paperwork-standards
-  Using these docs: using-these-docs
