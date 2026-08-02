@@ -1,0 +1,61 @@
+/* 10 · TYPE ════════════════════════════════════════════════════════════════
+
+   OWNS: the prose scale. One family; hierarchy from weight and space, not size
+   alone. Body, headings, paragraphs, lists, and the lede.
+
+   ⚠️ ZERO TOP MARGIN ON `p` IS LOAD-BEARING AND IT HAS A KNOWN VICTIM. The
+   tight rhythm is deliberate, but Material's callouts take their entire gap
+   under the title bar from that margin. 30-content.css now pads the callout
+   body itself instead of depending on this line. ANYTHING ELSE that leans on
+   a paragraph's top margin will break the same way.
+
+   ⚠️ `font-weight` IS A LITERAL IN EVERY RULE BELOW AND ARGUABLY SHOULD NOT
+   BE -- weight is a style decision and the typography vector cannot set it.
+   Named so it stops being invisible; it is its own PR.
+
+   Why: ../../CSS-NOTES.md → 10 Type. */
+
+.md-typeset {
+  font-size: var(--u-fs-body);
+  line-height: var(--u-lh-body);
+  letter-spacing: var(--u-track-body);
+}
+.md-typeset h1 {
+  font-size: clamp(var(--u-fs-h1-min), var(--u-fs-h1-fluid), var(--u-fs-h1-max));
+  font-weight: 600;
+  line-height: var(--u-lh-tight);
+  letter-spacing: var(--u-track-tight);
+  color: var(--u-text-strong);
+  margin: 0 0 .35em;
+}
+.md-typeset h2 {
+  font-size: var(--u-fs-h2);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -.008em;
+  color: var(--u-text-strong);
+  margin: var(--u-gap-lg) 0 .7rem;
+  padding-top: 1.1rem;
+  border-top: var(--u-rule-w) solid var(--u-hairline);
+}
+.md-typeset h3 {
+  font-size: var(--u-fs-h3);
+  font-weight: 600;
+  letter-spacing: .01em;
+  color: var(--u-text-strong);
+  margin: 1.4rem 0 .4rem;
+}
+.md-typeset p { margin: 0 0 .85em; }
+.md-typeset ul, .md-typeset ol { margin: 0 0 .9em; }
+.md-typeset li { margin-bottom: var(--u-gap-xs); }
+
+/* Lede: the one paragraph after the title. Restrained, not oversized.
+   ⚠️ This is also the text the SEARCH RESULT shows for the page, so it is not
+   decoration. See AUTHORING-LOOK.md → "What the search result says". */
+.md-typeset h1 + p {
+  font-size: var(--u-fs-lead);
+  line-height: 1.55;
+  color: var(--u-text-soft);
+  max-width: var(--u-measure);
+  margin-bottom: 1.4em;
+}

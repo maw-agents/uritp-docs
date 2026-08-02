@@ -1,0 +1,73 @@
+/* 00 · BRIDGE + A11Y BASELINE ══════════════════════════════════════════════
+
+   OWNS: the one place our --u-* tokens meet Material's --md-* variables, plus
+   the site-wide focus ring. Nothing per-component lives here.
+
+   ⚠️ NO LITERAL COLOUR, FONT, SIZE OR RADIUS IN ANY SHEET IN THIS FOLDER.
+   Every value is a --u-* token composed from the grids in ../../theme/ by
+   hooks/theme.py. A literal committed here silently opts that element out of
+   every future theme swap, and NOTHING CAN DETECT A STYLESHEET THAT STOPPED
+   ASKING -- the build fails when a palette forgets a token, never when a rule
+   stops reading one. Missing token? Add a column to the right grid AND its
+   name to REQUIRED in hooks/theme.py. Do not hard-code it here.
+
+   ⚠️ DO NOT MOVE THE BRIDGE BLOCK TO :root. Material sets its scheme colours
+   from [data-md-color-scheme=...]; an unscoped rule loses and the dark toggle
+   breaks in a way that only shows in one mode.
+
+   ⚠️ THE NUMBER IN THE FILENAME IS THE CASCADE. These sheets load in the
+   order they are listed in mkdocs.yml under `extra_css`, and that order is
+   load-bearing: 00 first, 90 last. Reordering the list is a silent restyle.
+
+   Why any of it: ../../CSS-NOTES.md → 00 Bridge.  Values: ../../theme/README.md */
+
+[data-md-color-scheme=slate],
+[data-md-color-scheme=default] {
+  --md-default-bg-color:           var(--u-bg);
+  --md-typeset-color:              var(--u-text);
+  --md-default-fg-color:           var(--u-text-strong);
+  --md-default-fg-color--light:    var(--u-text-soft);
+  --md-default-fg-color--lighter:  var(--u-border);
+  --md-default-fg-color--lightest: var(--u-hairline);
+  --md-code-bg-color:              var(--u-surface-1);
+
+  /* ⭐ THE HEADER BANNER. `chrome` is its own colour token, so "change the top
+     bar everywhere" is ONE CELL in theme/colors.tsv. Header, tab strip and the
+     mobile drawer header all read it, so all three move together. */
+  --md-primary-fg-color:           var(--u-chrome);
+  --md-primary-bg-color:           var(--u-on-chrome);
+  --md-primary-bg-color--light:    color-mix(in oklab, var(--u-on-chrome) 62%, transparent);
+
+  /* Links and the active nav item. A token, so it can be contrast-checked. */
+  --md-typeset-a-color:            var(--u-accent);
+  --md-accent-fg-color:            var(--u-accent-hover);
+  --md-accent-fg-color--transparent: color-mix(in oklab, var(--u-accent) 12%, transparent);
+
+  --md-text-font-family:           var(--u-font-body);
+  --md-code-font-family:           var(--u-font-mono);
+}
+
+/* One visible focus ring for the whole site, in the accent, at a thickness the
+   forms vector owns. :focus-visible, so it appears for keyboard and assistive
+   navigation and never for a mouse click.
+
+   ⚠️ Never replace this with `outline: none` on a specific control. The gate
+   password input used to do exactly that and signalled focus with a border
+   colour alone -- invisible to anyone who cannot tell the two greys apart, and
+   gone entirely in forced-colours mode. */
+:focus-visible {
+  outline: var(--u-focus-w) solid var(--u-accent);
+  outline-offset: 2px;
+}
+
+/* Light text on dark reads heavier than it measures. Ease the weight AND open
+   the tracking: compensating on one axis alone never looks right. */
+[data-md-color-scheme=slate] .md-typeset { letter-spacing: .006em; }
+[data-md-color-scheme=slate] .md-typeset strong { font-weight: 600; }
+
+/* Lives in 00 rather than at the end of the last sheet because it is an
+   accessibility baseline, not a print concern -- and `!important` means its
+   position in the cascade cannot matter. */
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

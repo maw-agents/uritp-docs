@@ -1,0 +1,102 @@
+/* 20 · CHROME + NAV ════════════════════════════════════════════════════════
+
+   OWNS: the header banner, the tab strip, and the DESKTOP sidebar. The nav
+   reads as a file tree.
+
+   ⚠️ THE PHONE DRAWER IS NOT HERE. Every breakpoint lives in 80-mobile.css,
+   including the drawer's three repairs. Until 2026-08-02 the drawer rules sat
+   three hundred lines from the phone rules in one file and nobody could see
+   they were the same subject.
+
+   ⚠️ THE COLOUR OF THE BANNER IS NOT HERE EITHER. It comes from --u-chrome
+   through the bridge in 00. These rules are the SHAPE of the chrome, which is
+   not a theme decision.
+
+   ⚠️ THE ⓘ / 🔒 BADGE IS OUR OWN FRONTMATTER AND IT IS WANTED. `status:` is a
+   RESERVED Material key that renders a badge beside a nav title; every page
+   here carries one for hooks/visibility.py, so every page gets a glyph. It was
+   misdiagnosed as leftover Material chrome once and hidden, and Michael asked
+   for it back the same morning. DO NOT TIDY IT AWAY.
+
+   Why: ../../CSS-NOTES.md → 20 Chrome. */
+
+.md-header {
+  box-shadow: var(--u-shadow);
+  border-bottom: var(--u-rule-w) solid var(--u-hairline);
+}
+.md-header__title { font-size: var(--u-fs-lead); font-weight: 500; }
+.md-tabs { border-bottom: var(--u-rule-w) solid var(--u-hairline); }
+
+/* The GitHub repo block -- name, stars, forks -- in the header and at the top
+   of the mobile drawer. Hidden 2026-08-01: it reported 0 stars and 0 forks on
+   a private-audience venue reference. The way back to source is now one worded
+   line at the foot of each page (hooks/pagefoot.py).
+
+   ⚠️ `repo_url` in mkdocs.yml STAYS -- MkDocs builds page.edit_url from it.
+   This hides the display, not the config. */
+.md-header__source, .md-nav__source { display: none; }
+
+.md-nav { font-size: var(--u-fs-nav); }
+.md-nav__title {
+  font-size: var(--u-fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--u-track-caps);
+  text-transform: uppercase;
+  color: var(--u-text-soft);
+}
+.md-nav__link { color: var(--u-text); }
+.md-nav__link--active, .md-nav__item .md-nav__link--active {
+  color: var(--u-accent);
+  font-weight: 600;
+}
+
+/* ── A FOLDER ROW IS NOT A PAGE ROW ──────────────────────────────────────────
+
+   Michael, 2026-08-02: "I want the nav folder headers to stand out a bit
+   differently than the actual files underneath them so i stop clicking the
+   folder titles that don't hold anything."
+
+   Two problems in one sentence, and they need two different answers.
+
+   FOLDER vs PAGE is the easy half: a folder row becomes a micro-label --
+   smaller, uppercase, tracked out -- which is already this site's grammar for
+   "this is a label, not content" (table headers and .md-nav__title both read
+   that way). Every value is a token, so a theme swap carries it.
+
+   ⚠️ THE ROW THAT "DOESN'T HOLD ANYTHING" IS THE OTHER HALF, AND IT IS A REAL
+   DISTINCTION THE SIDEBAR HAS NEVER DRAWN. Under `navigation.indexes`, a
+   folder WITH an index.md renders as a `.md-nav__container` -- a wrapper
+   holding a real <a> -- and a folder WITHOUT one renders as a bare <label>
+   that only toggles. Identical to look at, completely different to click.
+   So: `:has(> .md-nav__container)` is the folder that goes somewhere, and it
+   gets `text-strong`. A pure toggle gets `text-soft`. Brighter means it is a
+   destination.
+
+   ⚠️ COLOUR IS SET IN A SEPARATE RULE WITH :not(--active) ON PURPOSE. Folding
+   it into the block above would out-specify the active-row accent (0,3,0 beats
+   the 0,2,0 on `.md-nav__item .md-nav__link--active`) and the current page
+   would silently stop being highlighted whenever it is a section index.
+
+   ⚠️ 80-mobile.css CANCELS THE SIZE SHRINK. On a phone the drawer drills down,
+   so a folder row is the primary navigation rather than a heading over a list,
+   and shrinking it costs legibility for no gain. */
+.md-nav__item--nested > .md-nav__link,
+.md-nav__item--nested > .md-nav__container > .md-nav__link {
+  font-size: var(--u-fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--u-track-caps);
+  text-transform: uppercase;
+}
+.md-nav__item--nested > .md-nav__link:not(.md-nav__link--active) {
+  color: var(--u-text-soft);
+}
+.md-nav__item--nested > .md-nav__container > .md-nav__link:not(.md-nav__link--active) {
+  color: var(--u-text-strong);
+}
+
+/* Material ships a shield-lock for `encrypted`. The fallback is deliberate: if
+   a future version drops the variable this degrades to the plain ⓘ rather than
+   rendering an empty box where an icon should be. */
+.md-nav__link .md-status--gated::after {
+  mask-image: var(--md-status--encrypted, var(--md-status));
+}

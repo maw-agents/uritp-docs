@@ -1,0 +1,53 @@
+/* 90 · PRINT ═══════════════════════════════════════════════════════════════
+
+   OWNS: paper. Paper-white regardless of the scheme on screen.
+
+   ⚠️ THIS SHEET MUST LOAD LAST. It overrides the TOKENS rather than Material's
+   variables, so the bridge in 00 keeps doing the translating and this block
+   stays short forever -- but only if nothing redefines a token after it.
+
+   ⚠️ NAMED EXCEPTION -- THESE LITERALS ARE DELIBERATE. Paper is not a theme,
+   it is a physical constraint: ink on white at maximum contrast, whichever
+   skin was on screen. A themeable print palette would let a swap produce an
+   unreadable printout, and a venue page carried into a production meeting is
+   exactly the case that must never break.
+
+   ⚠️ THE CALLOUT TINTS COME THROUGH HERE TOO, now that they are tokens. On
+   paper they collapse toward ink: a printed callout is told apart by its rule
+   and its title, not by a wash of colour that costs toner and reads grey
+   anyway. `marker` and `bad` keep a little hue because caution and danger are
+   worth distinguishing on a page somebody is holding in a theatre.
+
+   ⚠️ UNVERIFIED, AND IT MATTERS ON PAPER: a browser prints a CLOSED <details>
+   closed. The rule below forces TABS open; whether a folded `???` callout also
+   needs forcing has not been tested. Logged in next-build-spec.md.
+
+   Why: ../../CSS-NOTES.md → 90 Print. */
+
+@media print {
+  :root, [data-md-color-scheme=slate], [data-md-color-scheme=default] {
+    --u-bg: #fff;
+    --u-surface-1: #f5f5f5;
+    --u-surface-2: #f5f5f5;
+    --u-border: #999;
+    --u-hairline: #ccc;
+    --u-text: #222;
+    --u-text-strong: #000;
+    --u-text-soft: #555;
+    --u-accent: #000;
+    --u-chrome: #fff;
+    --u-on-chrome: #000;
+    --u-marker: #7a4f00;
+    --u-bad: #8a1010;
+    --u-good: #14532d;
+    --u-shadow: none;
+  }
+  [data-md-color-scheme=slate] .md-typeset { letter-spacing: normal; }
+  .md-header, .md-sidebar, .md-footer,
+  .md-typeset .tabbed-labels,
+  .md-typeset .pagefoot, .md-typeset .pagefoot__rule { display: none !important; }
+  .md-main__inner, .md-content { margin: 0 !important; }
+  .md-typeset .tabbed-content { display: block !important; }
+  .md-typeset h2, .md-typeset .admonition, .md-typeset table { break-inside: avoid; }
+  .md-typeset .gate { display: none !important; }
+}

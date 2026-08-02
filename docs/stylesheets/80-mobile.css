@@ -1,0 +1,138 @@
+/* 80 · MOBILE ══════════════════════════════════════════════════════════════
+
+   OWNS: every breakpoint on the site. Both of them, together, deliberately --
+   the drawer used to live beside the desktop nav and the phone rules three
+   hundred lines away, and nothing about the file said they were one subject.
+
+   ⚠️ NAMED EXCEPTION -- BREAKPOINTS ARE NOT A THEME. 76.1875em (drawer) and
+   44.9375em (phone) are MATERIAL'S OWN widths, matched deliberately so our
+   rules switch on the same line its rules do. A theme that could move them
+   would let a palette desynchronise our layout from the component's, which is
+   the collision class that cost two separate fixes on 2026-08-01.
+
+   ⚠️ THE DRAWER IS THREE SEPARATE REPAIRS AND THEY MUST NOT BE COLLAPSED:
+     1. SCHEME -- Material's drawer panels do not inherit slate and render
+        white-on-white in dark mode.
+     2. THE BLOCKED CHEVRON -- repair 1 flattened the title, which moved the
+        text under Material's absolutely-positioned back arrow. Fixed by laying
+        the title out as a flex row instead of fighting the absolute position.
+     3. THE TALL SECTION ROW -- a section-index row is THREE elements carrying
+        one class. The padding was never the problem; `min-height` was.
+
+   ⚠️ THIS FILE LOADS AFTER 20-chrome.css AND THAT IS THE POINT. Ties inside a
+   media query are still resolved by order.
+
+   Why, at length, including the fix that was wrong the first time:
+   ../../CSS-NOTES.md → 80 Mobile. */
+
+/* ── THE DRAWER ──────────────────────────────────────────────────────────── */
+@media screen and (max-width: 76.1875em) {
+  .md-nav--primary,
+  .md-nav--primary .md-nav {
+    background-color: var(--u-bg);
+    color: var(--u-text);
+  }
+  /* The drawer header IS the header banner on a phone, so it reads the same
+     token. Change chrome once and both move together. */
+  .md-nav--primary .md-nav__title {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-height: var(--u-touch);
+    line-height: 1.25;
+    height: auto;
+    padding: 0 .8rem;
+    background-color: var(--u-chrome);
+    color: var(--u-on-chrome);
+    box-shadow: none;
+    border-bottom: var(--u-rule-w) solid var(--u-hairline);
+  }
+  /* Out of the absolute corner and into the row. */
+  .md-nav--primary .md-nav__title .md-nav__icon {
+    position: static;
+    top: auto;
+    left: auto;
+    flex: 0 0 auto;
+    width: 1.1rem;
+    height: 1.1rem;
+    margin: 0;
+  }
+  /* The site logo/button in the ROOT drawer title only. Hidden, and because
+     the row is a flex container a display:none child contributes no gap. */
+  .md-nav--primary .md-nav__title .md-nav__button { display: none; }
+
+  .md-nav--primary .md-nav__list { padding: 0; }
+  .md-nav--primary .md-nav__item {
+    border-top: var(--u-rule-w) solid var(--u-hairline);
+    font-size: var(--u-fs-nav-mobile);
+  }
+  /* Row height and padding are the spacing vector's call, not a guess.
+     `touch` is the 44px accessibility floor; `pad-row` is the density. */
+  .md-nav--primary .md-nav__link {
+    padding: var(--u-pad-row);
+    min-height: var(--u-touch);
+  }
+  /* ⚠️ CANCEL THE DESKTOP FOLDER-LABEL SHRINK (20-chrome.css). Making a folder
+     row smaller than the pages under it is a DESKTOP idea: there the folder is
+     a heading over a visible list. In the drawer the tree drills DOWN, so that
+     same row is the only way forward and shrinking it costs legibility and tap
+     accuracy for nothing. The uppercase and the tracking stay -- they cost no
+     size and still say "this opens something". */
+  .md-nav--primary .md-nav__item--nested > .md-nav__link,
+  .md-nav--primary .md-nav__item--nested > .md-nav__container > .md-nav__link {
+    font-size: inherit;
+  }
+  /* Repair 3. A link nested inside a section-index wrapper. Material zeroes
+     its padding here; zero its tap floor in the same place, or the row stacks
+     a 44px box inside a 44px box. The wrapper is the row. */
+  .md-nav--primary .md-nav__link > .md-nav__link { min-height: 0; }
+  /* ...and let those children fill the row so the whole 44px is tappable,
+     not just the line of text sitting at the top of it. */
+  .md-nav--primary .md-nav__container { align-items: stretch; }
+  .md-nav--primary .md-nav__container > .md-nav__link {
+    display: flex;
+    align-items: center;
+  }
+  /* Which row am I on. A file tree marks the branch you are standing in. */
+  .md-nav--primary .md-nav__link--active {
+    box-shadow: inset var(--u-bar-w) 0 0 var(--u-accent);
+  }
+  /* On a section-index row the active link is a child, so the bar would land
+     at the wrapper's padding edge rather than the row edge. Put it on the row
+     and take it off the child. */
+  .md-nav--primary .md-nav__container:has(.md-nav__link--active) {
+    box-shadow: inset var(--u-bar-w) 0 0 var(--u-accent);
+  }
+  .md-nav--primary .md-nav__container > .md-nav__link--active {
+    box-shadow: none;
+  }
+  .md-nav--primary .md-nav__icon:not(.md-nav__button) { opacity: var(--u-icon-dim); }
+}
+
+/* ── THE PHONE. Reclaim the margins; a phone has none to spare. ──────────── */
+@media screen and (max-width: 44.9375em) {
+  .md-typeset { font-size: calc(var(--u-fs-body) + .02rem); }
+  .md-typeset h2 { margin-top: 1.7rem; padding-top: .9rem; }
+  .md-main__inner { margin-top: .6rem; }
+  .md-content__inner { padding: 0 .7rem 1.5rem; }
+  .md-content__inner::before { height: .4rem; }
+
+  /* Stacked label/value beats a squeezed two-column table on a 390px screen. */
+  .md-typeset table:not([class]) { font-size: calc(var(--u-fs-sm) + .03rem); }
+  .md-typeset table:not([class]) thead { display: none; }
+  .md-typeset table:not([class]) tr {
+    display: block;
+    padding: .55rem 0;
+    border-bottom: var(--u-rule-w) solid var(--u-hairline);
+  }
+  .md-typeset table:not([class]) tr:last-child { border-bottom: 0; }
+  .md-typeset table:not([class]) td { display: block; padding: 0; border: 0; }
+  .md-typeset table:not([class]) td:first-child {
+    font-size: var(--u-fs-xs);
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--u-text-soft);
+    margin-bottom: .1rem;
+  }
+}

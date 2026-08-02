@@ -3,10 +3,14 @@
 #   value by editing ONE CELL in the matching grid. Start at theme/README.md.
 #   NOTHING about colour, type, edges or density is set in this file.
 #   (theme.yml is a retired stub as of 2026-08-01 and is read by nothing.)
+# STYLESHEETS: seven numbered sheets in docs/stylesheets/, one concern each.
+#   Values in theme/*.tsv, RULES in the sheets, REASONS in CSS-NOTES.md.
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml.
 #   Shortcuts under Home live in quick-links.yml (see hooks/quicklinks.py).
 # VISIBILITY: every page needs `status:` in its frontmatter or it will not build.
 # LINKS: internal links are ids, not paths. See hooks/links.py + AUTHORING.md.
+# SIZE: hooks/sizecheck.py fails the build on a file nobody can read whole.
+#   Budgets are rows in size-budget.tsv.
 #
 # POINTER: adding or removing a markdown_extension changes what page authors can
 #   write, and changing hooks/visibility.py changes what publishes. Update
@@ -16,9 +20,9 @@ site_name: URITP PRP
 site_url: https://maw-agents.github.io/uritp-docs/
 
 # repo_url STAYS even though the GitHub block is hidden in the chrome (see
-# uritp.css -> CHROME). MkDocs builds `page.edit_url` from repo_url + edit_uri,
-# and hooks/pagefoot.py renders that at the bottom of every page. Delete this
-# line and the edit link silently disappears from the whole site.
+# docs/stylesheets/20-chrome.css). MkDocs builds `page.edit_url` from repo_url +
+# edit_uri, and hooks/pagefoot.py renders that at the bottom of every page.
+# Delete this line and the edit link silently disappears from the whole site.
 repo_url: https://github.com/maw-agents/uritp-docs
 edit_uri: edit/main/docs/
 copyright: URITP | MAW
@@ -45,31 +49,16 @@ theme:
   # the `chrome` colour token. Material special-cases black in
   # palette/_primary.scss: instead of only setting `--md-primary-fg-color`
   # (which our bridge overrides), it writes a LITERAL background on the
-  # component --
+  # component, so no variable could reach the header at all. The banner was
+  # hard black in BOTH modes.
   #
-  #     [data-md-color-primary=black] .md-header { background-color: ... }
-  #     html & .md-nav--primary .md-nav__title[for=__drawer] { ... }
-  #     .md-tabs { background-color: ... }
-  #
-  # -- so no variable could reach the header at all. The banner was hard black
-  # in BOTH modes. Nobody caught it in dark mode because black is close enough
-  # to our dark `bg`; in light mode the background stayed black while
-  # `--md-primary-bg-color` (which we DO control) flipped the text to the
-  # light-mode `on-chrome`, giving dark-brown text on a black bar. Michael,
-  # 2026-08-01: "the header didn't render well in light mode... it kept banner
-  # color but swapped color text."
-  #
-  # ⚠️ AND THE REASON THIS KEY WAS KEPT WAS FALSE. It was documented here as
-  # the source of the phone browser's <meta name="theme-color">. It is not.
-  # Material's palette component reads the HEADER'S COMPUTED BACKGROUND
-  # (assets/javascripts/components/palette/index.ts: getComputedStyle(header)
-  # .backgroundColor) and writes that into the meta tag on every scheme
-  # change. So with this key GONE, the phone's browser bar now tracks the
-  # `chrome` token per mode, for free, which is what we wanted all along.
+  # ⚠️ AND THE REASON THIS KEY WAS KEPT WAS FALSE -- it does NOT drive the
+  # phone browser's theme-color. Full write-up, including what Material
+  # actually reads: CSS-NOTES.md -> 00 Bridge.
   #
   # With no `primary`, no `[data-md-color-primary=...]` rule matches, and
   # Material's own default applies: `.md-header { background-color:
-  # var(--md-primary-fg-color) }` -- which uritp.css points at `--u-chrome`.
+  # var(--md-primary-fg-color) }` -- which 00-bridge.css points at `--u-chrome`.
   #
   # The two entries below still need to exist: the scheme TOGGLE needs two
   # palettes to switch between. That is now their ONLY job. First entry is the
@@ -107,7 +96,7 @@ theme:
     #   PER-FOLDER DEFAULTS ARE NOT POSSIBLE FROM CONFIG. Material has no
     #   per-section expand key and awesome-nav has no expand feature at all, so
     #   "open Venues but collapse the rest" needs a custom_dir override of
-    #   partials/nav-item.html. See AUTHORING-LOOK -> The sidebar tree.
+    #   partials/nav-item.html. See CSS-NOTES.md -> 80 Mobile.
     - navigation.indexes     # a folder's index.md becomes its section landing page
     - navigation.top         # back-to-top button
     - toc.follow             # right rail tracks the scroll position
@@ -139,8 +128,8 @@ extra:
   # extensions block at the bottom of this file.
   #
   # The badge is KEPT (Michael, 2026-08-01: "lost the info icon which i want
-  # back"), and uritp.css -> NAV re-points `gated` at Material's shield-lock so
-  # a locked page reads as locked from the sidebar.
+  # back"), and docs/stylesheets/20-chrome.css re-points `gated` at Material's
+  # shield-lock so a locked page reads as locked from the sidebar.
   #
   # Only `public` and `gated` can ever appear here: `hidden` is never built and
   # `unlisted` is pruned from the nav. The other two are listed anyway so this
@@ -165,7 +154,24 @@ extra:
     unlisted: Not listed in navigation or search
     hidden: Not published
 
-extra_css: [stylesheets/uritp.css, stylesheets/links.css]
+# ⚠️ THIS LIST IS THE CASCADE. The numbers are the order and the order is
+#   load-bearing: 00 sets the tokens everything else reads, 90 must land last
+#   or a print override gets overridden. REORDERING THIS LIST IS A SILENT
+#   RESTYLE -- no error, no warning, just a different-looking site.
+#
+#   Split out of a single 34.9KB uritp.css on 2026-08-02. That file had crossed
+#   the point where it could be read back whole, so its last ~6KB was being
+#   edited blind. One concern per sheet; each one now reads whole, and
+#   hooks/sizecheck.py keeps it that way. Why any given rule exists: CSS-NOTES.md
+extra_css:
+  - stylesheets/00-bridge.css       # tokens -> Material variables, focus ring
+  - stylesheets/10-type.css         # the prose scale
+  - stylesheets/20-chrome.css       # header, tabs, desktop sidebar
+  - stylesheets/30-content.css      # tables, .tbc, callouts, tabs
+  - stylesheets/40-components.css   # links, gate, page foot, build stamp
+  - stylesheets/links.css           # @page-id link states (hooks/links.py)
+  - stylesheets/80-mobile.css       # every breakpoint, both of them
+  - stylesheets/90-print.css        # paper. MUST BE LAST.
 extra_javascript: [javascripts/gate.js]   # client half of `status: gated`
 
 plugins:
@@ -191,7 +197,12 @@ plugins:
 # report before that hook writes it in on_post_build. Registered earlier, the
 # Quick Links section would come up empty -- which the hook detects and warns
 # about by name rather than shipping a silently missing sidebar section.
+#
+# sizecheck.py is order-independent: it reads the filesystem, not the config.
+# Listed first anyway so a file that is too big to read stops the build in its
+# first second rather than after a full render.
 hooks:
+  - hooks/sizecheck.py    # size-budget.tsv: no file nobody can read whole
   - hooks/theme.py        # composes theme/*.tsv into --u-* tokens + theme.font
   - hooks/contrast.py     # measures theme/contrast.tsv against every palette
   - hooks/visibility.py   # frontmatter `status:` gate, hidden by default
@@ -214,7 +225,7 @@ markdown_extensions:
   # callout be written with ??? instead of !!! and renders that as a <details>
   # element the reader can fold shut. ???+ ships it open.
   #
-  # It closes a REAL GAP THAT WAS RENDERING AS DEAD CSS: uritp.css already
+  # It closed a REAL GAP THAT WAS RENDERING AS DEAD CSS: the stylesheet already
   # carried a full set of details/summary rules -- the same box, title bar and
   # body inset as .admonition, added when the callout spacing was fixed -- for a
   # component NO AUTHOR COULD PRODUCE, because the extension that emits it was
@@ -222,7 +233,7 @@ markdown_extensions:
   # that outlives (or predates) the thing it styles is invisible in both
   # directions: the CSS looks used and the syntax looks supported.
   #
-  # No new CSS shipped with this. That is the check that the rules were right.
+  # No new CSS shipped with it. That is the check that the rules were right.
 
   # material.extensions.preview (instant previews) was REMOVED 2026-08-01.
   #

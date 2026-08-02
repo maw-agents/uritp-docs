@@ -9,16 +9,20 @@ as a reader-facing page: it documents the machine, not the theatre.
 > land in one PR or the pointer has failed.
 
 **Describes:** `mkdocs.yml` · `requirements.txt` · `.github/workflows/deploy.yml` ·
-`docs/.nav.yml` and per-folder `.nav.yml` · `hooks/links.py` · `hooks/buildstamp.py`
+`docs/.nav.yml` and per-folder `.nav.yml` · `hooks/links.py` · `hooks/buildstamp.py` ·
+`hooks/sizecheck.py` + `size-budget.tsv`
 
 🔒 **Gates, keys and page visibility live in [AUTHORING-GATES.md](AUTHORING-GATES.md)**
 (`hooks/visibility.py` + `docs/javascripts/gate.js`).
 
 🎨 **Theme, colour, type, chrome and search behaviour live in
-[AUTHORING-LOOK.md](AUTHORING-LOOK.md)** (`theme.yml` + `hooks/theme.py` +
+[AUTHORING-LOOK.md](AUTHORING-LOOK.md)** (`theme/` + `hooks/theme.py` +
 `hooks/pagefoot.py` + `docs/stylesheets/`).
 
-Both were split out 2026-08-01 for the same reason: there is no partial-edit path
+📐 **Why a given CSS rule exists lives in [CSS-NOTES.md](CSS-NOTES.md)**, one section
+per numbered stylesheet.
+
+All three were split out for the same reason: there is no partial-edit path
 through this toolchain, so every change re-emits the whole file, and a 29KB canonical
 document rewritten five times in a day is five chances to silently drop a section.
 **Highest churn, smallest file.**
@@ -95,7 +99,7 @@ it locks the whole folder** (see AUTHORING-GATES).
 sidebar is **collapsed by default**, so clicking a section name opens or closes it;
 only a folder carrying an `index.md` also goes somewhere. If a section keeps getting
 clicked in the hope of a landing page, that is the fix — add the `index.md`. The
-reasoning is in AUTHORING-LOOK → *The sidebar tree*.
+reasoning is in CSS-NOTES → *80 Mobile → Desktop-only changes*.
 
 ---
 
@@ -146,7 +150,7 @@ target moves. `@smith-theatre` resolves at build time to wherever that page live
 
 On 2026-08-01 Smith Theatre moved from `docs/venues/` into `docs/venues/SPAC/`. That
 single rename broke **eight links across six files**, in both directions. Because the
-build runs `--strict`, the deploy died and the live site silently froze on an older
+build ran `--strict`, the deploy died and the live site silently froze on an older
 commit for over half an hour. Two rounds of hand-patching still missed three. Paths
 encode where a page sits today, the one fact most likely to change.
 
@@ -207,9 +211,10 @@ Link Safety → Smith Theatre once, and Smith Theatre gains a link back on its o
 
 ⚠️ ~~Instant previews (`material.extensions.preview`) show a hover card of the target
 page on desktop.~~ **Removed 2026-08-01.** It attached to every internal link
-including the navigation and marked each one with an icon, on a site read mostly from
-a phone, where hover does not exist and the preview can never fire. `Linked from` is
-the mechanism that works everywhere. Reasoning in AUTHORING-LOOK → *The chrome*.
+including the navigation, on a site read mostly from a phone, where hover does not
+exist and the preview can never fire. `Linked from` is the mechanism that works
+everywhere. ⚠️ It was ALSO blamed for the nav icons, wrongly — see CSS-NOTES → *20
+Chrome*.
 
 ### What a broken link looks like
 
@@ -258,7 +263,7 @@ convention — nothing in the build can enforce it.
 | Type | Use for | Reads as |
 |---|---|---|
 | `warning` | Anything that costs money or hurts someone | Amber |
-| `note` | Context, gaps, placeholders | Purple |
+| `note` | Context, gaps, placeholders | The theme accent |
 | `danger` | A genuine safety stop | Red |
 
 **Resist inventing more.** Four callout colors on one page means none read as urgent.
@@ -363,6 +368,51 @@ anything (see AUTHORING-GATES → *Verifying a visibility change*).
 
 ---
 
+## The size gate
+
+**`hooks/sizecheck.py` measures every file in the repo against `size-budget.tsv` and
+fails the build on anything nobody can read whole.** Same shape as the contrast gate:
+the maths is in the hook, the policy is a row you can edit.
+
+It exists because `docs/stylesheets/uritp.css` reached 34.9KB and started clipping
+silently on read, so its last ~6KB was being edited blind. **The cap was already a
+rule; it was enforced by whoever happened to notice.** Now it is enforced by the build.
+
+- **A warning** means the file wants splitting before it has to. Nothing breaks.
+- **A failure** stops the build and names the file, its size, and its budget.
+- Raise a threshold by editing its row and **saying why in the note column**, so the
+  waiver shows up in a diff. `URITP_SIZE_STRICT=1` promotes every warning to a failure.
+- Authored pages under `docs/` get a generous budget and in practice only ever warn. A
+  gate that blocks a long venue page is a gate that gets switched off.
+
+⚠️ **The fail number is a policy line, not a measured wall.** What has been observed:
+a 30.6KB file read back whole, and a 34.9KB file clipped. The thresholds sit below the
+lower of those on purpose. If anyone narrows that range, correct the hook's docstring.
+
+---
+
+## Stylesheets
+
+Seven numbered sheets in `docs/stylesheets/`, one concern each, listed in cascade order
+under `extra_css`. **The numbers ARE the order and reordering the list is a silent
+restyle.**
+
+| Sheet | Owns |
+|---|---|
+| `00-bridge.css` | our tokens → Material's variables; the focus ring |
+| `10-type.css` | the prose scale |
+| `20-chrome.css` | header, tab strip, desktop sidebar |
+| `30-content.css` | tables, `.tbc`, callouts and their flavours, department tabs |
+| `40-components.css` | links, the gate, the page foot, the build stamp |
+| `links.css` | `@page-id` link states (`hooks/links.py`) |
+| `80-mobile.css` | every breakpoint, both of them |
+| `90-print.css` | paper. **Must load last.** |
+
+**Three layers, deliberately apart:** values in `theme/*.tsv`, rules in the sheets,
+reasons in [CSS-NOTES.md](CSS-NOTES.md). Split out of one 34.9KB file on 2026-08-02.
+
+---
+
 ## What breaks the build
 
 The list is deliberately short and keeps getting shorter. **Neither a broken link nor a
@@ -380,9 +430,10 @@ both now fail locally and loudly instead.
 | 7 | Missing `status:` with no gated ancestor | No | The page silently will not build. |
 | 8 | Lowering `mkdocs-material` below 9.7 | No, **as of 2026-08-01** | It was a hard failure while `material.extensions.preview` was enabled; that extension is gone. The floor stays because below it is missing features for no gain. |
 | 9 | A workflow change that trips an approval gate | **Worse than Yes** | Reports `action_required` with zero jobs and never deploys. **Every PR now runs a build check** so this is caught on a branch. |
-| 10 | An `active:` theme, a vector row, or a token that does not resolve in `theme.yml` | **Yes, deliberately** | A theme has no single page to fail on, and a silent fallback to the wrong design is the invisible failure this repo's other rules exist to prevent. Caught on the branch. See AUTHORING-LOOK. |
-| 11 | A colon-plus-space inside an unquoted `note:` in `theme.yml` | **Yes** | YAML reads it as a nested mapping and the whole parse dies, pointing at the wrong line. Quote it. |
-| 12 | A misspelled callout or tab type | No, renders plain | Not validated anywhere. See *Callouts* above. |
+| 10 | An `active:` theme, a vector row, or a token that does not resolve | **Yes, deliberately** | A theme has no single page to fail on, and a silent fallback to the wrong design is the invisible failure this repo's other rules exist to prevent. Caught on the branch. See AUTHORING-LOOK. |
+| 11 | The ACTIVE palette failing an enforced contrast pair | **Yes** | `hooks/contrast.py`. A parked palette only warns. |
+| 12 | A source file over its row in `size-budget.tsv` | **Yes, as of 2026-08-02** | `hooks/sizecheck.py`. A file nobody can read whole is a file nobody can safely edit. |
+| 13 | A misspelled callout or tab type | No, renders plain | Not validated anywhere. See *Callouts* above. |
 
 ---
 
@@ -406,17 +457,20 @@ If you change any file this document describes, **update this file in the same P
 
 | File | Holds | Update here when |
 |---|---|---|
-| `mkdocs.yml` | Features, extensions, hook order | An extension, plugin, or hook is added or removed |
+| `mkdocs.yml` | Features, extensions, hook order, `extra_css` order | An extension, plugin, or hook is added or removed |
 | `requirements.txt` | Build dependency floors | A floor moves, or a pinned feature changes |
 | `.github/workflows/deploy.yml` | The keystore wiring + the PR build check | The keystore mechanism changes → **AUTHORING-GATES too** |
 | `docs/.nav.yml` | Top-level sidebar order | The add-a-page procedure changes |
 | `docs/<folder>/.nav.yml` | That section's displayed title | The per-folder title mechanism changes |
 | `hooks/links.py` | `@id` resolution, backlinks, aliases, link report | Link syntax, a report kind, or backlink rules change |
 | `hooks/buildstamp.py` | The footer stamp | What the stamp shows changes |
-| **`theme.yml`** | The four theme vectors | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
+| **`hooks/sizecheck.py`** | The size gate | The mechanism changes. A THRESHOLD move is a `size-budget.tsv` row + its note, and needs nothing here |
+| **`size-budget.tsv`** | Per-glob read-size budgets | A new kind of file needs a row, or the catch-all starts matching things |
+| **`theme/*.tsv`** | The five vectors + the join table | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)** and `theme/README.md`, not here |
 | **`hooks/theme.py`** | Token composition + validation | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
+| **`hooks/contrast.py`** | The contrast gate | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
 | **`hooks/pagefoot.py`** | The page-foot edit link | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)**, not here |
-| **`docs/stylesheets/*`** | Every rule on the site | → **[AUTHORING-LOOK.md](AUTHORING-LOOK.md)** — **except** a renamed author-typed class like `.tbc`, which belongs in both |
+| **`docs/stylesheets/*`** | Every rule on the site | → **[CSS-NOTES.md](CSS-NOTES.md)** for the reasoning — **except** a renamed author-typed class like `.tbc`, which belongs in both, and a NEW SHEET, which needs its line in `extra_css` and its row in the table above |
 | **`hooks/visibility.py`** | Status, the keystore, encryption | → **[AUTHORING-GATES.md](AUTHORING-GATES.md)**, not here |
 | **`docs/javascripts/gate.js`** | Browser-side unlock, the keyring | → **[AUTHORING-GATES.md](AUTHORING-GATES.md)**, not here. DOM-only changes go to AUTHORING-LOOK. |
 
@@ -426,14 +480,16 @@ value the hook does not recognise is worse still: the page falls back to `hidden
 quietly disappears.
 
 ⚠️ **AND THE INVERSE HAPPENED, 2026-08-01: an extension with no syntax behind it.**
-`uritp.css` carried a full set of `details`/`summary` rules — box, title bar, body
+The stylesheet carried a full set of `details`/`summary` rules — box, title bar, body
 inset — for a component **no author could produce**, because `pymdownx.details` was
 never enabled. Anyone typing `???` got three question marks. The CSS looked used and
 the syntax looked supported, and neither was true. **Check both directions: a rule
 without syntax is as invisible as syntax without a rule.**
 
-**Hook order in `mkdocs.yml` is load-bearing for three of the five.** `visibility.py`
+**Hook order in `mkdocs.yml` is load-bearing for three of the eight.** `visibility.py`
 resolves status and drops `hidden` pages before `links.py` builds its id registry, and
 `pagefoot.py` appends after `links.py` so the edit link lands below `Linked from`.
-`theme.py` and `buildstamp.py` touch neither the file list nor the page body, so their
-position does not matter.
+`theme.py` must precede `contrast.py`, which imports it. `sizecheck.py`, `theme.py` and
+`buildstamp.py` touch neither the file list nor the page body, so their position does
+not matter — `sizecheck.py` is listed first only so an unreadable file stops the build
+before a full render rather than after one.

@@ -8,56 +8,93 @@ Companion to [AUTHORING.md](AUTHORING.md) (writing pages) and
 >
 > **→ [`theme/README.md`](theme/README.md)**
 >
-> The four vectors are TSV grids in [`theme/`](theme/). Swap the whole site by
+> The vectors are TSV grids in [`theme/`](theme/). Swap the whole site by
 > editing one word in [`theme/active.txt`](theme/active.txt). Nudge one value
 > by editing one cell. **How light and dark work is explained there too.**
 > This file used to restate all of that and now points at it instead: **one
 > place, referenced, never restated.** A copy of a value is a copy that rots,
 > and this document proved that twice on 2026-08-01.
 
-**This file describes:** `docs/stylesheets/uritp.css` · `docs/stylesheets/links.css`
-· `hooks/pagefoot.py` · the `theme:` and `extra:` blocks in `mkdocs.yml`
+> ## 📐 Wondering why a CSS rule exists? Also not here.
+>
+> **→ [`CSS-NOTES.md`](CSS-NOTES.md)**
+>
+> One section per numbered stylesheet. This file describes how the chrome
+> BEHAVES and what is deliberately off; CSS-NOTES records why individual rules
+> are shaped the way they are. Where they overlap, CSS-NOTES is the longer
+> version.
+
+**This file describes:** `docs/stylesheets/*` as a set · `hooks/pagefoot.py` ·
+the `theme:` and `extra:` blocks in `mkdocs.yml`
 
 > ⚠️ **Split out of AUTHORING.md 2026-08-01, for the reason the gate reference
 > was.** There is no partial-edit path through this toolchain, so every change
 > re-emits the whole file. A 20KB document rewritten five times in a day is
 > five chances to silently drop a section. Highest churn, smallest file.
+>
+> ⚠️ **And this file is now the one warning.** At ~26KB it is past its row in
+> `size-budget.tsv`, which is the gate saying it wants splitting before it has
+> to. The natural seam is *the chrome* (behaviour) versus *search* (content).
+> Not urgent, and named so it does not become urgent quietly.
 
 ---
 
-## 🔴 `uritp.css` has crossed the size wall — read this before planning a style change
+## The stylesheets
 
-**The stylesheet is 34.8KB. The read and write ceiling for an agent is ~30KB.**
-That is not a style rule, it is a hard tooling limit: a fetch clips silently at
-about 30KB, and a write of a file that cannot be read back whole cannot be
-verified. **So no agent can currently edit `uritp.css` safely at all** — which
-is why the nav typography Michael asked for on 2026-08-01 (*"folder headers
-stand out a bit differently than the actual files underneath them"*) is **not
-shipped**, while the two things reachable from `mkdocs.yml` are.
+**Seven numbered sheets in `docs/stylesheets/`, one concern each**, listed in
+cascade order under `extra_css` in `mkdocs.yml`.
 
-The file did not get careless; it got documented. Most of its bulk is the
-commentary this repo runs on, and that commentary is the reason its repairs
-stopped repeating.
+| Sheet | Owns |
+|---|---|
+| `00-bridge.css` | our `--u-*` tokens → Material's `--md-*` variables; the focus ring |
+| `10-type.css` | the prose scale |
+| `20-chrome.css` | header, tab strip, desktop sidebar, the folder-row treatment |
+| `30-content.css` | tables, `.tbc`, callouts and their flavours, department tabs |
+| `40-components.css` | links, the gate, the page foot, the build stamp |
+| `links.css` | the `.deadlink` marker (`hooks/links.py`) |
+| `80-mobile.css` | **every** breakpoint, both of them |
+| `90-print.css` | paper. **Must load last.** |
 
-**The fix is a split, and it is structural** — awaiting Michael's word. The
-natural seams are already the file's own section banners: BRIDGE + A11Y + TYPE
-in the core, CHROME + NAV + the mobile drawer in a second file, the components
-(TABLES, MARKERS, CALLOUTS, TABS, LINKS, GATE, PAGE FOOT) in a third, PRINT in
-its own. `extra_css` takes a list, so the split costs one line in `mkdocs.yml`.
+⚠️ **THE NUMBERS ARE THE CASCADE AND THE ORDER IS LOAD-BEARING.** Reordering
+that list is a silent restyle: no error, no warning, a different-looking site.
+Specificity ties are resolved by load order, which is exactly why the callout
+flavour rules carry a `[data-md-color-scheme]` prefix rather than relying on it.
 
-⚠️ **Do not "solve" this by starting a second stylesheet beside the current
-one.** The file's own header argues against exactly that: two sheets drift the
-moment one gains a rule. A SPLIT is one system in four files with the section
-banners as the boundaries; a SECOND SHEET is two systems. `links.css` is the
-allowed exception because it owns one marker and nothing else.
+### ~~`uritp.css` has crossed the size wall~~ — SPLIT 2026-08-02, and here is what it cost
+
+One 34.9KB stylesheet, past the point where an agent can read it back whole.
+Four reads in one session clipped at the same byte with no error, so its last
+~6KB was being edited from the section index at the top rather than the rules.
+**It never stopped working. It stopped being editable**, and the site's entire
+look sat behind it.
+
+Two things worth carrying forward:
+
+- ⚠️ **Tokenising the theme made that file BIGGER, not smaller.** It removed
+  *values* and never removed *rules*, and `var(--u-text-soft)` is longer than
+  the hex it replaced. Anyone reasoning about size from "we moved the colours
+  out" will reach the wrong conclusion.
+- ⚠️ **Roughly two thirds of it was prose**, and the prose was right to exist —
+  it is why those repairs stopped repeating. It was in the wrong *place*, not
+  wrong. It now lives in `CSS-NOTES.md` and none of it was deleted.
+
+**`hooks/sizecheck.py` + `size-budget.tsv` now fail the build before a file can
+get there again.** See AUTHORING.md → *The size gate*. The split was the cure;
+the gate is the vaccine.
+
+⚠️ **The old advice against "a second stylesheet" still stands and is not what
+happened here.** Two sheets drift the moment one gains a rule. A SPLIT is one
+system in seven files with the section banners as the boundaries and a single
+ordered list wiring them; a SECOND SHEET is two systems with no stated
+relationship. If you add an eighth sheet, it needs a number, a line in
+`extra_css`, a row in the table above, and a section in CSS-NOTES.
 
 ---
 
-## Editing the stylesheet
+## Editing a stylesheet
 
-`docs/stylesheets/uritp.css` contains **no colour, no font name, and no size,
-radius or gap that anyone would want to reskin.** Those are `--u-*` tokens
-composed from `theme/`.
+They contain **no colour, no font name, and no size, radius or gap that anyone
+would want to reskin.** Those are `--u-*` tokens composed from `theme/`.
 
 ⚠️ **A literal value committed there silently opts that element out of every
 future swap.** The build fails by name when a palette forgets a token; it
@@ -69,27 +106,32 @@ the header a different colour / the menu rows roomier / the menu text bigger* �
 turned out to have no answer in the grid.
 
 **The numbers that remain are proportions, not style**, and the distinction is
-why the file is not one giant variable list. A token answers *what should this
+why these are not one giant variable list. A token answers *what should this
 look like*. A literal answers *where does this sit relative to the thing beside
 it*: a heading's bottom margin in `em` of its own size, an icon's offset inside
 its box, a 1.3 line-height. Those track the tokens automatically because they
 are relative. Turning them into dials would mean fifty columns nobody sets.
 
+⚠️ **One literal fails that test and is named rather than hidden:**
+`font-weight`, in every rule in `10-type.css`. Weight is a style decision and
+the typography vector cannot set it. Its own PR.
+
 **Two named exceptions**, both of which must stay hard-coded:
 
-- **Breakpoints.** The two widths where the layout changes are Material's own,
-  matched deliberately so our rules switch on the same line its rules do. A
-  theme that could move them would let a palette desynchronise our layout from
-  the component's — the exact collision class that cost two fixes in one day.
-- **The `@media print` block.** It overrides the tokens rather than Material's
-  variables, so the bridge keeps doing the translating and the block stays
-  short forever. Paper is not a theme, it is a physical constraint: ink on
-  white at full contrast, whichever skin was on screen. A themeable print
-  palette would let a swap produce an unreadable printout, and a venue page
-  carried into a production meeting is the case that must never break.
+- **Breakpoints** (`80-mobile.css`). The two widths where the layout changes are
+  Material's own, matched deliberately so our rules switch on the same line its
+  rules do. A theme that could move them would let a palette desynchronise our
+  layout from the component's — the exact collision class that cost two fixes
+  in one day.
+- **`90-print.css`.** It overrides the tokens rather than Material's variables,
+  so the bridge keeps doing the translating and the block stays short forever.
+  Paper is not a theme, it is a physical constraint: ink on white at full
+  contrast, whichever skin was on screen. A themeable print palette would let a
+  swap produce an unreadable printout, and a venue page carried into a
+  production meeting is the case that must never break.
 
-The file has one **bridge** block at the top mapping `--u-*` onto Material's
-`--md-*` variables. That is the only place the two systems touch.
+`00-bridge.css` maps `--u-*` onto Material's `--md-*`. **That is the only place
+the two systems touch.**
 
 ⚠️ **The bridge must stay scoped to `[data-md-color-scheme=...]`, never
 `:root`.** Material sets its scheme colours from those attribute selectors; an
@@ -109,8 +151,9 @@ an hour disappears:
 | The question | Lives in |
 |---|---|
 | What colour / size / weight is this | a **cell** in a `theme/*.tsv` grid |
-| Which element gets that value at all | a **rule** in `uritp.css` |
+| Which element gets that value at all | a **rule** in the matching stylesheet |
 | Whether the component exists to be styled | a **feature or extension** in `mkdocs.yml` |
+| Why the rule is shaped that way | a **section** in `CSS-NOTES.md` |
 
 So *"make the header bar a different colour"* is a cell (`chrome`), *"make the
 header bar taller"* is a rule, and *"collapse the sidebar by default"* is
@@ -142,7 +185,40 @@ difference between a folder and a page.
 **Desktop only.** The phone drawer has always drilled down and neither feature
 touched it.
 
-### ⚠️ Per-folder defaults are not available from config
+### A folder row looks different from a page row — shipped 2026-08-02
+
+The chevron was the structural half. This is the typographic half, and it
+answers the *second* thing in Michael's sentence: not just *which rows are
+folders*, but **which folders actually go somewhere.**
+
+| Row | Reads as | Because |
+|---|---|---|
+| A page | normal weight, `text` | it is content |
+| A folder with **no** `index.md` | small, uppercase, tracked, `text-soft` | it is a label and a toggle. **Clicking it opens the section; there is nothing else behind it.** |
+| A folder **with** an `index.md` | small, uppercase, tracked, `text-strong` | it is a label AND a real destination |
+
+**Brighter means it goes somewhere.** That distinction has always existed in the
+markup and has never been visible: under `navigation.indexes` a folder with an
+index renders as a `.md-nav__container` wrapping a real `<a>`, and one without
+renders as a bare `<label>` that only toggles. `:has(> .md-nav__container)` is
+what tells them apart.
+
+Every value is a token — `fs-xs`, `track-caps`, `text-soft`, `text-strong` — so
+a theme swap carries it, and the uppercase micro-label is already this site's
+grammar for *"this is a label, not content"* (table headers and `.md-nav__title`
+both read that way).
+
+⚠️ **The colour is set in a separate rule with `:not(--active)` and that is not
+cosmetic.** Folding it into the main block would out-specify the active-row
+accent, and the current page would silently stop being highlighted whenever it
+happens to be a section index.
+
+⚠️ **`80-mobile.css` cancels the size shrink.** Making a folder row smaller than
+the pages under it is a desktop idea: there the folder is a heading over a
+visible list. In the drawer the tree drills *down*, so that row is the only way
+forward, and shrinking it costs legibility and tap accuracy for nothing.
+
+### ⚠️ Per-folder expand defaults are not available from config
 
 *"Can we set it per folder?"* — **no, and not from any file we currently own.**
 Material's `navigation.expand` is a global boolean with no per-section
@@ -164,19 +240,11 @@ Three things to know before anyone starts:
   config, hooks and CSS, which survive a Material upgrade. A copied partial
   does not: it silently keeps rendering the old version's markup.
 - **It only reaches folders that have an `index.md`.** A bare section has no
-  page meta — the same limitation that gives those rows no `status:` badge.
+  page meta — the same limitation that gives those rows no `status:` badge, and
+  the same one the folder-row colour rule above turns into a feature.
 - **Do not try it with a post-build regex on the checkbox ids.** They are
   positional (`__nav_3`), so the rule would re-point itself the day somebody
   adds a folder above.
-
-### Making a folder row *look* different from a page row
-
-Asked for on 2026-08-01 and **not yet shipped** — it is a `uritp.css` change and
-that file is over the write cap (see the top of this document). When the split
-lands, the rules belong in the NAV block, keyed on `.md-nav__item--nested >
-.md-nav__link` for the folder rows, and every value must come from a token:
-case and tracking from `track-caps`, colour from `text-soft` or `text-strong`,
-never a literal.
 
 ---
 
@@ -270,9 +338,9 @@ effect.
 
 | The icon | Where it comes from | How to change it |
 |---|---|---|
-| **The callout's title-bar glyph** (⚠ on a warning, ✕ on a danger) | A Material CSS variable per type — `--md-admonition-icon--warning` — holding an **inline SVG data-URI**, painted through `mask-image` | Redefine that variable in `uritp.css` with your own SVG. It is a variable, so this is an override and not a patch. |
+| **The callout's title-bar glyph** (⚠ on a warning, ✕ on a danger) | A Material CSS variable per type — `--md-admonition-icon--warning` — holding an **inline SVG data-URI**, painted through `mask-image` | Redefine that variable in `30-content.css` with your own SVG. It is a variable, so this is an override and not a patch. |
 | **The site logo** beside the title | `theme.logo` / `theme.icon.logo` in `mkdocs.yml` | Currently unset, so the header shows text alone. Point it at a file in `docs/` or a bundled Material icon name. |
-| **The ⓘ / 🔒 sidebar badge** | Material's `status:` renderer, already overridden by us | See the badge section below — `gated` is re-pointed at the shield-lock in `uritp.css` → NAV. |
+| **The ⓘ / 🔒 sidebar badge** | Material's `status:` renderer, already overridden by us | See the badge section below — `gated` is re-pointed at the shield-lock in `20-chrome.css`. |
 
 ⚠️ **An admonition icon is a MASK, not an image.** It is painted in the current
 text colour through `mask-image`, so the SVG's own `fill` is discarded — a
@@ -314,7 +382,7 @@ decoration:
 | Rendered | Status | Glyph |
 |---|---|---|
 | ⓘ | `public` | Material's default, `information-outline` |
-| 🔒 | `gated` | `--md-status--encrypted`, re-pointed in `uritp.css` → NAV |
+| 🔒 | `gated` | `--md-status--encrypted`, re-pointed in `20-chrome.css` |
 
 The padlock is why the badge earns its place: a locked page stays visible in the
 sidebar on purpose, so a reader can see it exists and go ask for the password.
@@ -403,10 +471,15 @@ arrives on the day somebody adds a file, nowhere near the CSS. **Read the
 component's own stylesheet before overriding it.** Both of these cost a round
 trip that reading `_nav.scss` would have saved.
 
+⚠️ **That same two-shape fact is now load-bearing in a GOOD way** — it is what
+the folder-row colour rule keys on to tell a real destination from a bare
+toggle. The shape that caused two bugs became the signal.
+
 ### Focus and tap targets
 
-One `:focus-visible` ring for the whole site, in `accent`, at `focus-w`. It
-appears for keyboard and assistive navigation and never for a mouse click.
+One `:focus-visible` ring for the whole site, in `accent`, at `focus-w`, set in
+`00-bridge.css`. It appears for keyboard and assistive navigation and never for
+a mouse click.
 
 ⚠️ **Never write `outline: none` on a control here.** The gate password field
 used to do exactly that and signal focus with a border colour alone — invisible
@@ -517,9 +590,10 @@ Or a single section, using `attr_list` (already enabled):
 |---|---|---|
 | [`theme/`](theme/) | **Every colour, font, size, radius and gap** — both modes, and which webfonts download | Any look change at all — see its README |
 | `hooks/theme.py` | Composition, the fallback chain, `REQUIRED`, `theme.font` | A token is added, or the injection changes |
+| `hooks/contrast.py` | The contrast gate | The maths or the verdict rules change — thresholds are `theme/contrast.tsv` rows |
 | `hooks/pagefoot.py` | The page-foot edit link | Its label, placement, or condition changes |
-| `docs/stylesheets/uritp.css` | Every rule on the site | A custom class is added, renamed, or dropped — **and [AUTHORING.md](AUTHORING.md) too**, since authors type `.tbc` by hand |
-| `docs/stylesheets/links.css` | The `.deadlink` marker | The marker is restyled or renamed |
+| `docs/stylesheets/*.css` | Every rule on the site | A sheet is added, renamed or reordered — **and [CSS-NOTES.md](CSS-NOTES.md)** for the reasoning, **and [AUTHORING.md](AUTHORING.md)** if it is a class authors type, like `.tbc` |
+| `mkdocs.yml` → `extra_css` | **The cascade order** | Any sheet change. ⚠️ Reordering is a silent restyle |
 | `mkdocs.yml` → `theme.palette` | **Only** the two entries the scheme toggle switches between | Almost never. It is not the design, and **it must not regain a `primary` key.** |
 | `mkdocs.yml` → `extra.status` | Sidebar badge tooltips | A `status:` value is added or renamed — **and `docs/using-these-docs.md`** |
 | `mkdocs.yml` → `theme.features` | Which Material chrome is on | Anything in *The chrome* table above is restored or removed — **and grep `docs/` for pages that describe it** |

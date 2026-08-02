@@ -1,0 +1,12 @@
+glob	warn	fail	note
+docs/stylesheets/*.css	12	20	One concern per sheet. A stylesheet that needs 20KB is two stylesheets.
+docs/javascripts/*.js	18	30	gate.js is the browser half of a security feature; it must stay auditable.
+*.nav.yml	8	16	A nav file is an ORDER, not a document. Prose here belongs in AUTHORING.md.
+docs/*.md	40	60	Authored pages. Michael writes these; the gate advises and never blocks him.
+hooks/*.py	18	30	Also covers hooks/gate/*.py. An agent that cannot read a hook whole cannot safely edit it -- visibility.py was split at 33.8KB for exactly this.
+theme/*.tsv	18	30	The grids. A grid this big means too many columns or too many palettes.
+theme/*.md	24	40	theme/README.md is the editing face and is allowed to be long.
+mkdocs.yml	12	24	Grew 2.2KB in ONE PR of pure comments on 2026-08-01. Config, not an essay.
+*.yml	10	20	Everything else: the workflow, quick-links.yml.
+*.md	24	40	The AUTHORING set and CSS-NOTES. The reasoning has to be readable too.
+*	24	40	CATCH-ALL. A file matching only this row is reported as unbudgeted -- add a real row rather than letting the default decide.

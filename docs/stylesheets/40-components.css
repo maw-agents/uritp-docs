@@ -1,0 +1,107 @@
+/* 40 · COMPONENTS ══════════════════════════════════════════════════════════
+
+   OWNS: links and inline code, the unlock gate, the page foot, the footer
+   build stamp. Small named pieces with a hook or a script behind each one.
+
+   ⚠️ THE GATE MARKUP IS EMITTED BY hooks/visibility.py, not authored. Renaming
+   .gate, .gate__input or .gate__btn means editing that hook AND
+   docs/javascripts/gate.js in the same PR -- the class names are the contract
+   between three files and nothing checks them.
+
+   ⚠️ THE FOCUS RING FOR .gate__input LIVES IN 00-bridge.css. Do not give this
+   input its own `outline: none`; that is exactly what it used to do, and it
+   signalled focus with a border colour alone.
+
+   ⚠️ THE BUILD STAMP IS THE ONLY SIGNAL THAT A BUILD FAILED. Pages keeps
+   serving the previous commit with no banner and no error page. Do not hide
+   .buildstamp to tidy the footer.
+
+   Why: ../../CSS-NOTES.md → 40 Components. */
+
+.md-typeset a { text-underline-offset: .18em; text-decoration-thickness: 1px; }
+.md-typeset code {
+  font-size: .8em;
+  padding: .1em .35em;
+  border-radius: var(--u-radius);
+  font-variant-ligatures: none;
+}
+
+/* ── GATE (hooks/visibility.py, status: gated) ───────────────────────────── */
+.md-typeset .gate {
+  max-width: 26rem;
+  margin: 2.2rem 0;
+  padding: 1.1rem;
+  border: var(--u-border-w) solid var(--u-hairline);
+  border-radius: var(--u-radius);
+  background: var(--u-surface-2);
+}
+.md-typeset .gate__label {
+  margin: 0 0 .3rem;
+  font-size: var(--u-fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--u-track-caps);
+  text-transform: uppercase;
+  color: var(--u-marker);
+}
+.md-typeset .gate__note {
+  margin: 0 0 .8rem;
+  font-size: var(--u-fs-nav);
+  color: var(--u-text-soft);
+}
+.md-typeset .gate__row { display: flex; gap: .4rem; }
+.md-typeset .gate__input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--u-touch);
+  padding: .45rem .6rem;
+  border: var(--u-border-w) solid var(--u-border);
+  border-radius: var(--u-radius);
+  background: var(--u-bg);
+  color: var(--u-text);
+  font: inherit;
+  font-size: var(--u-fs-sm);
+}
+.md-typeset .gate__btn {
+  min-height: var(--u-touch);
+  padding: .45rem 1rem;
+  border: 0;
+  border-radius: var(--u-radius);
+  background: var(--u-accent);
+  color: var(--u-on-accent);
+  font: inherit;
+  font-size: var(--u-fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.md-typeset .gate__btn:disabled { opacity: .5; cursor: default; }
+.md-typeset .gate__error {
+  margin: .7rem 0 0;
+  font-size: var(--u-fs-nav);
+  color: var(--u-bad);
+}
+
+/* ── PAGE FOOT (hooks/pagefoot.py) ───────────────────────────────────────── */
+/* Deliberately the quietest thing on the page. It is a way back to the source
+   for the one person who edits this, not a call to action for the fifty who
+   read it. Underlined only on hover or focus, so it is still obviously a link
+   the moment anyone goes looking for one. */
+.md-typeset .pagefoot__rule {
+  margin: var(--u-gap-lg) 0 .7rem;
+  border: 0;
+  border-top: var(--u-rule-w) solid var(--u-hairline);
+}
+.md-typeset .pagefoot { margin: 0; font-size: var(--u-fs-xs); }
+.md-typeset .pagefoot__edit {
+  color: var(--u-text-soft);
+  text-decoration: none;
+  letter-spacing: .04em;
+}
+.md-typeset .pagefoot__edit:hover,
+.md-typeset .pagefoot__edit:focus-visible {
+  color: var(--u-accent);
+  text-decoration: underline;
+}
+
+/* ── FOOTER build stamp (hooks/buildstamp.py) ────────────────────────────── */
+.md-footer-meta { font-size: var(--u-fs-micro); }
+.buildstamp { white-space: nowrap; }
