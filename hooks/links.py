@@ -63,6 +63,35 @@ it, and whether any `.nav.yml` still names it by filename. That last one is the
 exact defect that froze the site -- a nav entry pointing at a page that is
 never built -- caught by name, in the same build, instead of as a red X.
 
+=======================================================================
+THE SLUG REGISTRY IS PUBLIC  (added 2026-08-01)
+=======================================================================
+
+This hook is the only thing in the build that knows slug -> URL. Anything else
+that wants to resolve a slug must get it from here rather than reading
+frontmatter a second time, or the two copies drift and only one of them is
+reported on.
+
+So `on_files` writes the finished registry onto the config:
+
+    config["_uritp_slugs"] = {page_id: (url, title)}
+
+and `add_issue()` lets a later hook file its findings into the SAME
+`link-report.json` and the same run summary, so "what breaks if I rename this
+page" has one answer in one place instead of one per feature.
+
+⚠️ A PLAIN DICT ON THE CONFIG, NOT AN IMPORT, and that is deliberate. It is the
+same handoff shape visibility.py uses for `_uritp_hidden`: unwire this hook and
+the consumer reads an empty dict and degrades, instead of crashing the build on
+an ImportError. It also keeps the seam PUBLIC and visible -- hooks/contrast.py
+imports five UNDERSCORED names out of hooks/theme.py, and renaming one of them
+(`_active`) nearly broke the contrast gate the same day. A private that another
+file depends on is an undocumented API wearing a misleading name.
+
+⚠️ ORDER: the registry exists from this hook's `on_files` onward. A consumer
+must be registered AFTER links.py in mkdocs.yml, and must call `add_issue()`
+before this hook's `on_post_build` writes the report. `on_nav` satisfies both.
+
 BACKLINKS (added 2026-08-01)
 The id registry already knows every link on the site, so the reverse map is
 free: each page renders a `Linked from` section naming every page that points
@@ -115,6 +144,10 @@ BACKLINKS = os.environ.get("URITP_BACKLINKS", "1") != "0"
 # empty dict and behaves exactly as it did before.
 HANDOFF = "_uritp_hidden"
 
+# Written BY this hook, for anything downstream that needs to resolve a slug.
+# page_id -> (url, title). See "THE SLUG REGISTRY IS PUBLIC" above.
+SLUGS = "_uritp_slugs"
+
 BACKLINK_HEADING = "Linked from"
 BACKLINK_ANCHOR = "linked-from"
 
@@ -160,6 +193,22 @@ _issues = []
 _hidden_by_id = {}   # page id -> src_uri, for pages visibility.py did not build
 _hidden_src = set()  # those same pages, by src_uri
 _hits = {}           # hidden src_uri -> set of pages still linking to it
+
+
+def add_issue(kind, page, link, detail):
+    """PUBLIC. Let another hook file a finding into this report.
+
+    Deliberately not underscored: hooks/quicklinks.py calls it, and a private
+    that another file depends on is an undocumented API with a misleading name.
+    Must be called before this hook's on_post_build. See the module docstring.
+    """
+    _note(kind, page, link, detail)
+
+
+def known_ids():
+    """PUBLIC. Every slug in the registry, sorted. For did-you-mean suggestions
+    in a consumer that must not import the private table to build them."""
+    return sorted(_by_id)
 
 
 def _slug(text):
@@ -353,6 +402,14 @@ def on_files(files, config):
 
     if BACKLINKS:
         _index_backlinks()
+
+    # THE PUBLIC HANDOFF. Everything downstream that needs slug -> URL reads
+    # this rather than parsing frontmatter a second time. See the module
+    # docstring; the shape matches visibility.py's `_uritp_hidden`.
+    config[SLUGS] = {
+        page_id: (_files[src].url, _titles.get(src, page_id))
+        for page_id, src in _by_id.items()
+    }
 
     return files
 
