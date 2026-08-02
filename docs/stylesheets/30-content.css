@@ -1,0 +1,190 @@
+/* 30 · CONTENT ═════════════════════════════════════════════════════════════
+
+   OWNS: everything inside the page body that is not plain prose -- tables, the
+   [To be confirmed]{.tbc} marker, callouts and their flavours, department tabs.
+
+   ⚠️ THE CALLOUT BODY CARRIES ITS OWN PADDING, ON PURPOSE. Material pads the
+   box HORIZONTALLY ONLY and leaves the gap under the title bar to the first
+   child's own top margin -- which 10-type.css zeroes. Neither half is wrong;
+   the PAIR was the bug. Do not "simplify" this back to a margin.
+
+   ⚠️ THE HORIZONTAL INSET IS A SUM: Material's .6rem on the box PLUS
+   --u-pad-block on the child. Zeroing Material's share would make pad-block
+   the single dial, but .md-typeset__scrollwrap and .md-typeset__table both
+   escape that padding so a table inside a callout can run full width. Left as
+   a sum deliberately; fix those two in the same pass or not at all.
+
+   ⚠️ FLAVOUR COLOURS ARE OURS NOW, AND THE SPECIFICITY IS WHY. Material's
+   flavour rules are (0,3,0) and a plain copy would tie, winning only on load
+   order -- a trap for whoever reorders extra_css. The [data-md-color-scheme]
+   prefix takes ours to (0,4,0) so they win outright, with no order dependency.
+
+   ⚠️ TWELVE FLAVOURS, FIVE TOKENS. note/abstract/info → accent ·
+   tip/success/question → good · warning/caution → marker ·
+   failure/danger/bug → bad · example/quote → text-soft. Danger stays red
+   because red means stop, but red AS A TOKEN. The ICONS stay Material's:
+   a pencil and an alert triangle are semantics, not style.
+
+   Why, including how the blue callout on a papaya site was found:
+   ../../CSS-NOTES.md → 30 Content. */
+
+/* ── TABLES. The main event. Dense, borderless, aligned digits. ──────────── */
+.md-typeset table:not([class]) {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: var(--u-fs-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+.md-typeset table:not([class]) th {
+  background: none;
+  padding: 0 1.1rem .45rem 0;
+  font-size: var(--u-fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--u-track-caps);
+  text-transform: uppercase;
+  color: var(--u-text-soft);
+  border-bottom: var(--u-border-w) solid var(--u-border);
+  white-space: nowrap;
+}
+.md-typeset table:not([class]) td {
+  padding: var(--u-pad-cell) 1.1rem var(--u-pad-cell) 0;
+  border-top: 0;
+  border-bottom: var(--u-rule-w) solid var(--u-hairline);
+  vertical-align: top;
+}
+.md-typeset table:not([class]) tr:last-child td { border-bottom: 0; }
+.md-typeset table:not([class]) td:first-child {
+  color: var(--u-text-strong);
+  font-weight: 500;
+  padding-right: 1.4rem;
+}
+.md-typeset table:not([class]) tbody tr:hover { background: var(--u-surface-2); }
+
+/* ── [To be confirmed]{.tbc} — the author types this by hand. ────────────── */
+/* POINTER: renaming this class means updating ../../AUTHORING.md in the SAME
+   PR. Nothing in the build can catch a class an author can no longer spell. */
+.md-typeset .tbc {
+  display: inline-block;
+  padding: 0 .4rem;
+  border: var(--u-border-w) solid var(--u-marker);
+  border-radius: var(--u-radius);
+  font-family: var(--u-font-mono);
+  font-size: .58rem;
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--u-marker);
+  white-space: nowrap;
+}
+
+/* ── CALLOUTS. Square, hairline, no shadow, no fat left stripe. ──────────── */
+/* `details` gets every rule too: it @extends .admonition in Material's own
+   SCSS, so it inherits the identical box and the identical omissions. One box,
+   one set of rules, no second shape to remember. */
+.md-typeset .admonition, .md-typeset details {
+  border: var(--u-border-w) solid var(--u-hairline);
+  border-radius: var(--u-radius);
+  box-shadow: var(--u-shadow);
+  font-size: var(--u-fs-sm);
+  margin: 1.2em 0;
+}
+.md-typeset .admonition-title, .md-typeset summary {
+  background: var(--u-surface-2);
+  border: 0;
+  border-bottom: var(--u-rule-w) solid var(--u-hairline);
+  font-size: var(--u-fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--u-track-caps);
+  text-transform: uppercase;
+  padding: .4rem var(--u-pad-block) .4rem 2rem;
+}
+.md-typeset .admonition-title::before, .md-typeset summary::before {
+  top: .38rem; left: .7rem; width: .9rem; height: .9rem;
+}
+.md-typeset .admonition > :not(.admonition-title),
+.md-typeset details > :not(summary) {
+  padding-left: var(--u-pad-block);
+  padding-right: var(--u-pad-block);
+}
+.md-typeset .admonition > .admonition-title + *,
+.md-typeset details > summary + * {
+  margin-top: 0;
+  padding-top: var(--u-pad-block);
+}
+/* Bottom to match. This REPLACES Material's `> :last-child { margin-bottom:
+   .6rem }` rather than adding to it: two sources for one gap is how a box goes
+   lopsided the first time somebody changes one of them. The :not() guards a
+   title-only callout, which must stay tight to its own bar. */
+.md-typeset .admonition > :last-child:not(.admonition-title),
+.md-typeset details > :last-child:not(summary) {
+  margin-bottom: 0;
+  padding-bottom: var(--u-pad-block);
+}
+
+/* ── CALLOUT FLAVOURS. One variable, set by class, painted below. ────────── */
+[data-md-color-scheme] .md-typeset :is(.admonition, details).note,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).abstract,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).info {
+  --u-callout: var(--u-accent);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).tip,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).success,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).question {
+  --u-callout: var(--u-good);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).warning,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).caution {
+  --u-callout: var(--u-marker);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).failure,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).danger,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).bug {
+  --u-callout: var(--u-bad);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).example,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).quote {
+  --u-callout: var(--u-text-soft);
+}
+
+/* Then paint from that one variable. The `[class]` is what carries these past
+   Material's own flavour rules; an unflavoured callout matches nothing above,
+   so --u-callout is unset and the fallback keeps the plain hairline box. */
+[data-md-color-scheme] .md-typeset :is(.admonition, details)[class] {
+  border-color: var(--u-callout, var(--u-hairline));
+}
+[data-md-color-scheme] .md-typeset [class] > :is(.admonition-title, summary) {
+  /* 12% of the tint over the panel surface, rather than over whatever is
+     behind it. Material mixes toward transparency, which lands differently on
+     a callout nested inside another one. */
+  background-color: color-mix(
+    in oklab, var(--u-callout, transparent) 12%, var(--u-surface-2)
+  );
+  border-bottom-color: var(--u-callout, var(--u-hairline));
+}
+[data-md-color-scheme] .md-typeset [class] > :is(.admonition-title, summary)::before {
+  background-color: var(--u-callout, var(--u-text-soft));
+}
+/* The open/closed chevron on a collapsible `???` callout. Material colours it
+   with the same tint, so it has to move with the rest or one glyph stays
+   Material blue. */
+[data-md-color-scheme] .md-typeset [class] > summary::after {
+  color: var(--u-callout, var(--u-text-soft));
+}
+
+/* ── CONTENT TABS (department notes). Underline, not pills. ──────────────── */
+.md-typeset .tabbed-labels {
+  box-shadow: none;
+  border-bottom: var(--u-rule-w) solid var(--u-hairline);
+}
+.md-typeset .tabbed-labels > label {
+  font-size: var(--u-fs-nav);
+  font-weight: 500;
+  padding: .4rem .7rem;
+  color: var(--u-text-soft);
+}
+.md-typeset .tabbed-set > input:checked + label {
+  color: var(--u-accent);
+  font-weight: 600;
+}

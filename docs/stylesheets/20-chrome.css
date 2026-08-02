@@ -1,0 +1,58 @@
+/* 20 · CHROME + NAV ════════════════════════════════════════════════════════
+
+   OWNS: the header banner, the tab strip, and the DESKTOP sidebar. The nav
+   reads as a file tree.
+
+   ⚠️ THE PHONE DRAWER IS NOT HERE. Every breakpoint lives in 80-mobile.css,
+   including the drawer's three repairs. Until 2026-08-02 the drawer rules sat
+   three hundred lines from the phone rules in one file and nobody could see
+   they were the same subject.
+
+   ⚠️ THE COLOUR OF THE BANNER IS NOT HERE EITHER. It comes from --u-chrome
+   through the bridge in 00. These rules are the SHAPE of the chrome, which is
+   not a theme decision.
+
+   ⚠️ THE ⓘ / 🔒 BADGE IS OUR OWN FRONTMATTER AND IT IS WANTED. `status:` is a
+   RESERVED Material key that renders a badge beside a nav title; every page
+   here carries one for hooks/visibility.py, so every page gets a glyph. It was
+   misdiagnosed as leftover Material chrome once and hidden, and Michael asked
+   for it back the same morning. DO NOT TIDY IT AWAY.
+
+   Why: ../../CSS-NOTES.md → 20 Chrome. */
+
+.md-header {
+  box-shadow: var(--u-shadow);
+  border-bottom: var(--u-rule-w) solid var(--u-hairline);
+}
+.md-header__title { font-size: var(--u-fs-lead); font-weight: 500; }
+.md-tabs { border-bottom: var(--u-rule-w) solid var(--u-hairline); }
+
+/* The GitHub repo block -- name, stars, forks -- in the header and at the top
+   of the mobile drawer. Hidden 2026-08-01: it reported 0 stars and 0 forks on
+   a private-audience venue reference. The way back to source is now one worded
+   line at the foot of each page (hooks/pagefoot.py).
+
+   ⚠️ `repo_url` in mkdocs.yml STAYS -- MkDocs builds page.edit_url from it.
+   This hides the display, not the config. */
+.md-header__source, .md-nav__source { display: none; }
+
+.md-nav { font-size: var(--u-fs-nav); }
+.md-nav__title {
+  font-size: var(--u-fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--u-track-caps);
+  text-transform: uppercase;
+  color: var(--u-text-soft);
+}
+.md-nav__link { color: var(--u-text); }
+.md-nav__link--active, .md-nav__item .md-nav__link--active {
+  color: var(--u-accent);
+  font-weight: 600;
+}
+
+/* Material ships a shield-lock for `encrypted`. The fallback is deliberate: if
+   a future version drops the variable this degrades to the plain ⓘ rather than
+   rendering an empty box where an icon should be. */
+.md-nav__link .md-status--gated::after {
+  mask-image: var(--md-status--encrypted, var(--md-status));
+}
