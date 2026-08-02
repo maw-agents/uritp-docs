@@ -1,7 +1,7 @@
 ---
 title: Paperwork standards
 id: paperwork-standards
-status: gated
+status: unlisted
 gates: [psm, admin]
 
 ---
