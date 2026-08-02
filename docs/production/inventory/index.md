@@ -1,8 +1,7 @@
 ---
-title: URITP Incident Report
-id: uritp-incident-report
-status: gated
-password: [admin, dev, pm]
+title: Inventory
+id: inventory-home
+status: public
 ---
 
 <!-- ─────────────────────────────────────────────────────────
@@ -45,9 +44,9 @@ password: [admin, dev, pm]
      Full reference: AUTHORING.md at the repo root.
      ───────────────────────────────────────────────────────── -->
 
-# URITP Incident Report
+# Inventories
 
-Source of truth for submitting a URITP Incident Report.
+Source of truth for URITP Inventories.
 
 <!-- ⚠️ That lede is ALSO what the search result shows for this page.
      See AUTHORING-LOOK.md -> "What the search result says". -->
@@ -58,9 +57,12 @@ Source of truth for submitting a URITP Incident Report.
      Body MUST be indented four spaces. That is the whole trick. -->
 
 
-## When to submit
+## SPAC Inventory
 
-For real injuries and near misses. For rehearsals, shop work, lab sessions, performances, and all URITP-related work.
+See [SPAC Tech Spec]
+
+## URITP Inventory
+
 
 
 ## Related
@@ -76,9 +78,8 @@ For real injuries and near misses. For rehearsals, shop work, lab sessions, perf
      rewords it. Never use a full https:// URL for an internal page.
      Full reference: AUTHORING.md -> Links. -->
 
-- [Safety Homepage](@safety-home)
-- [UR Webpage Link to Report]((https://www.sas.rochester.edu/theatre/assets/downloads/stage-management/uritp-workplace-injury-report.s26.pdf))
+- Learn about the different [venues](@venues)
 
 ---
 
-*Revised Aug 2026*
+*Revised Jun 2026.*

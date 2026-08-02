@@ -1,8 +1,7 @@
 ---
-title: URITP Incident Report
-id: uritp-incident-report
-status: gated
-password: [admin, dev, pm]
+title: Reporting Injury and Illness
+id: reporting-injury-and-illness
+status: uplic
 ---
 
 <!-- ─────────────────────────────────────────────────────────
@@ -45,9 +44,9 @@ password: [admin, dev, pm]
      Full reference: AUTHORING.md at the repo root.
      ───────────────────────────────────────────────────────── -->
 
-# URITP Incident Report
+# Reporting Workplace Injuries
 
-Source of truth for submitting a URITP Incident Report.
+Use this procedure for an injury in the workplace, rehearsal space, lab, or other URITP-related 
 
 <!-- ⚠️ That lede is ALSO what the search result shows for this page.
      See AUTHORING-LOOK.md -> "What the search result says". -->
@@ -57,28 +56,34 @@ Source of truth for submitting a URITP Incident Report.
                    danger  = a genuine safety stop
      Body MUST be indented four spaces. That is the whole trick. -->
 
+!!! warning "Important Note"
+    It is the policy of the UR International Theatre Program that students, staff and guest artists working in Todd Theatre while building, hanging, focusing and rigging (etc.), as well as anyone operating potentially dangerous tools, instruments and machinery must  
+    *at all times*
+    be supervised.  In the case of students, this supervision is the responsibility of the UR International Theatre Program Production Manager. 
+    Additionally, no-one is permitted to be working technically in Todd Theatre or Sloan Performing Arts Center without appropriate safety precautions being in place and without wearing appropriate safety protection.  
+    Similarly, it is strictly forbidden for any faculty, staff, student or guest artist to be working in any capacity in Todd Theatre or Sloan Performing Arts Center under the influence of alcohol, drugs, or any illicit substance.
 
-## When to submit
+!!! warning "Minor Injuries"
+    In the event of a minor injury (minor cuts, scrapes, and splinters), seek immediate relief from the nearest [First Aid Kit](@first-aid-kits) and inform your supervisor. Once stable, complete a digital [Incident Report Form](@uritp-incident-report).
 
-For real injuries and near misses. For rehearsals, shop work, lab sessions, performances, and all URITP-related work.
+!!! note "Responsibilites"
+    It is the Production Manager’s responsibility to ensure that for all Tech classes and labs, as well as for any independent technical/building work taking place in the theatre, the First Aid Kit is adequately stocked and maintained. Refills and replenishments of the First Aid Kit need to be submitted to the Production Manager for ordering.
+    It is the responsibity of *all workers* to report unsafe working conditions and to report incidents as they occur.
 
+## Major Injuries
+
+Any injury where a student, staff member, or employee (including visiting artist/instructor) seek any sort of medical attention through University Health Services or other medical care provider, or is not a minor workplace injury must follow the format for injury response.
+
+## Minor Injuries
+
+Such as minor cuts, scrapes, or splinters.
+
+Treat using the nearest available [First Aid Machine](@first-aid-locations).
 
 ## Related
 
-<!-- INTERNAL LINKS ARE IDS, NOT PATHS. Nothing to count, nothing that
-     breaks when this file is copied into a subfolder or moved later:
 
-       a page      [Smith Theatre](@smith-theatre)
-       a heading   [the notes](@smith-theatre#venue-notes)
-
-     A heading you link to needs an explicit {#anchor}, as above, or
-     the link is riding on the heading TEXT and dies when someone
-     rewords it. Never use a full https:// URL for an internal page.
-     Full reference: AUTHORING.md -> Links. -->
-
-- [Safety Homepage](@safety-home)
-- [UR Webpage Link to Report]((https://www.sas.rochester.edu/theatre/assets/downloads/stage-management/uritp-workplace-injury-report.s26.pdf))
 
 ---
 
-*Revised Aug 2026*
+*Revised Aug 2026.*
