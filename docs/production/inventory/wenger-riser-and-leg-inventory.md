@@ -26,6 +26,7 @@ Wenger Versatile Platforms - Black
     Note that platforms may overlap.
 
 | Platform Height | Leg Inventory Count | Complete platforms possible at this height |
+|---|---|---|
 | 8" | 156 | 26 |
 | 16" | 78 | 13 |
 | 24" | 48 | 8 |
