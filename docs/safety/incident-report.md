@@ -77,6 +77,7 @@ For real injuries and near misses. For rehearsals, shop work, lab sessions, perf
      Full reference: AUTHORING.md -> Links. -->
 
 - [Safety Homepage](@safety-home)
+- [UR Webpage Link to Report]((https://www.sas.rochester.edu/theatre/assets/downloads/stage-management/uritp-workplace-injury-report.s26.pdf))
 
 ---
 
