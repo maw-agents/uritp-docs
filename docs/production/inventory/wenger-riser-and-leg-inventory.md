@@ -2,6 +2,7 @@
 title: Wenger Riser and Leg Inventory
 id: wenger-riser-and-leg-inventory
 status: public
+theme: scenic
 ---
 
 # Wenger Riser and Riser Leg Inventory
