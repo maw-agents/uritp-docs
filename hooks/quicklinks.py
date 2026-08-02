@@ -38,6 +38,32 @@ option: links built from slugs, resolved at build time. Michael asked for it
 not a nicety, it is the only version that is not a regression.
 
 =======================================================================
+⚠️ WHY THE HREF IS ROOT-RELATIVE AND NOT PAGE-RELATIVE
+=======================================================================
+
+A nav Link holds ONE url string that is rendered on EVERY page, so a
+page-relative href (`../venues/smith-theatre/`) cannot be right everywhere. It
+is only correct if the theme passes it through MkDocs' `| url` filter, which
+rewrites it per page.
+
+Whether mkdocs-material's partials/nav-item.html applies that filter to a Link
+COULD NOT BE READ: the template fetched back with its tags stripped, which is
+the documented plaintext-flattening hazard in the GitHub read path. Rather than
+assume -- three separate bugs today came from a plausible assumption about
+Material's internals -- the URL is built in the form that is correct under BOTH
+answers:
+
+    /uritp-docs/venues/spac/smith-theatre/
+
+mkdocs.utils.templates.normalize_url returns any path beginning with `/`
+UNCHANGED, so `| url` is a no-op on it. And with no filter at all, a root
+absolute href is still correct from every page. One form, no dependency on an
+unverified detail.
+
+The prefix comes from `site_url`'s path at build time, never hardcoded, so
+moving the site to another base path moves these with it.
+
+=======================================================================
 ONE REGISTRY, ONE REPORT
 =======================================================================
 
@@ -78,7 +104,9 @@ editing the list is already looking.
 
 import difflib
 import os
+import posixpath
 import sys
+from urllib.parse import urlsplit
 
 import yaml
 from mkdocs.structure.nav import Link, Section
@@ -99,7 +127,22 @@ DEFAULT_TITLE = "Quick Links"
 # silently move the shortcuts somewhere surprising. No match -> the top.
 AFTER_ITEM = "Home"
 
-_report = []      # (label, slug, url_or_None, detail_or_None). Safe to print.
+_report = []      # (label, slug, href_or_None, detail_or_None). Safe to print.
+
+
+def _base(config):
+    """The site's root path, with both slashes, from site_url. `/` if unset.
+
+    Never hardcoded: move the site to another base and every quick link moves
+    with it, because this is read at build time from the same value MkDocs uses
+    for everything else.
+    """
+    path = urlsplit(config.get("site_url") or "").path or "/"
+    if not path.startswith("/"):
+        path = "/" + path
+    if not path.endswith("/"):
+        path += "/"
+    return path
 
 
 def _load(config):
@@ -159,7 +202,7 @@ def _load(config):
     return title, clean, None
 
 
-def _resolve(pairs, slugs):
+def _resolve(pairs, slugs, base):
     """(links, misses). `slugs` is links.py's registry: slug -> (url, title)."""
     known = _links.known_ids()
     found = []
@@ -169,8 +212,9 @@ def _resolve(pairs, slugs):
         entry = slugs.get(slug)
         if entry:
             url, _title = entry
-            found.append((label, slug, url))
-            _report.append((label, slug, url, None))
+            href = posixpath.join(base, url.lstrip("/"))
+            found.append((label, slug, href))
+            _report.append((label, slug, href, None))
             continue
 
         near = difflib.get_close_matches(slug, known, n=2, cutoff=0.6)
@@ -207,7 +251,7 @@ def on_nav(nav, config, files):
         )
         return nav
 
-    found, misses = _resolve(pairs, slugs)
+    found, misses = _resolve(pairs, slugs, _base(config))
 
     for label, slug, detail in misses:
         print("::warning::quick links: " + label + " -> " + detail)
@@ -217,9 +261,11 @@ def on_nav(nav, config, files):
         print("quick links: nothing resolved, no section added")
         return nav
 
-    section = Section(title=title, children=[Link(label, url) for label, _s, url in found])
+    section = Section(
+        title=title, children=[Link(label, href) for label, _slug, href in found]
+    )
     # MkDocs sets `parent` while it builds the tree; anything added afterwards
-    # has to do it by hand or the breadcrumb/active logic sees an orphan.
+    # has to do it by hand or the breadcrumb and active logic see an orphan.
     for child in section.children:
         child.parent = section
 
@@ -266,8 +312,8 @@ def on_post_build(config):
         "| Label | Slug | Resolves to |",
         "|---|---|---|",
     ]
-    for label, slug, url, detail in _report:
-        target = "`/" + url + "`" if url else "🔴 " + detail
+    for label, slug, href, detail in _report:
+        target = "`" + href + "`" if href else "🔴 " + detail
         lines.append("| " + label + " | `@" + slug + "` | " + target + " |")
 
     with open(path, "a", encoding="utf-8") as fh:
