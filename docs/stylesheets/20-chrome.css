@@ -50,6 +50,50 @@
   font-weight: 600;
 }
 
+/* ── A FOLDER ROW IS NOT A PAGE ROW ──────────────────────────────────────────
+
+   Michael, 2026-08-02: "I want the nav folder headers to stand out a bit
+   differently than the actual files underneath them so i stop clicking the
+   folder titles that don't hold anything."
+
+   Two problems in one sentence, and they need two different answers.
+
+   FOLDER vs PAGE is the easy half: a folder row becomes a micro-label --
+   smaller, uppercase, tracked out -- which is already this site's grammar for
+   "this is a label, not content" (table headers and .md-nav__title both read
+   that way). Every value is a token, so a theme swap carries it.
+
+   ⚠️ THE ROW THAT "DOESN'T HOLD ANYTHING" IS THE OTHER HALF, AND IT IS A REAL
+   DISTINCTION THE SIDEBAR HAS NEVER DRAWN. Under `navigation.indexes`, a
+   folder WITH an index.md renders as a `.md-nav__container` -- a wrapper
+   holding a real <a> -- and a folder WITHOUT one renders as a bare <label>
+   that only toggles. Identical to look at, completely different to click.
+   So: `:has(> .md-nav__container)` is the folder that goes somewhere, and it
+   gets `text-strong`. A pure toggle gets `text-soft`. Brighter means it is a
+   destination.
+
+   ⚠️ COLOUR IS SET IN A SEPARATE RULE WITH :not(--active) ON PURPOSE. Folding
+   it into the block above would out-specify the active-row accent (0,3,0 beats
+   the 0,2,0 on `.md-nav__item .md-nav__link--active`) and the current page
+   would silently stop being highlighted whenever it is a section index.
+
+   ⚠️ 80-mobile.css CANCELS THE SIZE SHRINK. On a phone the drawer drills down,
+   so a folder row is the primary navigation rather than a heading over a list,
+   and shrinking it costs legibility for no gain. */
+.md-nav__item--nested > .md-nav__link,
+.md-nav__item--nested > .md-nav__container > .md-nav__link {
+  font-size: var(--u-fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--u-track-caps);
+  text-transform: uppercase;
+}
+.md-nav__item--nested > .md-nav__link:not(.md-nav__link--active) {
+  color: var(--u-text-soft);
+}
+.md-nav__item--nested > .md-nav__container > .md-nav__link:not(.md-nav__link--active) {
+  color: var(--u-text-strong);
+}
+
 /* Material ships a shield-lock for `encrypted`. The fallback is deliberate: if
    a future version drops the variable this degrades to the plain ⓘ rather than
    rendering an empty box where an icon should be. */

@@ -72,6 +72,16 @@
     padding: var(--u-pad-row);
     min-height: var(--u-touch);
   }
+  /* ⚠️ CANCEL THE DESKTOP FOLDER-LABEL SHRINK (20-chrome.css). Making a folder
+     row smaller than the pages under it is a DESKTOP idea: there the folder is
+     a heading over a visible list. In the drawer the tree drills DOWN, so that
+     same row is the only way forward and shrinking it costs legibility and tap
+     accuracy for nothing. The uppercase and the tracking stay -- they cost no
+     size and still say "this opens something". */
+  .md-nav--primary .md-nav__item--nested > .md-nav__link,
+  .md-nav--primary .md-nav__item--nested > .md-nav__container > .md-nav__link {
+    font-size: inherit;
+  }
   /* Repair 3. A link nested inside a section-index wrapper. Material zeroes
      its padding here; zero its tap floor in the same place, or the row stacks
      a 44px box inside a 44px box. The wrapper is the row. */
