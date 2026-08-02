@@ -1,0 +1,67 @@
+# QUICK LINKS — the shortcut section that sits under Home in the sidebar.
+#
+# Label on the left, where it goes on the right. Add a line, reorder, delete a
+# line: the sidebar follows. That is the whole file.
+#
+# ═══ THE ONE RULE: A SCHEME MEANS ELSEWHERE. ANYTHING ELSE IS A PAGE HERE. ═══
+#
+#   Smith Theatre: smith-theatre                 a page in this site, by slug
+#   UR Theatre Program: https://example.edu/ttp  straight out to the web
+#   Production office: mailto:pm@example.edu     also fine
+#
+# Nothing to remember and no second key to learn — the value tells you what it
+# is. `http`, `https` and `mailto` are the accepted schemes; anything else with
+# a colon is refused BY NAME rather than emitted, because `javascript:` in a
+# nav link is a real hazard and an unrecognised scheme is far more likely to be
+# a typo than an intention.
+#
+# ⚠️ AN EXTERNAL URL IS NEVER CHECKED. It is passed through exactly as written.
+#    This build cannot know whether somebody else's site is up, and pretending
+#    otherwise would be a check that lies. Paste it correctly.
+#
+# ⚠️ A URL WITHOUT ITS SCHEME READS AS A SLUG AND MISSES.
+#    `www.rochester.edu/ttp` is not a page id, so it gets dropped -- the build
+#    spots the dot and says "if this was meant to be external, it needs
+#    https://". Say the scheme and the question never arises.
+#
+# ═══ WHY A PAGE IS A SLUG AND NOT A PATH ═══
+#
+# `smith-theatre` is the page's permanent identity, declared once in its
+# frontmatter and never changed. Move the file, rename the folder, retitle the
+# page -- the quick link still works, because none of those things are what it
+# points at. Moving Smith Theatre into SPAC/ this morning did not have to touch
+# anything here.
+#
+# The `@` is optional. `@smith-theatre` and `smith-theatre` both work.
+# ⚠️ IF YOU WRITE THE `@`, QUOTE IT: "@smith-theatre". YAML reserves `@` as a
+#    first character and an unquoted one fails to parse with an error that does
+#    not name this file. Leaving it off avoids the question.
+#
+# ⚠️ A SLUG THAT DOES NOT EXIST DOES NOT BREAK THE BUILD. The link is dropped,
+#    the build names it and suggests the closest real slug, and the rest of the
+#    site deploys. Read the run summary -- "🔗 Quick links" -- after any page
+#    rename. That table IS the answer to "what did I just break".
+#
+# ⚠️ A HIDDEN PAGE HAS NO SLUG. `status: hidden` means never built, so it is
+#    not in the registry and a quick link to it is dropped and reported like
+#    any other miss. `using-these-docs` is hidden right now, which is why it is
+#    not in the list below even though it is an obvious candidate. Set it
+#    `unlisted` and it becomes linkable while staying out of the main sidebar
+#    -- which is exactly what a quick link wants.
+#
+# 🔴 DO NOT ADD THESE PAGES TO docs/.nav.yml AS PAGE ENTRIES. awesome-nav's own
+#    rule: a glob never matches something already named in the nav, so listing
+#    Smith Theatre there would REMOVE it from Venues rather than shortcut to
+#    it. These are LINKS to pages that stay where they live.
+#
+# Where it renders: immediately below Home, above Venues. To move it, see
+# AFTER_ITEM in hooks/quicklinks.py.
+
+title: Quick Links
+
+links:
+  Smith Theatre: smith-theatre
+  Todd Theatre: todd-theatre
+  Safety and health: safety
+  Paperwork standards: paperwork-standards
+  UR Theatre Program: https://www.rochester.edu/college/sba/theatre/

@@ -10,13 +10,15 @@ Venue information, technical standards, and production reference for designers, 
 
 This site is the current version. If you are reading a PDF or a slide deck someone emailed you, assume it is out of date and check here instead.
 
-## Where to start
+<!-- The "Where to start" table that used to sit here moved into the sidebar as
+     the Quick Links section, 2026-08-01, Michael. Edit that list in
+     quick-links.yml at the repo root.
 
-| If you are | Start with |
-|---|---|
-| Designing for a Mainstage production | [Smith Theatre](@smith-theatre) |
-| New to the program | [Using these docs](@using-these-docs) |
-| Working a load-in or strike | [Safety and health](@safety) |
+     ⚠️ DO NOT PUT IT BACK ALONGSIDE. Two hand-maintained lists of favourite
+     pages drift the moment one of them gains an entry, and the one nobody
+     edited becomes a wrong answer that still looks authoritative. The sidebar
+     version wins because it is on EVERY page rather than only this one, which
+     is what a shortcut is for. -->
 
 ## What is here and what is not
 

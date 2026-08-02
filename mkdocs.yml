@@ -4,6 +4,7 @@
 #   NOTHING about colour, type, edges or density is set in this file.
 #   (theme.yml is a retired stub as of 2026-08-01 and is read by nothing.)
 # NAVIGATION: generated from the file tree. Order lives in docs/.nav.yml.
+#   Shortcuts under Home live in quick-links.yml (see hooks/quicklinks.py).
 # VISIBILITY: every page needs `status:` in its frontmatter or it will not build.
 # LINKS: internal links are ids, not paths. See hooks/links.py + AUTHORING.md.
 #
@@ -131,6 +132,12 @@ extra:
   # These strings are the badge's `title=`, so they are hover text on a desktop
   # and an accessible name for a screen reader. A phone gets neither: there,
   # the glyph carries the whole meaning.
+  #
+  # ⚠️ A QUICK LINK CARRIES NO BADGE. hooks/quicklinks.py emits Link objects,
+  # not Pages, and this template block only fires on a page's own meta. So the
+  # same document shows an ⓘ or 🔒 in Venues and a bare label under Quick
+  # Links. That is a real inconsistency and it is accepted: a shortcut bar is
+  # about speed, and Material gives a Link no meta to read.
   status:
     public: Open to anyone with the link
     gated: Locked. Asks for a password
@@ -144,7 +151,7 @@ plugins:
   - search        # must be listed: declaring plugins replaces the defaults
   - awesome-nav   # builds the sidebar from docs/, steered by docs/.nav.yml
 
-# ORDER MATTERS in two places.
+# ORDER MATTERS in three places.
 #
 # theme.py FIRST: it writes theme.font into the config, which Material reads
 # when it renders. contrast.py imports theme.py and reuses its grid reading, so
@@ -157,11 +164,18 @@ plugins:
 # 404. pagefoot.py appends after links.py so the edit link lands BELOW the
 # `Linked from` section rather than between the body and it. buildstamp.py is
 # order-independent.
+#
+# links -> quicklinks: quicklinks.py resolves slugs out of the registry
+# links.py publishes in its on_files, and files its misses into links.py's
+# report before that hook writes it in on_post_build. Registered earlier, the
+# Quick Links section would come up empty -- which the hook detects and warns
+# about by name rather than shipping a silently missing sidebar section.
 hooks:
   - hooks/theme.py        # composes theme/*.tsv into --u-* tokens + theme.font
   - hooks/contrast.py     # measures theme/contrast.tsv against every palette
   - hooks/visibility.py   # frontmatter `status:` gate, hidden by default
   - hooks/links.py        # @page-id resolution, backlinks, retired-URL redirects
+  - hooks/quicklinks.py   # the Quick Links section, from quick-links.yml
   - hooks/pagefoot.py     # "Edit this page on GitHub" at the page foot
   - hooks/buildstamp.py   # PR number in the site footer
 
