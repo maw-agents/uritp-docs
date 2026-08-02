@@ -90,6 +90,13 @@ local to fail. Parked themes that will not compose are reported and skipped,
 the same trade the contrast gate makes -- the active one must be perfect,
 parked ones only have to tell you.
 
+⚠️ ``active.txt`` NAMES A THEME, NOT A PALETTE. Getting that wrong froze the
+live site for over two hours on 2026-08-01: ``mclaren`` is a row in
+``colors.tsv``, not ``themes.tsv``, so the build failed correctly and said
+"not a row in themes.tsv" -- true, and useless, because the real answer was
+"you named the wrong table". The failure now lists the legal theme names; a
+fuller hint that recognises a palette by name is owed and not yet built.
+
 REQUIRED is owned HERE, not in the grids, and deliberately: the stylesheet is
 what consumes these names, so the code that pairs with the stylesheet is what
 knows which ones may not be missing.
@@ -137,10 +144,22 @@ OFF = "none"            # `webfont-text = none` means download nothing
 # Every token docs/stylesheets/uritp.css reads, plus the two webfont names.
 # Adding a var() to the stylesheet means adding its name here AND a column to
 # that vector's grid, in the SAME PR.
+#
+# ⚠️ THE LAST FOUR COLOURS ARE THE SEMANTIC SET, and they are what the callout
+# flavours are painted from (uritp.css -> CALLOUT FLAVOURS):
+#
+#     accent   note / abstract / info      the theme's own voice
+#     marker   warning / caution           already the "unconfirmed" amber
+#     bad      failure / danger / bug      already the error red
+#     good     tip / success / question    the positive one
+#
+# They are per-palette and per-mode like every other colour here, so "a
+# slightly different red for this theme" is one cell, not a code change. That
+# is the whole reason DANGER STAYS RED without being hardcoded anywhere.
 REQUIRED = {
     "color": (
         "bg surface-1 surface-2 border hairline text text-strong text-soft "
-        "accent accent-hover on-accent chrome on-chrome marker bad"
+        "accent accent-hover on-accent chrome on-chrome marker bad good"
     ).split(),
     "typography": (
         "webfont-text webfont-code font-body font-mono "
