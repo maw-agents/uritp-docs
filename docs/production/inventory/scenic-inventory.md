@@ -2,7 +2,7 @@
 title: Scenic Inventory
 id: scenic-inventory-home
 status: public
-theme: paper
+theme: scenic
 ---
 
 # Scenic Inventory
