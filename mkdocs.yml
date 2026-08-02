@@ -85,8 +85,29 @@ theme:
         name: Dark
 
   features:
-    - navigation.sections    # sidebar groups instead of one flat list
-    - navigation.expand      # no drilling: whole tree open on desktop
+    # DEFAULT COLLAPSED (Michael, 2026-08-01). TWO features were removed to get
+    #   here and BOTH had to go -- removing either one alone leaves the tree open,
+    #   which is why this is a comment and not a deletion.
+    #
+    #   navigation.expand   -- forced every section open on desktop.
+    #   navigation.sections -- rendered every TOP-LEVEL folder as a flat label
+    #     group. Material draws that case with NO TOGGLE AT ALL, and a section
+    #     label is only a link when the folder happens to carry an index.md.
+    #     Most do not. That is the dead row Michael kept clicking: "folder titles
+    #     that don't hold anything". Dropping the feature turns those rows into
+    #     real expand/collapse toggles with a chevron, which is both a working
+    #     click target and the visual difference between a folder and a page.
+    #
+    #   The ancestors of the page you are on still open by themselves, so a deep
+    #   link never lands inside a closed tree.
+    #
+    #   This changes DESKTOP ONLY. The phone drawer always drilled down and is
+    #   untouched by either feature.
+    #
+    #   PER-FOLDER DEFAULTS ARE NOT POSSIBLE FROM CONFIG. Material has no
+    #   per-section expand key and awesome-nav has no expand feature at all, so
+    #   "open Venues but collapse the rest" needs a custom_dir override of
+    #   partials/nav-item.html. See AUTHORING-LOOK -> The sidebar tree.
     - navigation.indexes     # a folder's index.md becomes its section landing page
     - navigation.top         # back-to-top button
     - toc.follow             # right rail tracks the scroll position
@@ -183,10 +204,25 @@ hooks:
 markdown_extensions:
   - tables
   - admonition                                 # !!! warning "Title"
+  - pymdownx.details                           # ??? / ???+ collapsible callout
   - attr_list                                  # [To be confirmed]{.tbc} + {#anchor}
   - pymdownx.superfences                       # safe nesting inside tabs
   - pymdownx.tabbed: {alternate_style: true}   # === "Lighting"
   - toc: {permalink: true}
+
+  # pymdownx.details ADDED 2026-08-01, Michael. It does one thing: it lets a
+  # callout be written with ??? instead of !!! and renders that as a <details>
+  # element the reader can fold shut. ???+ ships it open.
+  #
+  # It closes a REAL GAP THAT WAS RENDERING AS DEAD CSS: uritp.css already
+  # carried a full set of details/summary rules -- the same box, title bar and
+  # body inset as .admonition, added when the callout spacing was fixed -- for a
+  # component NO AUTHOR COULD PRODUCE, because the extension that emits it was
+  # never enabled. Anyone typing ??? got three literal question marks. Styling
+  # that outlives (or predates) the thing it styles is invisible in both
+  # directions: the CSS looks used and the syntax looks supported.
+  #
+  # No new CSS shipped with this. That is the check that the rules were right.
 
   # material.extensions.preview (instant previews) was REMOVED 2026-08-01.
   #
