@@ -25,6 +25,14 @@
    are relative, and turning them into dials would mean fifty columns nobody
    will ever set. Two named exceptions below: BREAKPOINTS and PRINT.
 
+   ⚠️ ONE MORE, AND IT IS NOT OURS: SYNTAX HIGHLIGHTING. A fenced code block is
+   coloured by Pygments through Material's own `_codehilite.scss` -- dozens of
+   literal hues for keywords, strings and comments, none of them tokens, none
+   of them measured by the contrast gate. It does not show today because no
+   page here has a code block. The moment one lands it will be the most
+   off-palette thing on the screen. Same class as the callout flavours below,
+   an order of magnitude more values.
+
    POINTER: adding, renaming, or dropping a custom class (.tbc, .gate) means
    updating ../../AUTHORING.md in the SAME PR. Authors write .tbc by hand and
    the visibility hook emits .gate, so a renamed class breaks silently.
@@ -91,7 +99,13 @@
 [data-md-color-scheme=slate] .md-typeset { letter-spacing: .006em; }
 [data-md-color-scheme=slate] .md-typeset strong { font-weight: 600; }
 
-/* ══ TYPE. One family. Hierarchy from weight and space, not size alone. ══ */
+/* ══ TYPE. One family. Hierarchy from weight and space, not size alone. ══
+   ⚠️ `font-weight` IS A LITERAL IN EVERY RULE BELOW AND ARGUABLY SHOULD NOT
+   BE. It is the one "proportion" claim in this file that does not survive
+   scrutiny: weight is a style decision, and a typography vector that cannot
+   set it is missing a real dial -- `plex-large` would plausibly want lighter
+   headings at its larger sizes. Not changed here because it is eight rules
+   and its own PR; named so it stops being invisible. */
 .md-typeset {
   font-size: var(--u-fs-body);
   line-height: var(--u-lh-body);
@@ -486,11 +500,11 @@
 
    THE MAP. Twelve flavours, five tokens, and the collapse is deliberate:
 
-       note abstract info    ->  accent         the theme's own voice
-       tip success question  ->  accent-hover   its second hue
-       warning caution       ->  marker         already the "unconfirmed" amber
-       failure danger bug    ->  bad            already the error red
-       example quote         ->  text-soft      neutral, not a signal
+       note abstract info    ->  accent      the theme's own voice
+       tip success question  ->  good        the positive one
+       warning caution       ->  marker      already the "unconfirmed" amber
+       failure danger bug    ->  bad         already the error red
+       example quote         ->  text-soft   neutral, not a signal
 
    Michael's call, 2026-08-01: "danger is the only one that should stay red,
    note and warning could align with the chosen theme colors". DANGER STAYS
@@ -502,13 +516,15 @@
    have been two names for one truth, which is the defect this repo has spent
    the day deleting.
 
-   ⚠️ THE ONE REAL GAP: THERE IS NO GREEN. `success` and `question` are
-   collapsed onto `accent-hover` because no palette has a positive hue, and
-   inventing one across five palettes by eye is what produced two measured
-   contrast failures the last time it was tried. The fix when it is wanted is
-   a `good` column in theme/colors.tsv + its name in REQUIRED (hooks/theme.py)
-   + one line here -- roughly ten minutes, and it should be its own PR so the
-   contrast gate's verdict on the new values is readable on its own.
+   ⚠️ `good` IS THE ONE GENUINELY NEW COLOUR, added in the same PR. No palette
+   had a positive hue -- success and question were briefly collapsed onto
+   `accent-hover`, which was a placeholder and read as one. Every value was
+   derived rather than invented: each palette's OWN `bad` supplied the
+   lightness and chroma, and only the hue swung to 150. ⚠️ THAT IS DERIVED,
+   NOT MEASURED. OKLCH lightness is not perceptually flat across hue, so a
+   lightness that works at red may not at green. theme/contrast.tsv now
+   carries `good` against both `bg` and `surface-2`, as WARN, and the first
+   build's printed numbers are the thing to read before trusting any of them.
 
    The ICONS are still Material's and that is correct: a pencil, an alert
    triangle, a lightning bolt. Those are semantics, not style. Only the tint
@@ -522,7 +538,7 @@
 [data-md-color-scheme] .md-typeset :is(.admonition, details).tip,
 [data-md-color-scheme] .md-typeset :is(.admonition, details).success,
 [data-md-color-scheme] .md-typeset :is(.admonition, details).question {
-  --u-callout: var(--u-accent-hover);
+  --u-callout: var(--u-good);
 }
 [data-md-color-scheme] .md-typeset :is(.admonition, details).warning,
 [data-md-color-scheme] .md-typeset :is(.admonition, details).caution {
@@ -578,14 +594,7 @@
   font-weight: 600;
 }
 
-/* ══ LINKS + CODE ════════════════════════════════════════════════════════
-   ⚠️ SYNTAX HIGHLIGHTING IS NOT THEMED AND CANNOT BE FROM HERE. A fenced code
-   block is coloured by Pygments through Material's own `_codehilite.scss` --
-   dozens of literal hues for keywords, strings and comments, none of them
-   ours, none of them measured by the contrast gate. It does not show today
-   because this site has no code blocks in its pages; the moment one lands,
-   it will be the most off-palette thing on the screen. Same class as the
-   callout flavours above, an order of magnitude more values. */
+/* ══ LINKS + CODE ════════════════════════════════════════════════════════ */
 .md-typeset a { text-underline-offset: .18em; text-decoration-thickness: 1px; }
 .md-typeset code {
   font-size: .8em;
@@ -714,7 +723,13 @@
    it is a physical constraint: ink on white, at maximum contrast, whichever
    skin was on screen. A themeable print palette would let a swap produce an
    unreadable printout, and a venue page taken into a production meeting is
-   exactly the case that must never break. */
+   exactly the case that must never break.
+
+   ⚠️ THE CALLOUT TINTS COME THROUGH HERE TOO, now that they are tokens. On
+   paper they collapse toward ink: a printed callout is told apart by its rule
+   and its title, not by a wash of colour that costs toner and reads as grey
+   anyway. `marker` and `bad` keep a little hue because caution and danger are
+   worth distinguishing on a page somebody is holding in a theatre. */
 @media print {
   :root, [data-md-color-scheme=slate], [data-md-color-scheme=default] {
     --u-bg: #fff;
@@ -729,6 +744,8 @@
     --u-chrome: #fff;
     --u-on-chrome: #000;
     --u-marker: #7a4f00;
+    --u-bad: #8a1010;
+    --u-good: #14532d;
     --u-shadow: none;
   }
   [data-md-color-scheme=slate] .md-typeset { letter-spacing: normal; }
