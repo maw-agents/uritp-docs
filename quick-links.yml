@@ -1,0 +1,44 @@
+# QUICK LINKS — the shortcut section that sits under Home in the sidebar.
+#
+# Label on the left, the target page's `id:` on the right. That is the whole
+# file. Add a line, reorder, delete a line: the sidebar follows.
+#
+#   Smith Theatre: smith-theatre
+#   ^ what the sidebar says   ^ the target page's `id:` from its frontmatter
+#
+# ⚠️ A SLUG IS NOT A PATH. `smith-theatre` is the page's permanent identity,
+#    declared once in its frontmatter and never changed. Move the file, rename
+#    the folder, retitle the page -- the quick link still works, because none
+#    of those things are what it points at. That is the entire reason this
+#    file holds slugs instead of URLs, and it is why moving Smith Theatre into
+#    SPAC/ this morning did not have to touch anything here.
+#
+# The `@` is optional. `@smith-theatre` and `smith-theatre` both work.
+# ⚠️ IF YOU WRITE THE `@`, QUOTE IT: `"@smith-theatre"`. YAML reserves `@` as
+#    a first character and an unquoted one fails to parse with an error that
+#    does not name this file. Leaving the `@` off avoids the question, which
+#    is why the examples below do.
+#
+# ⚠️ A SLUG THAT DOES NOT EXIST DOES NOT BREAK THE BUILD. The link is dropped,
+#    the build names it and suggests the closest real slug, and the rest of the
+#    site deploys. Read the run summary -- "🔗 Quick links" -- after any page
+#    rename. That table IS the answer to "what did I just break".
+#
+# 🔴 DO NOT ADD THESE PAGES TO docs/.nav.yml AS PAGE ENTRIES. awesome-nav's own
+#    rule: a glob never matches something already named in the nav, so listing
+#    Smith Theatre as a page here would REMOVE it from Venues rather than
+#    shortcut to it. These are LINKS to pages that stay where they live. That
+#    distinction is the whole reason this feature is a hook and not four lines
+#    of .nav.yml.
+#
+# Where it renders: immediately below Home, above Venues. To move it, see
+# AFTER_ITEM in hooks/quicklinks.py.
+
+title: Quick Links
+
+links:
+  Smith Theatre: smith-theatre
+  Todd Theatre: todd-theatre
+  Safety and health: safety
+  Paperwork standards: paperwork-standards
+  Using these docs: using-these-docs
