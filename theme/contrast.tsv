@@ -12,8 +12,7 @@ on-chrome	chrome	4.5	fail	The site title and header icons on the banner.
 marker	bg	4.5	warn	The [To be confirmed] pill and the gate label. WARN pending a measured run -- promote to fail once a build has printed a real number.
 bad	bg	4.5	warn	Dead-link markers and error text. WARN for the same reason as marker.
 border	bg	3.0	warn	Input outlines and the table header rule. 3.0 is the WCAG floor for non-text UI. ⚠️ EVERY palette we ship currently fails this -- the hairline look trades it away deliberately. WARN so the shortfall stays visible instead of being deleted; see theme/README.md.
-marker	surface-2	3.0	warn	The warning callout's border and icon against its own tinted title bar. 3.0, not 4.5: it is a rule and a glyph, not text. The words in that bar are `text-strong`, measured above.
-bad	surface-2	3.0	warn	The danger/failure/bug callout's border and icon. Same reasoning.
-good	bg	3.0	warn	The success/question callout's border and icon. ⚠️ NEW 2026-08-01 and NEVER MEASURED -- the values were picked by eye across five palettes, which is exactly what produced two real failures the last time it was done. Read the first build's numbers before trusting any of them.
-good	surface-2	3.0	warn	The same green against its own tinted title bar.
-accent-hover	bg	3.0	warn	Was only a link hover; it is now ALSO the info/tip callout's border and icon, so it needs measuring at rest and not just in passing.
+marker	surface-2	3.0	warn	NEW: the caution callout's border and icon against its own tinted title bar. 3.0 not 4.5 -- it is a rule and a glyph, not text; the words in that bar are text-strong, measured above.
+bad	surface-2	3.0	warn	NEW: the danger callout's border and icon. Same reasoning. ⚠️ These two pairs have NEVER been measured by anything: until 2026-08-01 the callout tints were Material's hardcoded blues and ambers, which this gate cannot see because they are not tokens. Read the first build's numbers.
+accent-hover	bg	3.0	warn	NEW: was only a link's hover state, so it was never measured at rest. It is now ALSO the info/tip callout's border and icon, which sits still on the page and has to hold up.
+accent-hover	surface-2	3.0	warn	The same, against its own tinted title bar.
