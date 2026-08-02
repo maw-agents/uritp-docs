@@ -91,6 +91,12 @@ A folder's `index.md` becomes the page you land on when you click the section na
 (`navigation.indexes`). Give it an `id:` like any other page — **and note that gating
 it locks the whole folder** (see AUTHORING-GATES).
 
+⚠️ **A folder with no `index.md` is a toggle, not a link.** Since 2026-08-01 the
+sidebar is **collapsed by default**, so clicking a section name opens or closes it;
+only a folder carrying an `index.md` also goes somewhere. If a section keeps getting
+clicked in the hope of a landing page, that is the fix — add the `index.md`. The
+reasoning is in AUTHORING-LOOK → *The sidebar tree*.
+
 ---
 
 ## Page anatomy
@@ -235,6 +241,20 @@ problem: it dodges every check above and rots silently.
 
 **The body must be indented four spaces.** That indent is the whole trick.
 
+⚠️ **NONE OF THE SYNTAX ON THIS PAGE IS MARKDOWN.** `!!!` comes from the `admonition`
+extension, `???` from `pymdownx.details`, `===` from `pymdownx.tabbed` and `{.tbc}`
+from `attr_list` — four lines in `mkdocs.yml`, all of which can be switched off. Paste
+any of it into a plain renderer (a GitHub preview, a phone notes app, an email) and it
+comes out as literal punctuation. **This is the site's dialect, not a portable format.**
+
+### The word after the marker is never checked
+
+The extension does not validate the type. It lowercases whatever you typed and passes
+it through as a CSS class, so `!!! wanring` builds clean and renders as an unstyled
+default box: **no error, no warning, no report line.** A misspelled callout looks like
+a deliberately plain one. That is why the list below is short and closed by
+convention — nothing in the build can enforce it.
+
 | Type | Use for | Reads as |
 |---|---|---|
 | `warning` | Anything that costs money or hurts someone | Amber |
@@ -242,6 +262,42 @@ problem: it dodges every check above and rots silently.
 | `danger` | A genuine safety stop | Red |
 
 **Resist inventing more.** Four callout colors on one page means none read as urgent.
+
+⚠️ **`success`, `tip` and `question` are wired but have never been used.** All three
+render in the `good` green from `theme/colors.tsv`. **No page on this site writes one**,
+so that whole colour column ships unseen and its two rows in `theme/contrast.tsv` are
+still first-draft guesses rather than measured numbers. Writing the first one is what
+turns those two warnings into a real reading.
+
+### Collapsible callouts
+
+```markdown
+??? note "Full rigging plot"
+    Folded away until somebody asks for it.
+
+???+ note "Load-in times"
+    The same box, but it opens expanded.
+```
+
+**`???` folds shut. `???+` starts open.** Every type, colour and the four-space indent
+are identical to `!!!` — the only change is that the title bar becomes a toggle.
+
+Use it for bulk a page must *contain* but should not have to *show*: a full fixture
+inventory, a procedure a returning reader already knows, a dimension table under the
+paragraph that summarises it.
+
+⚠️ **Never fold a `warning` or a `danger`.** A safety stop behind a click is a safety
+stop nobody read. Collapse detail, never consequence.
+
+⚠️ **Folding is not hiding.** The text is in the HTML either way, so a folded callout
+is fully in the search index and readable in the page source. To actually withhold
+content, see AUTHORING-GATES.
+
+⚠️ **UNVERIFIED — check before folding anything that matters on paper.** A browser
+prints a closed `<details>` closed. The print block forces *tabs* open; whether it does
+the same for a folded callout has not been tested, and a venue page carried into a
+production meeting is exactly the case that must not lose content. Logged in
+`next-build-spec.md`.
 
 ⚠️ **The GitHub web editor sometimes collapses that four-space indent to one** when you
 edit a line next to it. The body then falls silently out of the box. If a callout looks
@@ -326,6 +382,7 @@ both now fail locally and loudly instead.
 | 9 | A workflow change that trips an approval gate | **Worse than Yes** | Reports `action_required` with zero jobs and never deploys. **Every PR now runs a build check** so this is caught on a branch. |
 | 10 | An `active:` theme, a vector row, or a token that does not resolve in `theme.yml` | **Yes, deliberately** | A theme has no single page to fail on, and a silent fallback to the wrong design is the invisible failure this repo's other rules exist to prevent. Caught on the branch. See AUTHORING-LOOK. |
 | 11 | A colon-plus-space inside an unquoted `note:` in `theme.yml` | **Yes** | YAML reads it as a nested mapping and the whole parse dies, pointing at the wrong line. Quote it. |
+| 12 | A misspelled callout or tab type | No, renders plain | Not validated anywhere. See *Callouts* above. |
 
 ---
 
@@ -367,6 +424,13 @@ A syntax rule described here with no extension behind it is worse than no
 documentation: it teaches something that silently renders as literal text. A status
 value the hook does not recognise is worse still: the page falls back to `hidden` and
 quietly disappears.
+
+⚠️ **AND THE INVERSE HAPPENED, 2026-08-01: an extension with no syntax behind it.**
+`uritp.css` carried a full set of `details`/`summary` rules — box, title bar, body
+inset — for a component **no author could produce**, because `pymdownx.details` was
+never enabled. Anyone typing `???` got three question marks. The CSS looked used and
+the syntax looked supported, and neither was true. **Check both directions: a rule
+without syntax is as invisible as syntax without a rule.**
 
 **Hook order in `mkdocs.yml` is load-bearing for three of the five.** `visibility.py`
 resolves status and drops `hidden` pages before `links.py` builds its id registry, and

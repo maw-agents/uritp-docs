@@ -25,6 +25,34 @@ Companion to [AUTHORING.md](AUTHORING.md) (writing pages) and
 
 ---
 
+## 🔴 `uritp.css` has crossed the size wall — read this before planning a style change
+
+**The stylesheet is 34.8KB. The read and write ceiling for an agent is ~30KB.**
+That is not a style rule, it is a hard tooling limit: a fetch clips silently at
+about 30KB, and a write of a file that cannot be read back whole cannot be
+verified. **So no agent can currently edit `uritp.css` safely at all** — which
+is why the nav typography Michael asked for on 2026-08-01 (*"folder headers
+stand out a bit differently than the actual files underneath them"*) is **not
+shipped**, while the two things reachable from `mkdocs.yml` are.
+
+The file did not get careless; it got documented. Most of its bulk is the
+commentary this repo runs on, and that commentary is the reason its repairs
+stopped repeating.
+
+**The fix is a split, and it is structural** — awaiting Michael's word. The
+natural seams are already the file's own section banners: BRIDGE + A11Y + TYPE
+in the core, CHROME + NAV + the mobile drawer in a second file, the components
+(TABLES, MARKERS, CALLOUTS, TABS, LINKS, GATE, PAGE FOOT) in a third, PRINT in
+its own. `extra_css` takes a list, so the split costs one line in `mkdocs.yml`.
+
+⚠️ **Do not "solve" this by starting a second stylesheet beside the current
+one.** The file's own header argues against exactly that: two sheets drift the
+moment one gains a rule. A SPLIT is one system in four files with the section
+banners as the boundaries; a SECOND SHEET is two systems. `links.css` is the
+allowed exception because it owns one marker and nothing else.
+
+---
+
 ## Editing the stylesheet
 
 `docs/stylesheets/uritp.css` contains **no colour, no font name, and no size,
@@ -73,6 +101,83 @@ the thing you are trying to change.** See the `primary: black` trap below: for
 several of its palette values Material writes a *literal* onto the component
 instead, and no amount of correct variable-setting reaches it.
 
+### Which file owns which question
+
+Every look question splits the same way, and asking it in the wrong file is how
+an hour disappears:
+
+| The question | Lives in |
+|---|---|
+| What colour / size / weight is this | a **cell** in a `theme/*.tsv` grid |
+| Which element gets that value at all | a **rule** in `uritp.css` |
+| Whether the component exists to be styled | a **feature or extension** in `mkdocs.yml` |
+
+So *"make the header bar a different colour"* is a cell (`chrome`), *"make the
+header bar taller"* is a rule, and *"collapse the sidebar by default"* is
+neither — it is a feature flag, and no amount of CSS reaches it.
+
+---
+
+## The sidebar tree
+
+**Collapsed by default since 2026-08-01** (Michael). Sections open on click; the
+ancestors of the page you are on open by themselves, so a deep link never lands
+inside a closed tree.
+
+**Two features had to go, and removing either one alone does nothing:**
+
+| Removed | Did |
+|---|---|
+| `navigation.expand` | Forced every section open on desktop. |
+| `navigation.sections` | Rendered every **top-level** folder as a flat label group — a shape Material draws with **no toggle at all**. |
+
+That second one is the whole complaint. Michael: *"I keep clicking the folder
+titles that don't hold anything."* Under `navigation.sections` a section title
+is only a link if the folder happens to carry an `index.md`, and most do not —
+so the row looked identical to a page and did nothing when tapped. With the
+feature gone those rows are real expand/collapse toggles with a chevron, which
+is simultaneously the fix for the dead click **and** the first honest visual
+difference between a folder and a page.
+
+**Desktop only.** The phone drawer has always drilled down and neither feature
+touched it.
+
+### ⚠️ Per-folder defaults are not available from config
+
+*"Can we set it per folder?"* — **no, and not from any file we currently own.**
+Material's `navigation.expand` is a global boolean with no per-section
+equivalent, and `awesome-nav` (which builds our sidebar) has **no expand or
+collapse feature at all**; it controls order, titles, visibility and nothing
+about open state. Verified against its own docs, not assumed.
+
+What it would actually take, if the answer ever needs to be yes:
+
+`partials/nav-item.html` renders one checkbox per section and decides `checked`
+from `"navigation.expand" in features or nav_item.active`. A `custom_dir`
+override of that partial could read the folder's own frontmatter instead — e.g.
+`expand: true` in a section's `index.md` — and check the box for that section
+only.
+
+Three things to know before anyone starts:
+
+- **It would be this repo's first template override.** Everything so far is
+  config, hooks and CSS, which survive a Material upgrade. A copied partial
+  does not: it silently keeps rendering the old version's markup.
+- **It only reaches folders that have an `index.md`.** A bare section has no
+  page meta — the same limitation that gives those rows no `status:` badge.
+- **Do not try it with a post-build regex on the checkbox ids.** They are
+  positional (`__nav_3`), so the rule would re-point itself the day somebody
+  adds a folder above.
+
+### Making a folder row *look* different from a page row
+
+Asked for on 2026-08-01 and **not yet shipped** — it is a `uritp.css` change and
+that file is over the write cap (see the top of this document). When the split
+lands, the rules belong in the NAV block, keyed on `.md-nav__item--nested >
+.md-nav__link` for the folder rows, and every value must come from a token:
+case and tracking from `track-caps`, colour from `text-soft` or `text-strong`,
+never a literal.
+
 ---
 
 ## The chrome
@@ -85,6 +190,7 @@ a Material default; none should be restored without reading the reason.
 | The GitHub repo block | Name, star count and fork count in the header and at the top of the mobile drawer | It reported **0 stars, 0 forks** on a venue reference nobody stars. `repo_url` stays in `mkdocs.yml` — this hides the display, not the config, and `page.edit_url` is built from it. |
 | `content.action.edit` | A pencil icon top-right of every page | It reads as an invitation to edit a document whose job is to be the settled answer, and it rendered as an anchor with **no text at all** — a screen reader announced the raw URL. Replaced by `hooks/pagefoot.py`. |
 | `material.extensions.preview` | Hover card previewing a link's target | Previews need hover and this site is read on a phone. **⚠️ The second reason once given — that it iconised every nav row — was WRONG; see below.** The removal stands on the hover argument alone, and adding it back now costs nothing in icons. |
+| `navigation.expand` + `navigation.sections` | The whole sidebar tree open, top folders as untoggleable labels | Removed together 2026-08-01 for a default-collapsed tree. See *The sidebar tree* above. **Removing one without the other does nothing.** |
 | `theme.font` | A font block in `mkdocs.yml` | It named the same families as the typography grid, in a second file, kept in agreement by hand. `hooks/theme.py` writes it from `webfont-text` / `webfont-code` now. **Do not add it back** — it would be overwritten every build. |
 | `theme.palette[].primary` | `primary: black` on both palette entries | It **silently defeated the `chrome` token** in both modes. See below. **Do not add it back.** |
 
@@ -155,6 +261,24 @@ There is also no flash-of-unstyled-colour to guard against, whatever an older
 comment implied: `hooks/theme.py` writes its `<style>` into the HTML at **build**
 time, so the tokens are present in the first byte the browser parses. That idea
 was inherited from the runtime app resolver and never applied to a static site.
+
+### Changing an icon — three different answers to one question
+
+"The icon in the header" means at least three separate things here, and each
+lives somewhere else. Get the wrong one and you will edit a file that has no
+effect.
+
+| The icon | Where it comes from | How to change it |
+|---|---|---|
+| **The callout's title-bar glyph** (⚠ on a warning, ✕ on a danger) | A Material CSS variable per type — `--md-admonition-icon--warning` — holding an **inline SVG data-URI**, painted through `mask-image` | Redefine that variable in `uritp.css` with your own SVG. It is a variable, so this is an override and not a patch. |
+| **The site logo** beside the title | `theme.logo` / `theme.icon.logo` in `mkdocs.yml` | Currently unset, so the header shows text alone. Point it at a file in `docs/` or a bundled Material icon name. |
+| **The ⓘ / 🔒 sidebar badge** | Material's `status:` renderer, already overridden by us | See the badge section below — `gated` is re-pointed at the shield-lock in `uritp.css` → NAV. |
+
+⚠️ **An admonition icon is a MASK, not an image.** It is painted in the current
+text colour through `mask-image`, so the SVG's own `fill` is discarded — a
+multi-colour glyph will arrive as a flat silhouette. Use a single-path outline
+icon, and if it needs to be a specific colour, that colour is a token in
+`theme/colors.tsv`, not a fill in the SVG.
 
 ### ⓘ / 🔒 The sidebar badge — a reserved key we did not know we were using
 
@@ -379,6 +503,8 @@ Or a single section, using `attr_list` (already enabled):
   never in the index to leak. A property of hook order, not a filter. **This
   covers every page under a gated folder index**, since the waterfall locks them
   for real.
+- **A folded `???` callout is fully indexed.** Collapsing is a display state;
+  the text is in the HTML either way. Folding is never hiding.
 - **`Linked from` and the edit link are in the index.** They are rendered
   content. They sit at the bottom, after the last heading, so they only surface
   as a teaser on a search that matched nothing better.
