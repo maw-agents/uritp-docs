@@ -453,6 +453,115 @@
   padding-bottom: var(--u-pad-block);
 }
 
+/* ══ CALLOUT FLAVOURS. The colour comes from the palette now. ════════════
+
+   🔴 UNTIL 2026-08-01 THIS WAS THE LAST PLACE ON THE SITE WEARING COLOURS
+   NOBODY CHOSE. Material ships twelve admonition flavours, each with a
+   hardcoded Material-Design tint, in extensions/markdown/_admonition.scss:
+
+       $admonitions: ( "note": pencil-circle $clr-blue-a200, ... )
+       .md-typeset .admonition.#{$name}     { border-color: $tint; }
+       .md-typeset .#{$name} > .admonition-title {
+         background-color: color.adjust($tint, $alpha: -0.9);
+         &::before { background-color: $tint; }
+       }
+
+   So the callout's SHAPE was ours and its COLOUR was Material's -- two owners
+   on one component, and a theme swap moved only one of them. Michael spotted
+   it the honest way: a blue note callout on a site whose palette has no blue
+   in it at all (McLaren is papaya and teal).
+
+   ⚠️ THIRD TIME THIS EXACT PATTERN HAS BITTEN. `primary: black` wrote a
+   literal onto .md-header where we expected a variable; the drawer chevron's
+   absolute position depended on a height we had changed; now this. The rule
+   that keeps emerging: MATERIAL WRITES LITERALS, NOT VARIABLES, WHENEVER A
+   VALUE CAME FROM ITS OWN CONFIG RATHER THAN A SCHEME. Assume a literal and
+   go and look.
+
+   ⚠️ SPECIFICITY: Material's flavour rules are (0,3,0) and ours would tie at
+   (0,3,0), winning only on load order. Order is real but invisible, and a
+   tie that depends on it is a trap for whoever reorders extra_css. The
+   `[data-md-color-scheme]` prefix -- always present, it is what the whole
+   BRIDGE block above keys on -- takes these to (0,4,0) and they win outright.
+
+   THE MAP. Twelve flavours, five tokens, and the collapse is deliberate:
+
+       note abstract info    ->  accent         the theme's own voice
+       tip success question  ->  accent-hover   its second hue
+       warning caution       ->  marker         already the "unconfirmed" amber
+       failure danger bug    ->  bad            already the error red
+       example quote         ->  text-soft      neutral, not a signal
+
+   Michael's call, 2026-08-01: "danger is the only one that should stay red,
+   note and warning could align with the chosen theme colors". DANGER STAYS
+   RED because red means stop, and on a site whose subject includes rigging
+   and lock-up that is worth more than palette purity -- but it stays red as a
+   TOKEN, so each palette tunes its own red and none of them can drift into
+   something illegible. `bad` and `marker` already existed and already did
+   exactly this job; adding `danger` and `warning` columns beside them would
+   have been two names for one truth, which is the defect this repo has spent
+   the day deleting.
+
+   ⚠️ THE ONE REAL GAP: THERE IS NO GREEN. `success` and `question` are
+   collapsed onto `accent-hover` because no palette has a positive hue, and
+   inventing one across five palettes by eye is what produced two measured
+   contrast failures the last time it was tried. The fix when it is wanted is
+   a `good` column in theme/colors.tsv + its name in REQUIRED (hooks/theme.py)
+   + one line here -- roughly ten minutes, and it should be its own PR so the
+   contrast gate's verdict on the new values is readable on its own.
+
+   The ICONS are still Material's and that is correct: a pencil, an alert
+   triangle, a lightning bolt. Those are semantics, not style. Only the tint
+   changes. */
+
+[data-md-color-scheme] .md-typeset :is(.admonition, details).note,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).abstract,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).info {
+  --u-callout: var(--u-accent);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).tip,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).success,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).question {
+  --u-callout: var(--u-accent-hover);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).warning,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).caution {
+  --u-callout: var(--u-marker);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).failure,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).danger,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).bug {
+  --u-callout: var(--u-bad);
+}
+[data-md-color-scheme] .md-typeset :is(.admonition, details).example,
+[data-md-color-scheme] .md-typeset :is(.admonition, details).quote {
+  --u-callout: var(--u-text-soft);
+}
+
+/* Then paint from that one variable. The `[class]` is what carries these past
+   Material's own flavour rules; an unflavoured callout matches nothing above,
+   so --u-callout is unset and the fallback keeps the plain hairline box. */
+[data-md-color-scheme] .md-typeset :is(.admonition, details)[class] {
+  border-color: var(--u-callout, var(--u-hairline));
+}
+[data-md-color-scheme] .md-typeset [class] > :is(.admonition-title, summary) {
+  /* 12% of the tint over the panel surface, rather than over whatever is
+     behind it. Material mixes toward transparency, which lands differently on
+     a callout nested inside another one. */
+  background-color: color-mix(
+    in oklab, var(--u-callout, transparent) 12%, var(--u-surface-2)
+  );
+  border-bottom-color: var(--u-callout, var(--u-hairline));
+}
+[data-md-color-scheme] .md-typeset [class] > :is(.admonition-title, summary)::before {
+  background-color: var(--u-callout, var(--u-text-soft));
+}
+/* The open/closed chevron on a collapsible. Material colours it with the same
+   tint, so it has to move with the rest or one glyph stays Material blue. */
+[data-md-color-scheme] .md-typeset [class] > summary::after {
+  color: var(--u-callout, var(--u-text-soft));
+}
+
 /* ══ CONTENT TABS (department notes). Underline, not pills. ══════════════ */
 .md-typeset .tabbed-labels {
   box-shadow: none;
@@ -469,7 +578,14 @@
   font-weight: 600;
 }
 
-/* ══ LINKS + CODE ════════════════════════════════════════════════════════ */
+/* ══ LINKS + CODE ════════════════════════════════════════════════════════
+   ⚠️ SYNTAX HIGHLIGHTING IS NOT THEMED AND CANNOT BE FROM HERE. A fenced code
+   block is coloured by Pygments through Material's own `_codehilite.scss` --
+   dozens of literal hues for keywords, strings and comments, none of them
+   ours, none of them measured by the contrast gate. It does not show today
+   because this site has no code blocks in its pages; the moment one lands,
+   it will be the most off-palette thing on the screen. Same class as the
+   callout flavours above, an order of magnitude more values. */
 .md-typeset a { text-underline-offset: .18em; text-decoration-thickness: 1px; }
 .md-typeset code {
   font-size: .8em;
