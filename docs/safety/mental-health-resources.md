@@ -9,7 +9,7 @@ status: public
 <!-- No subheader note -->
 
 ## Immediate Reporting | Injury Response
-- [URITP Incident Report](https://www.sas.rochester.edu/theatre/assets/downloads/stage-management/uritp-workplace-injury-report.s26.pdf)
+- [URITP Incident Report](@uritp-incident-reporting)
 - [University employee incident form](http://www.safety.rochester.edu/SMH115.html)
 
 
