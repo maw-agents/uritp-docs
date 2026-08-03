@@ -27,10 +27,20 @@ Cannot leave the theatre space.
 
 __Todd Risers__  
 Versatile Wenger Platforms.
+Platform, leg, and height counts are on the [Wenger Riser and Leg Inventory](@wenger-riser-and-leg-inventory).
 
 - [Dimensional Drawings](https://rochester.box.com/s/ap09aafxc3dsh3fzvxzb5vboc2ddbt4z)
 - [Technical Specifications](https://rochester.box.com/s/zkevunpc2e5gv9susgj8290wbkblljwn)
 - [Owner's Manual](https://rochester.box.com/s/llljehd6u0bguepvs01wn9cd57wxqmjv)
+
+
+## Soft goods
+
+__URITP stock__  
+Masking, scrim, and the curtains kept from previous productions. Counts, dimensions, and construction are on the [Curtain and Soft Goods Inventory](@curtain-and-soft-goods-inventory).
+
+__Smith Theatre house package__  
+Main, travellers, legs, borders, side tabs, house scrim, cyc, and the Gerriets front and rear projection screen. Belongs to the venue; see the SPAC technical specification.
 
 
 ## Related
@@ -50,4 +60,4 @@ Versatile Wenger Platforms.
 
 ---
 
-*Revised Month Year.*
+*Revised Aug 2026.*
