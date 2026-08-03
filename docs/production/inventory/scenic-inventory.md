@@ -36,11 +36,7 @@ Platform, leg, and height counts are on the [Wenger Riser and Leg Inventory](@we
 
 ## Soft goods
 
-__URITP stock__  
-Masking, scrim, and the curtains kept from previous productions. Counts, dimensions, and construction are on the [Curtain and Soft Goods Inventory](@curtain-and-soft-goods-inventory).
-
-__Smith Theatre house package__  
-Main, travellers, legs, borders, side tabs, house scrim, cyc, and the Gerriets front and rear projection screen. Belongs to the venue; see the SPAC technical specification.
+Every drape, both venues and both owners, is on the [Curtain and Soft Goods Inventory](@curtain-and-soft-goods-inventory): the Smith Theatre house package, URITP masking and scrim, and the previous show stock. That page carries the dimensions.
 
 
 ## Related
