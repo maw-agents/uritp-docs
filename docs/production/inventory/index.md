@@ -63,6 +63,9 @@ See [SPAC Tech Spec]
 
 ## URITP Inventory
 
+- [Scenic Inventory](@scenic-inventory-home) — combined URITP and SPAC scenic notes
+- [Curtain and Soft Goods Inventory](@curtain-and-soft-goods-inventory) — masking, scrim, and previous show curtains
+- [Wenger Riser and Leg Inventory](@wenger-riser-and-leg-inventory) — Todd Theatre platforms and leg counts
 
 
 ## Related
@@ -82,4 +85,4 @@ See [SPAC Tech Spec]
 
 ---
 
-*Revised Jun 2026.*
+*Revised Aug 2026.*
