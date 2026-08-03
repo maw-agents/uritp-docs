@@ -7,12 +7,37 @@ theme: scenic
 
 # Curtain and Soft Goods Inventory
 
-URITP-owned drapery: masking, scrim, and the curtain stock left over from previous productions.
+Every drape URITP hangs, in either venue: the Smith Theatre house package, URITP masking, and the curtain stock left over from previous productions.
 
-!!! note "This is program stock, not a house package"
-    Everything below belongs to URITP and moves between spaces. The permanently hung Smith Theatre drape package (main, travellers, legs, borders, side tabs, house scrim, cyc, and the Gerriets projection screen) belongs to the venue and lives in the SPAC technical specification, not here.
+!!! note "Two owners, one page"
+    The Smith Theatre package is **owned by SPAC** and does not leave the building. The masking and previous-show stock is **owned by URITP** and travels. They are listed together because you pick from all of it when you plan a hang, and because this page is the only place the dimensions exist in one table.
 
-## Masking — Todd Union
+## Smith Theatre house package (SPAC)
+
+Black velour throughout unless noted. Purchased 2020 with the building. A bottom pipe is available.
+
+| Count | Drape | Height | Width | Fullness | Color | Notes |
+|---|---|---|---|---|---|---|
+| 1 set | Main | 17'-10" | 25'-0" each | 100% | Black | |
+| 1 set | Traveller | 17'-10" | 25'-0" each | 100% | Black | Part of rep, hung under catwalk 6 |
+| 4 pair | Legs | 18'-0" | 5'-6" | Flat | Black | |
+| 4 | Border | 4'-0" | 50'-0" | Flat | Black | |
+| 21 | Side tabs | 18'-0" | 9'-0" | Flat | Black | Mask the walls |
+| 1 | Scrim | 18'-0" | 48'-0" | Flat | Black | Typically tied to 40' with a fold back |
+| 1 | Cyc | 18'-0" | 40'-0" | Flat | White | Resized from 48'; see below |
+| 1 | Screen | 18'-0" | 44'-0" | Flat | — | Gerriets Opera 200, light blue, front and rear projection |
+
+### What is hanging right now
+
+**19 of the 21 side tabs and both traveller halves are up.** Every leg, border and main drape is folded and in stock. That is the normal state: side tabs and the traveller are season-long masking, everything else gets hung per show.
+
+!!! warning "The cyc and one other stock curtain were permanently resized to 40'"
+    The alteration is complete. The cyc is **40'-0" wide now**, not 48'. Older paperwork still lists the original width and describes tying it off to 40' with a fold back, which is no longer what is happening. The second altered curtain is not named in the record: [To be confirmed]{.tbc}.
+
+!!! note "Side tab count: 21, not 18"
+    The legacy inventory sheet says 18. The unit records say 21, and 19 of them are hung. **Trust 21.** Somebody added three and never updated the sheet.
+
+## URITP masking — Todd Union
 
 Black velour, hung as masking for Todd Union productions.
 
@@ -21,13 +46,13 @@ Black velour, hung as masking for Todd Union productions.
 | 8 | 17'-0" | 15'-0" | Stitched with fullness |
 | 2 | 13'-0" | 10'-9" | Stitched with fullness |
 
-## Scrim
+## URITP scrim
 
 | Count | Height | Width | Construction | Color |
 |---|---|---|---|---|
 | 1 | 17'-0" | 36'-0" | Sewn flat | Black |
 
-## Previous show curtains
+## Previous show curtains (URITP)
 
 Stock kept from earlier productions. All of it is usable, but none of it was cut for a standing position: check the finished edge and the top hardware before you plan a hang around any of it.
 
@@ -43,16 +68,21 @@ Stock kept from earlier productions. All of it is usable, but none of it was cut
 
 ## Known gaps
 
-!!! note "The 2025 additions are missing from these tables"
-    Revision 2.1 of the scenic inventory (October 2025) records curtains brought in from *The African Company Presents Richard III*, *Othello*, *Oedipus*, and *Rosencrantz and Guildenstern*, plus a mylar curtain. **None of them appear in any drape table, here or in the source document.** Counts, dimensions, and construction are [To be confirmed]{.tbc}. The pieces need to be found and measured before this page is complete.
+!!! warning "The 2025 additions were never recorded anywhere"
+    Revision 2.1 of the scenic inventory (October 2025) states that curtains from *The African Company Presents Richard III*, *Othello*, *Oedipus*, and *Rosencrantz and Guildenstern* were added, plus a mylar curtain. **A search of every inventory source found no record of any of them** — not in the drape tables, not in the unit records, not in the fixture catalog. Counts, dimensions, and construction are all [To be confirmed]{.tbc}.
 
-Storage locations are not recorded for any of the stock above. [To be confirmed]{.tbc}
+    The only mylar in the record is the twelve rolling **mirror frames** built for *Thought/Crime* (mylar stretched on wood frames, on casters). Those are scenery, not a curtain, and may be what the changelog line was reaching for. Unverified.
+
+    **Find these pieces and measure them.** Until then the previous-show stock table above is incomplete by at least five entries.
+
+Storage locations are not recorded for the URITP stock. The SPAC package is stored at SPAC, but no room is recorded. [To be confirmed]{.tbc}
 
 ## Related
 
 - [Scenic Inventory](@scenic-inventory-home)
 - [Wenger Riser and Leg Inventory](@wenger-riser-and-leg-inventory)
 - [Smith Theatre](@smith-theatre)
+- [Smith Theatre rigging detail](@smith-rigging-detail)
 
 ---
 
